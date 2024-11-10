@@ -40,19 +40,20 @@ namespace RTWServer.ServerCore
 
             while (true)
             {
-                TcpClient client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                Interlocked.Increment(ref _acceptCount);
+                TcpClient tcpClient = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                SetSocketOption(tcpClient.Client);
+
+                IClient client = _clientFactory.CreateClient(tcpClient);
                 HandleTcpClient(client);
+
+                Interlocked.Increment(ref _acceptCount);
             }
 
             // ReSharper disable once FunctionNeverReturns
         }
 
-        private async void HandleTcpClient(TcpClient tcpClient)
+        private async void HandleTcpClient(IClient client)
         {
-            SetSocketOption(tcpClient.Client);
-            IClient client = _clientFactory.CreateClient(tcpClient);
-
             try
             {
                 var buffer = new byte[BufferSize]; // TODO: 버퍼 풀 사용으로 교체
