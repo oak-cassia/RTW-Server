@@ -16,7 +16,7 @@ public class GameClient : IClient
     {
         var stream = GetStream();
 
-        // 패킷 생성
+        // TODO : 패킷 헤더 크기 가져오기
         var header = new byte[8];
         var packetIdBytes = BitConverter.GetBytes((int)packetId);
         var lengthBytes = BitConverter.GetBytes(payload.Length + header.Length);

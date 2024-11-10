@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RTWServer.Game;
 using RTWServer.ServerCore;
 
+// TODO : 설정 파일에서 IP 주소와 포트 번호를 읽어와서 사용하도록 수정
 string ipAddress = "127.0.0.1";
 int port = 5000;
 

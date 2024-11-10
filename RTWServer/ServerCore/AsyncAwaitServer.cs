@@ -8,9 +8,9 @@ namespace RTWServer.ServerCore
     class AwaitServer
     {
         // 서버 상태를 기록하는 필드
-        public int AcceptCount; // 수락된 연결 수
-        public int ReadCount; // 읽은 데이터 수
-        public int CloseByInvalidStream; // 잘못된 스트림으로 종료된 수
+        private int _acceptCount; // 수락된 연결 수
+        private int _readCount; // 읽은 데이터 수
+        private int _closeByInvalidStream; // 잘못된 스트림으로 종료된 수
 
         private readonly IPEndPoint _endPoint; // 서버가 수신 대기할 IP 엔드포인트
         private readonly IPacketHandler _packetHandler;
@@ -42,7 +42,7 @@ namespace RTWServer.ServerCore
             {
                 // 클라이언트 연결 요청을 비동기적으로 수락
                 TcpClient client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                Interlocked.Increment(ref AcceptCount); // 연결 수를 증가
+                Interlocked.Increment(ref _acceptCount); // 연결 수를 증가
                 HandleTcpClient(client); // 연결된 클라이언트 처리
             }
 
@@ -78,7 +78,7 @@ namespace RTWServer.ServerCore
                 // 스트림에서 headerSize만큼 데이터를 읽음
                 if (!await Fill(client.GetStream(), buffer, HeaderSize, 0).ConfigureAwait(false))
                 {
-                    Interlocked.Increment(ref CloseByInvalidStream); // 잘못된 스트림 카운트 증가
+                    Interlocked.Increment(ref _closeByInvalidStream); // 잘못된 스트림 카운트 증가
                     throw new InvalidOperationException("Failed to read header.");
                 }
 
@@ -88,14 +88,14 @@ namespace RTWServer.ServerCore
 
                 if (packetLength <= HeaderSize || packetLength > BufferSize)
                 {
-                    Interlocked.Increment(ref CloseByInvalidStream); // 잘못된 스트림 카운트 증가
+                    Interlocked.Increment(ref _closeByInvalidStream); // 잘못된 스트림 카운트 증가
                     throw new InvalidOperationException("Invalid packet length.");
                 }
 
                 int payloadSize = packetLength - HeaderSize;
                 if (!await Fill(client.GetStream(), buffer, payloadSize, HeaderSize).ConfigureAwait(false))
                 {
-                    Interlocked.Increment(ref CloseByInvalidStream); // 잘못된 스트림 카운트 증가
+                    Interlocked.Increment(ref _closeByInvalidStream); // 잘못된 스트림 카운트 증가
                     throw new InvalidOperationException("Failed to read payload.");
                 }
 
@@ -116,7 +116,7 @@ namespace RTWServer.ServerCore
             while (rest > 0) // 남은 데이터를 모두 읽을 때까지 반복
             {
                 var length = await stream.ReadAsync(buffer, offset, rest).ConfigureAwait(false); // 데이터를 읽음
-                Interlocked.Increment(ref ReadCount); // 읽기 작업 수 증가
+                Interlocked.Increment(ref _readCount); // 읽기 작업 수 증가
 
                 if (length == 0) // 읽은 데이터가 없으면 false 반환
                 {
@@ -140,9 +140,9 @@ namespace RTWServer.ServerCore
         public override string ToString()
         {
             return string.Format("accept({0}) invalid_stream({1}) read({2})",
-                AcceptCount,
-                CloseByInvalidStream,
-                ReadCount
+                _acceptCount,
+                _closeByInvalidStream,
+                _readCount
             );
         }
     }
