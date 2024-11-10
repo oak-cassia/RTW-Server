@@ -1,0 +1,100 @@
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# MonoDevelop/Xamarin Studio
+*.userprefs
+
+# Mono auto generated files
+mono_crash.*
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options directory
+.vs/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# .NET Core
+artifacts/
+*.nuget.g.props
+*.nuget.g.targets
+project.lock.json
+project.fragment.lock.json
+project.assets.json
+project.nuget.cache
+project.packagespec.json
+*.genruntimeconfig.cache
+
+# Publish Web Output
+*.publish.xml
+*.azurePubxml
+*.pubxml
+*.publishproj
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Rider-specific
+rider.project.model.nuget.info
+rider.project.restore.info
+
+# Logs
+*.log
+*.tlog
+
+# Build files
+*.dll
+*.exe
+*.pdb
+*.json
+*.deps.json
+*.runtimeconfig.json
+apphost.exe
+
+# Temporary files
+*.tmp
+*.bak
+
+# IDE-specific files
+.idea/
+.vscode/
+
+# Test coverage and debugging
+CoverletSourceRootsMapping_*
+*.sourcelink.json
+
+# Generated files
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.GlobalUsings.g.cs

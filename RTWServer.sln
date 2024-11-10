@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTWServer", "RTWServer\RTWServer.csproj", "{0C07E70E-EE4A-43FE-8EF7-00800103DAA7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTWTest", "RTWTest\RTWTest.csproj", "{E7860BB8-20C0-41A1-8F84-A08CF16D891F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTWClient", "RTWClient\RTWClient.csproj", "{B252D1DA-0A5F-4CE2-8679-AAE4FFE80A0E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0C07E70E-EE4A-43FE-8EF7-00800103DAA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C07E70E-EE4A-43FE-8EF7-00800103DAA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C07E70E-EE4A-43FE-8EF7-00800103DAA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C07E70E-EE4A-43FE-8EF7-00800103DAA7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7860BB8-20C0-41A1-8F84-A08CF16D891F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7860BB8-20C0-41A1-8F84-A08CF16D891F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7860BB8-20C0-41A1-8F84-A08CF16D891F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7860BB8-20C0-41A1-8F84-A08CF16D891F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B252D1DA-0A5F-4CE2-8679-AAE4FFE80A0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B252D1DA-0A5F-4CE2-8679-AAE4FFE80A0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B252D1DA-0A5F-4CE2-8679-AAE4FFE80A0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B252D1DA-0A5F-4CE2-8679-AAE4FFE80A0E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
