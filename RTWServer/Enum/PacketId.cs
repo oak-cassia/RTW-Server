@@ -1,4 +1,4 @@
-namespace RTWServer.Game;
+namespace RTWServer.Enum;
 
 public enum PacketId
 {

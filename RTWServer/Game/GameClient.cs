@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using RTWServer.Enum;
 using RTWServer.ServerCore;
 
 namespace RTWServer.Game;
@@ -14,8 +15,8 @@ public class GameClient : IClient
 
     public async Task SendPacketAsync(PacketId packetId, byte[] payload)
     {
-        var stream = GetStream();
-
+        // TODO : Send Lock 필요
+        // TODO : 구조 개선 및 예외 처리 필요
         // TODO : 패킷 헤더 크기 가져오기
         var header = new byte[8];
         var packetIdBytes = BitConverter.GetBytes((int)packetId);
@@ -30,6 +31,7 @@ public class GameClient : IClient
         Array.Copy(payload, 0, packet, header.Length, payload.Length);
 
         // 패킷 전송
+        var stream = GetStream();
         await stream.WriteAsync(packet, 0, packet.Length);
     }
 
