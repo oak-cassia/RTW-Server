@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using RTWServer.Game;
 using RTWServer.ServerCore;
@@ -14,11 +13,12 @@ try
 
     var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole(); });
 
-    var server = new AwaitServer(
+    var server = new AsyncAwaitServer(
         endpoint,
         new GamePacketHandler(loggerFactory),
         loggerFactory,
-        new GameClientFactory()
+        new GameClientFactory(),
+        new GamePacketFactory()
     );
 
     Console.WriteLine($"Server running at {ipAddress}:{port}");
