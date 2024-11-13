@@ -40,7 +40,7 @@ namespace RTWServer.ServerCore
 
             while (true)
             {
-                TcpClient tcpClient = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                TcpClient tcpClient = await listener.AcceptTcpClientAsync();
                 SetSocketOption(tcpClient.Client);
 
                 IClient client = _clientFactory.CreateClient(tcpClient);
@@ -56,27 +56,31 @@ namespace RTWServer.ServerCore
         {
             try
             {
-                var buffer = new byte[BufferSize]; // TODO: 버퍼 풀 사용으로 교체
+                var buffer = new byte[BufferSize]; // TODO: 메모리 풀 사용하는 거 공부하고 적용해보기, 카피 최소화 하자
 
                 // 클라이언트로부터 패킷을 계속 읽음
                 while (true)
                 {
                     var stream = client.GetStream();
-                    var packet = await HandleNetworkStream(stream, buffer).ConfigureAwait(false);
 
-                    await _packetHandler.HandlePacketAsync(packet, client).ConfigureAwait(false);
+                    var packet = await HandleNetworkStream(stream, buffer);
+
+                    await _packetHandler.HandlePacketAsync(packet, client);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while handling the client.");
+            }
+            finally
+            {
                 client.Close();
             }
         }
 
         private async Task<IPacket> HandleNetworkStream(NetworkStream stream, byte[] buffer)
         {
-            if (!await Fill(stream, buffer, HeaderSize, HeaderPacketIdOffset).ConfigureAwait(false))
+            if (!await Fill(stream, buffer, HeaderSize, HeaderPacketIdOffset))
             {
                 Interlocked.Increment(ref _closeByInvalidStream);
                 throw new InvalidOperationException("Failed to read header.");
@@ -92,7 +96,7 @@ namespace RTWServer.ServerCore
 
             int payloadSize = packetLength - HeaderSize;
 
-            if (!await Fill(stream, buffer, payloadSize, HeaderSize).ConfigureAwait(false))
+            if (!await Fill(stream, buffer, payloadSize, HeaderSize))
             {
                 Interlocked.Increment(ref _closeByInvalidStream);
                 throw new InvalidOperationException("Failed to read payload.");
@@ -116,7 +120,7 @@ namespace RTWServer.ServerCore
 
             while (rest > 0) // 남은 데이터를 모두 읽을 때까지 반복
             {
-                var length = await stream.ReadAsync(buffer, offset, rest).ConfigureAwait(false);
+                var length = await stream.ReadAsync(buffer, offset, rest);
                 Interlocked.Increment(ref _readCount);
 
                 if (length == 0)
