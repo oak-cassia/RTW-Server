@@ -15,7 +15,7 @@ public class GamePacketHandler : IPacketHandler
 
     public async Task HandlePacketAsync(IPacket packet, IClient client)
     {
-        _logger.LogInformation($"PacketId: {packet.PacketId}");
+        // _logger.LogInformation($"PacketId: {packet.PacketId}");
 
         switch (packet.PacketId)
         {
