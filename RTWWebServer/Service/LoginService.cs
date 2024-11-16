@@ -1,12 +1,13 @@
 using NetworkDefinition.ErrorCode;
-
+using RTWWebServer.Authentication;
 using RTWWebServer.Database.Repository;
 
 namespace RTWWebServer.Service;
 
-public class LoginService(IAccountRepository accountRepository, ILogger<LoginService> logger) : ILoginService
+public class LoginService(IAccountRepository accountRepository, IPasswordHasher passwordHasher, ILogger<LoginService> logger) : ILoginService
 {
     private readonly IAccountRepository _accountRepository = accountRepository;
+    private readonly IPasswordHasher _passwordHasher = passwordHasher;
     private readonly ILogger<LoginService> _logger = logger;
 
     public async Task<WebServerErrorCode> LoginAsync(string email, string password)
@@ -20,7 +21,8 @@ public class LoginService(IAccountRepository accountRepository, ILogger<LoginSer
                 return WebServerErrorCode.AccountNotFound;
             }
 
-            if (account.Password != password)
+            var hashedPassword = _passwordHasher.CalcHashedPassword(password, account.Salt);
+            if (hashedPassword != account.Password)
             {
                 _logger.LogInformation($"Password for account with email {email} is incorrect");
                 return WebServerErrorCode.InvalidPassword;

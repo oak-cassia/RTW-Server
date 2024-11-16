@@ -23,6 +23,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\RTWServer\RTWServer.csproj" />
+      <ProjectReference Include="..\RTWWebServer\RTWWebServer.csproj" />
     </ItemGroup>
 
     <ItemGroup>
