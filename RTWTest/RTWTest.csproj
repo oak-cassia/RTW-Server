@@ -25,4 +25,9 @@
       <ProjectReference Include="..\RTWServer\RTWServer.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="GameServer\" />
+      <Folder Include="Webserver\" />
+    </ItemGroup>
+
 </Project>
