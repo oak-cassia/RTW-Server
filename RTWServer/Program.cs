@@ -11,7 +11,11 @@ try
 {
     var endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
-    var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole(); });
+    var loggerFactory = LoggerFactory.Create(builder =>
+    {
+        builder.AddConsole()
+            .SetMinimumLevel(LogLevel.Debug);
+    });
 
     var server = new AsyncAwaitServer(
         endpoint,
