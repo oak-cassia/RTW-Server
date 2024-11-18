@@ -4,27 +4,28 @@ using RTWWebServer.Database.Repository;
 
 namespace RTWWebServer.Service;
 
-public class LoginService(IAccountRepository accountRepository, IPasswordHasher passwordHasher, ILogger<LoginService> logger) : ILoginService
+public class LoginService(
+    IAccountRepository accountRepository,
+    IPasswordHasher passwordHasher,
+    IGuidGenerator guidGenerator,
+    IGuestRepository guestRepository,
+    ILogger<LoginService> logger) : ILoginService
 {
-    private readonly IAccountRepository _accountRepository = accountRepository;
-    private readonly IPasswordHasher _passwordHasher = passwordHasher;
-    private readonly ILogger<LoginService> _logger = logger;
-
     public async Task<WebServerErrorCode> LoginAsync(string email, string password)
     {
         try
         {
-            var account = await _accountRepository.FindByEmail(email);
+            var account = await accountRepository.FindByEmailAsync(email);
             if (account == null)
             {
-                _logger.LogInformation($"Account with email {email} not found");
+                logger.LogInformation($"Account with email {email} not found");
                 return WebServerErrorCode.AccountNotFound;
             }
 
-            var hashedPassword = _passwordHasher.CalcHashedPassword(password, account.Salt);
+            var hashedPassword = passwordHasher.CalcHashedPassword(password, account.Salt);
             if (hashedPassword != account.Password)
             {
-                _logger.LogInformation($"Password for account with email {email} is incorrect");
+                logger.LogInformation($"Password for account with email {email} is incorrect");
                 return WebServerErrorCode.InvalidPassword;
             }
 
@@ -32,7 +33,49 @@ public class LoginService(IAccountRepository accountRepository, IPasswordHasher 
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error in LoginAsync: {ex.Message}");
+            logger.LogError($"Error in LoginAsync: {ex.Message}");
+            return WebServerErrorCode.InternalServerError;
+        }
+    }
+
+    public async Task<string> GuestRegisterAsync()
+    {
+        try
+        {
+            var guid = guidGenerator.GenerateGuid();
+            logger.LogInformation($"Generated guid {guid.ToString()}");
+            await guestRepository.CreateGuestAsync(guid.ToByteArray());
+            return guid.ToString();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to register as guest");
+            return string.Empty;
+        }
+    }
+
+    public async Task<WebServerErrorCode> GuestLoginAsync(string guestGuid)
+    {
+        try
+        {
+            var guest = await guestRepository.FindByGuidAsync(Guid.Parse(guestGuid).ToByteArray());
+            if (guest == null)
+            {
+                logger.LogInformation($"Guest with guid {guestGuid} not found");
+                return WebServerErrorCode.GuestNotFound;
+            }
+
+            if (guestGuid != guest.Guid.ToString())
+            {
+                logger.LogInformation($"Guid for guest with guid {guestGuid} is incorrect. Expected {guest.Guid.ToString()}");
+                return WebServerErrorCode.GuestNotFound;
+            }
+
+            return WebServerErrorCode.Success;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to login as guest");
             return WebServerErrorCode.InternalServerError;
         }
     }
