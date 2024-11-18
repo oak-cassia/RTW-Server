@@ -4,6 +4,6 @@ namespace RTWWebServer.Service;
 
 public interface ILoginService
 {
-    Task<WebServerErrorCode> LoginAsync(string email, string password);
-    Task<WebServerErrorCode> GuestLoginAsync(string guestGuid);
+    Task<(WebServerErrorCode errorCode, string authToken)> LoginAsync(string email, string password);
+    Task<(WebServerErrorCode errorCode, string authToken)> GuestLoginAsync(string guestGuid);
 }
