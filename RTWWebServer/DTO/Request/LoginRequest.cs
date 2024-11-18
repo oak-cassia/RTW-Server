@@ -1,4 +1,4 @@
-namespace RTWWebServer.RequestResponse;
+namespace RTWWebServer.DTO.Request;
 
 public class LoginRequest(string email, string password)
 {

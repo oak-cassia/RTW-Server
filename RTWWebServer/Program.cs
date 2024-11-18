@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using MySqlConnector;
+using RTWWebServer.Authentication;
 using RTWWebServer.Configuration;
 using RTWWebServer.Database.Repository;
 using RTWWebServer.Service;
@@ -12,6 +13,7 @@ builder.Services.Configure<DatabaseConfiguration>(configuration.GetSection(nameo
 // Add services to the container.
 
 builder.Services.AddControllers();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -44,7 +46,10 @@ void InjectDependencies()
         connection.Open();
         return connection;
     });
-    
+
+    builder.Services.AddSingleton<IGuidGenerator, GuidGenerator>();
+    builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
     builder.Services.AddTransient<IAccountRepository, AccountRepository>();
+    builder.Services.AddTransient<IGuestRepository, GuestRepository>();
     builder.Services.AddTransient<ILoginService, LoginService>();
 }

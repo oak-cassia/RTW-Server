@@ -1,37 +1,51 @@
 using NetworkDefinition.ErrorCode;
-
+using RTWWebServer.Authentication;
 using RTWWebServer.Database.Repository;
 
 namespace RTWWebServer.Service;
 
-public class LoginService(IAccountRepository accountRepository, ILogger<LoginService> logger) : ILoginService
+public class LoginService(
+    IAccountRepository accountRepository,
+    IPasswordHasher passwordHasher,
+    IGuestRepository guestRepository,
+    IAuthTokenGenerator authTokenGenerator,
+    ILogger<LoginService> logger
+) : ILoginService
 {
-    private readonly IAccountRepository _accountRepository = accountRepository;
-    private readonly ILogger<LoginService> _logger = logger;
-
-    public async Task<WebServerErrorCode> LoginAsync(string email, string password)
+    public async Task<(WebServerErrorCode errorCode, string authToken)> LoginAsync(string email, string password)
     {
-        try
+        var account = await accountRepository.FindByEmailAsync(email);
+        if (account == null)
         {
-            var account = await _accountRepository.FindByEmail(email);
-            if (account == null)
-            {
-                _logger.LogInformation($"Account with email {email} not found");
-                return WebServerErrorCode.AccountNotFound;
-            }
-
-            if (account.Password != password)
-            {
-                _logger.LogInformation($"Password for account with email {email} is incorrect");
-                return WebServerErrorCode.InvalidPassword;
-            }
-
-            return WebServerErrorCode.Success;
+            logger.LogInformation($"Account with email {email} not found");
+            return (WebServerErrorCode.InvalidEmail, string.Empty);
         }
-        catch (Exception ex)
+
+        var hashedPassword = passwordHasher.CalcHashedPassword(password, account.Salt);
+        if (hashedPassword != account.Password)
         {
-            _logger.LogError($"Error in LoginAsync: {ex.Message}");
-            return WebServerErrorCode.InternalServerError;
+            logger.LogInformation($"Password for account with email {email} is incorrect");
+            return (WebServerErrorCode.InvalidPassword, string.Empty);
         }
+
+        // Todo: AuthToken 반환, Redis 저장, UserId 반환
+        var authToken = authTokenGenerator.GenerateToken();
+
+        return (WebServerErrorCode.Success, authToken);
+    }
+
+    public async Task<(WebServerErrorCode errorCode, string authToken)> GuestLoginAsync(string guestGuid)
+    {
+        var guest = await guestRepository.FindByGuidAsync(Guid.Parse(guestGuid).ToByteArray());
+        if (guest == null)
+        {
+            logger.LogInformation($"Guest with guid {guestGuid} not found");
+            return (WebServerErrorCode.GuestNotFound, string.Empty);
+        }
+
+        // Todo: AuthToken 반환, Redis 저장, UserId 반환
+        var authToken = authTokenGenerator.GenerateToken();
+
+        return (WebServerErrorCode.Success, authToken);
     }
 }
