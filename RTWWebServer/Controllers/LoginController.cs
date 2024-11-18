@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.RequestResponse;
+using RTWWebServer.DTO.Request;
+using RTWWebServer.DTO.response;
 using RTWWebServer.Service;
 
 namespace RTWWebServer.Controllers;
@@ -10,32 +11,42 @@ namespace RTWWebServer.Controllers;
 public class LoginController(ILogger<LoginController> logger, ILoginService loginService) : ControllerBase
 {
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<LoginResponse> Login([FromBody] LoginRequest request)
     {
         try
         {
-            var userId = await loginService.LoginAsync(request.Email, request.Password);
-            return Ok(userId);
+            var (errorCode, authToken) = await loginService.LoginAsync(request.Email, request.Password);
+            if (errorCode != WebServerErrorCode.Success)
+            {
+                return new LoginResponse(errorCode, string.Empty);
+            }
+
+            return new LoginResponse(WebServerErrorCode.Success, authToken);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to login");
-            return StatusCode(500);
+            return new LoginResponse(WebServerErrorCode.InternalServerError, string.Empty);
         }
     }
 
     [HttpPost("guestLogin")]
-    public async Task<IActionResult> GuestLogin([FromBody] GuestLoginRequest request)
+    public async Task<GuestLoginResponse> GuestLogin([FromBody] GuestLoginRequest request)
     {
         try
         {
-            var errorCode = await loginService.GuestLoginAsync(request.GuestGuid);
-            return Ok(errorCode);
+            var (errorCode, authToken) = await loginService.GuestLoginAsync(request.GuestGuid);
+            if (errorCode != WebServerErrorCode.Success)
+            {
+                return new GuestLoginResponse(errorCode, string.Empty);
+            }
+
+            return new GuestLoginResponse(WebServerErrorCode.Success, authToken);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to login as guest");
-            return StatusCode(500);
+            return new GuestLoginResponse(WebServerErrorCode.InternalServerError, string.Empty);
         }
     }
 }
