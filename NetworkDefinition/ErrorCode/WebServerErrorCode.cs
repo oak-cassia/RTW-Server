@@ -8,6 +8,8 @@ public enum WebServerErrorCode
     InvalidPassword = 1002,
     AccountNotFound = 1003,
     GuestNotFound = 1004,
+    InvalidRequestHttpBody = 1005,
+    InvalidAuthToken = 1006,
     DatabaseError = 1100,
     RemoteCacheError = 1200,
     RemoteCacheLockFailed = 1201, 
