@@ -20,13 +20,13 @@ public class GuestRepository(MySqlConnection connection) : IGuestRepository
         await using var reader = await command.ExecuteReaderAsync();
         if (await reader.ReadAsync())
         {
-            return new Guest(reader.GetInt32("id"), reader.GetGuid("guid"));
+            return new Guest(reader.GetInt64("id"), reader.GetGuid("guid"));
         }
 
         return null;
     }
 
-    public Task<WebServerErrorCode> CreateGuestAsync(byte[] guestGuid)
+    public async Task<long> CreateGuestAsync(byte[] guestGuid)
     {
         string query = $"""
                         INSERT INTO Guest (guid)
@@ -34,8 +34,8 @@ public class GuestRepository(MySqlConnection connection) : IGuestRepository
                         """;
         using var command = new MySqlCommand(query, connection);
         command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
-        command.ExecuteNonQuery();
+        await command.ExecuteNonQueryAsync();
 
-        return Task.FromResult(WebServerErrorCode.Success);
+        return command.LastInsertedId;
     }
 }

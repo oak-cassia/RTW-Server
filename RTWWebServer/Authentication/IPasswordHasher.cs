@@ -2,6 +2,6 @@ namespace RTWWebServer.Authentication;
 
 public interface IPasswordHasher
 {
-    string GetNewSalt();
+    string GenerateSaltValue();
     string CalcHashedPassword(string password, string salt);
 }
