@@ -7,6 +7,7 @@ public enum WebServerErrorCode
     InvalidEmail = 1001,
     InvalidPassword = 1002,
     AccountNotFound = 1003,
+    GuestNotFound = 1004,
  
     InternalServerError = 1999,
 }
