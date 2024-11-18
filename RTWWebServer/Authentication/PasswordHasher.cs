@@ -7,7 +7,7 @@ public class PasswordHasher : IPasswordHasher
 {
     const int StretchCount = 2;
 
-    public string GetNewSalt()
+    public string GenerateSaltValue()
     {
         using (var randomNumberGenerator = RandomNumberGenerator.Create())
         {

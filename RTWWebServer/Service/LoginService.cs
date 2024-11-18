@@ -7,9 +7,9 @@ namespace RTWWebServer.Service;
 public class LoginService(
     IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
-    IGuidGenerator guidGenerator,
     IGuestRepository guestRepository,
-    ILogger<LoginService> logger) : ILoginService
+    ILogger<LoginService> logger
+) : ILoginService
 {
     public async Task<WebServerErrorCode> LoginAsync(string email, string password)
     {
@@ -35,22 +35,6 @@ public class LoginService(
         {
             logger.LogError($"Error in LoginAsync: {ex.Message}");
             return WebServerErrorCode.InternalServerError;
-        }
-    }
-
-    public async Task<string> GuestRegisterAsync()
-    {
-        try
-        {
-            var guid = guidGenerator.GenerateGuid();
-            logger.LogInformation($"Generated guid {guid.ToString()}");
-            await guestRepository.CreateGuestAsync(guid.ToByteArray());
-            return guid.ToString();
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to register as guest");
-            return string.Empty;
         }
     }
 

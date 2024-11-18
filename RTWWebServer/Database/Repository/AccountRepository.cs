@@ -13,15 +13,15 @@ public class AccountRepository(MySqlConnection connection) : IAccountRepository
                         FROM Account 
                         WHERE id = @{nameof(id)}
                         """;
-        using var command = new MySqlCommand(query, connection);
+        await using var command = new MySqlCommand(query, connection);
         command.Parameters.AddWithValue($"@{nameof(id)}", id);
 
-        using var reader = await command.ExecuteReaderAsync();
+        await using var reader = await command.ExecuteReaderAsync();
         if (await reader.ReadAsync())
         {
             return new Account
             (
-                reader.GetInt32("Id"),
+                reader.GetInt64("Id"),
                 reader.GetString("UserName"),
                 reader.GetString("Email"),
                 reader.GetString("Password"),
@@ -44,11 +44,12 @@ public class AccountRepository(MySqlConnection connection) : IAccountRepository
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
 
         await using var reader = await command.ExecuteReaderAsync();
+
         if (await reader.ReadAsync())
         {
             return new Account
             (
-                reader.GetInt32("Id"),
+                reader.GetInt64("Id"),
                 reader.GetString("UserName"),
                 reader.GetString("Email"),
                 reader.GetString("Password"),
@@ -59,19 +60,21 @@ public class AccountRepository(MySqlConnection connection) : IAccountRepository
         return null;
     }
 
-    public Task<WebServerErrorCode> CreateAccountAsync(string username, string email, string password, string salt)
+    public async Task<bool> CreateAccountAsync(string username, string email, string password, string salt)
     {
         string query = $"""
                         INSERT INTO Account (UserName, Email, Password, Salt)
                         VALUES (@{nameof(username)}, @{nameof(email)}, @{nameof(password)}, @{nameof(salt)})
                         """;
-        using var command = new MySqlCommand(query, connection);
+
+        await using var command = new MySqlCommand(query, connection);
         command.Parameters.AddWithValue($"@{nameof(username)}", username);
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
         command.Parameters.AddWithValue($"@{nameof(password)}", password);
         command.Parameters.AddWithValue($"@{nameof(salt)}", salt);
 
-        command.ExecuteNonQuery();
-        return Task.FromResult(WebServerErrorCode.Success);
+        await command.ExecuteNonQueryAsync();
+
+        return command.LastInsertedId > 0;
     }
 }
