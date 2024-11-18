@@ -1,6 +1,6 @@
 namespace RTWWebServer.RequestResponse;
 
-public class GuestLoginRequest
+public class GuestLoginRequest(string guestGuid)
 {
-    public string GuestGuid { get; set; } = string.Empty;
+    public string GuestGuid { get; set; } = guestGuid;
 }
