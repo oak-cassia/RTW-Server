@@ -1,6 +1,6 @@
 using NetworkDefinition.ErrorCode;
 
-namespace RTWWebServer.RequestResponse;
+namespace RTWWebServer.DTO.response;
 
 public class CreateGuestAccountResponse(WebServerErrorCode errorCode, string guestGuid) : IResponse
 {

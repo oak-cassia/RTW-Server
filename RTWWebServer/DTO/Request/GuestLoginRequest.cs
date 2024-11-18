@@ -1,4 +1,4 @@
-namespace RTWWebServer.RequestResponse;
+namespace RTWWebServer.DTO.Request;
 
 public class GuestLoginRequest(string guestGuid)
 {
