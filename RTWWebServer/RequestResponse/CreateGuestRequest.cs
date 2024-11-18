@@ -1,5 +1,5 @@
 namespace RTWWebServer.RequestResponse;
 
-public class GuestRegisterRequest
+public class CreateGuestRequest
 {
 }
