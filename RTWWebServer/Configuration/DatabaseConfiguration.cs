@@ -1,15 +1,11 @@
 namespace RTWWebServer.Configuration;
 
-public class DatabaseConfiguration
+public class DatabaseConfiguration(string accountDatabase, string redis)
 {
-    public string AccountDatabase { get; set; } = string.Empty;
-    
-    public DatabaseConfiguration()
+    public string AccountDatabase { get; set; } = accountDatabase;
+    public string Redis { get; set; } = redis;
+
+    public DatabaseConfiguration() : this("", "")
     {
-    }
-    
-    public DatabaseConfiguration(string accountDatabase)
-    {
-        AccountDatabase = accountDatabase;
     }
 }

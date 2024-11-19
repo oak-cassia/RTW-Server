@@ -29,8 +29,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();
@@ -48,8 +46,10 @@ void InjectDependencies()
     });
 
     builder.Services.AddSingleton<IGuidGenerator, GuidGenerator>();
+    builder.Services.AddSingleton<IAuthTokenGenerator, AuthTokenGenerator>();
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
     builder.Services.AddTransient<IAccountRepository, AccountRepository>();
     builder.Services.AddTransient<IGuestRepository, GuestRepository>();
     builder.Services.AddTransient<ILoginService, LoginService>();
+    builder.Services.AddTransient<IAccountService, AccountService>();
 }
