@@ -50,6 +50,7 @@ void InjectDependencies()
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
     builder.Services.AddTransient<IAccountRepository, AccountRepository>();
     builder.Services.AddTransient<IGuestRepository, GuestRepository>();
+    builder.Services.AddTransient<IRedisRepository, RedisRepository>();
     builder.Services.AddTransient<ILoginService, LoginService>();
     builder.Services.AddTransient<IAccountService, AccountService>();
 }

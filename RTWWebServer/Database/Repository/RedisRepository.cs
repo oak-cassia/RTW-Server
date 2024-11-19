@@ -6,7 +6,7 @@ using RTWWebServer.Configuration;
 
 namespace RTWWebServer.Database.Repository;
 
-public class RedisRepository
+public class RedisRepository : IRedisRepository
 {
     private readonly RedisConnection _redisConnection;
     private readonly ILogger<RedisRepository> _logger;
