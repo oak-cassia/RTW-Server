@@ -8,6 +8,8 @@ public enum WebServerErrorCode
     InvalidPassword = 1002,
     AccountNotFound = 1003,
     GuestNotFound = 1004,
+    DatabaseError = 1100,
+    RedisError = 1200,
  
     InternalServerError = 1999,
 }
