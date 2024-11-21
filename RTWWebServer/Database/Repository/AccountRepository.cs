@@ -1,10 +1,9 @@
 using MySqlConnector;
-using NetworkDefinition.ErrorCode;
 using RTWWebServer.Database.Data;
 
 namespace RTWWebServer.Database.Repository;
 
-public class AccountRepository(MySqlConnection connection) : IAccountRepository
+public class AccountRepository(IMySqlConnectionProvider connectionProvider) : IAccountRepository
 {
     public async Task<Account?> FindByIdAsync(int id)
     {
@@ -13,10 +12,14 @@ public class AccountRepository(MySqlConnection connection) : IAccountRepository
                         FROM Account 
                         WHERE id = @{nameof(id)}
                         """;
+
+        var connection = await connectionProvider.GetAccountConnectionAsync();
         await using var command = new MySqlCommand(query, connection);
+
         command.Parameters.AddWithValue($"@{nameof(id)}", id);
 
         await using var reader = await command.ExecuteReaderAsync();
+
         if (await reader.ReadAsync())
         {
             return new Account
@@ -40,7 +43,9 @@ public class AccountRepository(MySqlConnection connection) : IAccountRepository
                         WHERE email = @{nameof(email)} 
                         """;
 
+        var connection = await connectionProvider.GetAccountConnectionAsync();
         await using var command = new MySqlCommand(query, connection);
+
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
 
         await using var reader = await command.ExecuteReaderAsync();
@@ -67,7 +72,9 @@ public class AccountRepository(MySqlConnection connection) : IAccountRepository
                         VALUES (@{nameof(username)}, @{nameof(email)}, @{nameof(password)}, @{nameof(salt)})
                         """;
 
+        var connection = await connectionProvider.GetAccountConnectionAsync();
         await using var command = new MySqlCommand(query, connection);
+
         command.Parameters.AddWithValue($"@{nameof(username)}", username);
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
         command.Parameters.AddWithValue($"@{nameof(password)}", password);
