@@ -8,6 +8,7 @@ public class LoginService(
     IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
     IGuestRepository guestRepository,
+    IRedisRepository redisRepository,
     IAuthTokenGenerator authTokenGenerator,
     ILogger<LoginService> logger
 ) : ILoginService
@@ -30,8 +31,11 @@ public class LoginService(
 
         // Todo: AuthToken 반환, Redis 저장, UserId 반환
         var authToken = authTokenGenerator.GenerateToken();
+        var userId = 1;
 
-        return (WebServerErrorCode.Success, authToken);
+        var errorCode = await redisRepository.SetAsync(authToken, userId);
+
+        return (errorCode, authToken);
     }
 
     public async Task<(WebServerErrorCode errorCode, string authToken)> GuestLoginAsync(string guestGuid)
@@ -45,7 +49,10 @@ public class LoginService(
 
         // Todo: AuthToken 반환, Redis 저장, UserId 반환
         var authToken = authTokenGenerator.GenerateToken();
+        var userId = 1;
 
-        return (WebServerErrorCode.Success, authToken);
+        var errorCode = await redisRepository.SetAsync(authToken, userId);
+
+        return (errorCode, authToken);
     }
 }

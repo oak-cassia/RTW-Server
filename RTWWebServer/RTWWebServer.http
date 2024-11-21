@@ -8,3 +8,6 @@ Content-Type: application/json
   "password": "admin"
 }
 
+
+### GuestLogin
+POST  {{RTWWebServer_HostAddress}}/Auth/guestLogin/

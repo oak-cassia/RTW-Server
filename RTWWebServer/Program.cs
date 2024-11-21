@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using MySqlConnector;
 using RTWWebServer.Authentication;
 using RTWWebServer.Configuration;
+using RTWWebServer.Database;
 using RTWWebServer.Database.Repository;
 using RTWWebServer.Service;
 
@@ -29,8 +30,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();
@@ -39,17 +38,13 @@ app.Run();
 
 void InjectDependencies()
 {
-    builder.Services.AddScoped<MySqlConnection>(provider =>
-    {
-        var config = provider.GetRequiredService<IOptions<DatabaseConfiguration>>();
-        var connection = new MySqlConnection(config.Value.AccountDatabase);
-        connection.Open();
-        return connection;
-    });
-
     builder.Services.AddSingleton<IGuidGenerator, GuidGenerator>();
+    builder.Services.AddSingleton<IAuthTokenGenerator, AuthTokenGenerator>();
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
-    builder.Services.AddTransient<IAccountRepository, AccountRepository>();
-    builder.Services.AddTransient<IGuestRepository, GuestRepository>();
+    builder.Services.AddSingleton<IRedisRepository, RedisRepository>(); // thread safe 함
+    builder.Services.AddScoped<IMySqlConnectionProvider, MySqlConnectionProvider>(); // thread safe 하지 않음
+    builder.Services.AddScoped<IGuestRepository, GuestRepository>();
+    builder.Services.AddScoped<IAccountRepository, AccountRepository>();
     builder.Services.AddTransient<ILoginService, LoginService>();
+    builder.Services.AddTransient<IAccountService, AccountService>();
 }

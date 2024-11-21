@@ -13,7 +13,7 @@ public class PasswordHasherTest
     {
         // Arrange
         var password = "password";
-        var salt = _passwordHasher.GetNewSalt();
+        var salt = _passwordHasher.GenerateSaltValue();
 
         // Act
         var hashedPassword1 = _passwordHasher.CalcHashedPassword(password, salt);
@@ -30,8 +30,8 @@ public class PasswordHasherTest
         var password = "password";
 
         // Act
-        var hashedPassword1 = _passwordHasher.CalcHashedPassword(password, _passwordHasher.GetNewSalt());
-        var hashedPassword2 = _passwordHasher.CalcHashedPassword(password, _passwordHasher.GetNewSalt());
+        var hashedPassword1 = _passwordHasher.CalcHashedPassword(password, _passwordHasher.GenerateSaltValue());
+        var hashedPassword2 = _passwordHasher.CalcHashedPassword(password, _passwordHasher.GenerateSaltValue());
 
         // Assert
         Assert.That(hashedPassword2, Is.Not.EqualTo(hashedPassword1));
@@ -41,7 +41,7 @@ public class PasswordHasherTest
     public void HashPassword_ReturnsDifferentHash_ForDifferentPassword()
     {
         // Arrange
-        var salt = _passwordHasher.GetNewSalt();
+        var salt = _passwordHasher.GenerateSaltValue();
 
         // Act
         var hashedPassword1 = _passwordHasher.CalcHashedPassword("password1", salt);
