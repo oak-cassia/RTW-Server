@@ -1,10 +1,9 @@
 using MySqlConnector;
-using NetworkDefinition.ErrorCode;
 using RTWWebServer.Database.Data;
 
 namespace RTWWebServer.Database.Repository;
 
-public class GuestRepository(MySqlConnection connection) : IGuestRepository
+public class GuestRepository(IMySqlConnectionProvider connectionProvider) : IGuestRepository
 {
     public async Task<Guest?> FindByGuidAsync(byte[] guestGuid)
     {
@@ -14,10 +13,14 @@ public class GuestRepository(MySqlConnection connection) : IGuestRepository
                         WHERE guid = @{nameof(guestGuid)} 
                         """;
 
+        var connection = await connectionProvider.GetAccountConnectionAsync();
+
         await using var command = new MySqlCommand(query, connection);
+
         command.Parameters.Add($"@{nameof(guestGuid)}", MySqlDbType.VarBinary).Value = guestGuid;
 
         await using var reader = await command.ExecuteReaderAsync();
+        
         if (await reader.ReadAsync())
         {
             return new Guest(reader.GetInt64("id"), reader.GetGuid("guid"));
@@ -32,8 +35,13 @@ public class GuestRepository(MySqlConnection connection) : IGuestRepository
                         INSERT INTO Guest (guid)
                         VALUES (@{nameof(guestGuid)})
                         """;
-        using var command = new MySqlCommand(query, connection);
+
+        var connection = await connectionProvider.GetAccountConnectionAsync();
+
+        await using var command = new MySqlCommand(query, connection);
+
         command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
+
         await command.ExecuteNonQueryAsync();
 
         return command.LastInsertedId;
