@@ -5,7 +5,7 @@ using RTWWebServer.Configuration;
 
 namespace RTWWebServer.Database;
 
-public class MySqlConnectionProvider(IOptions<DatabaseConfiguration> configuration) : IMySqlConnectionProvider, IAsyncDisposable
+public class MySqlConnectionProvider(IOptions<DatabaseConfiguration> configuration) : IMySqlConnectionProvider
 {
     private readonly string _accountConnectionString = configuration.Value.AccountDatabase;
     private readonly string _gameConnectionString = configuration.Value.GameDatabase;
@@ -40,18 +40,9 @@ public class MySqlConnectionProvider(IOptions<DatabaseConfiguration> configurati
         return connection;
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        if (_accountConnection is { State: ConnectionState.Open })
-        {
-            await _accountConnection.CloseAsync();
-            _accountConnection = null;
-        }
-
-        if (_gameConnection is { State: ConnectionState.Open })
-        {
-            await _gameConnection.CloseAsync();
-            _gameConnection = null;
-        }
+        _accountConnection?.Close();
+        _gameConnection?.Close();
     }
 }
