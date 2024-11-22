@@ -2,9 +2,9 @@ using RTWWebServer.Database.Cache;
 
 namespace RTWTest.Webserver;
 
-public class RequestScopedCacheTest
+public class RequestScopedLocalCacheTest
 {
-    private readonly IRequestScopedCache _cache = new RequestScopedCache();
+    private readonly IRequestScopedLocalCache _localCache = new RequestScopedLocalCache();
 
     [Test]
     public void Should_Get_Same_Value_When_Set()
@@ -12,8 +12,8 @@ public class RequestScopedCacheTest
         var key = "key";
         var value = "value";
 
-        _cache.Set(key, value);
-        var result = _cache.Get<string>(key);
+        _localCache.Set(key, value);
+        var result = _localCache.Get<string>(key);
 
         Assert.That(result, Is.EqualTo(value));
     }
@@ -23,7 +23,7 @@ public class RequestScopedCacheTest
     {
         var key = "key";
 
-        var result = _cache.Get<string>(key);
+        var result = _localCache.Get<string>(key);
 
         Assert.That(result, Is.EqualTo(default(string)));
     }
@@ -34,9 +34,9 @@ public class RequestScopedCacheTest
         var key = "key";
         var value = "value";
 
-        _cache.Set(key, value);
-        _cache.Remove(key);
-        var result = _cache.Get<string>(key);
+        _localCache.Set(key, value);
+        _localCache.Remove(key);
+        var result = _localCache.Get<string>(key);
 
         Assert.That(result, Is.EqualTo(default(string)));
     }
@@ -50,11 +50,11 @@ public class RequestScopedCacheTest
         var value1 = "value1";
         var value2 = "value2";
 
-        _cache.Set(key1, value1);
-        _cache.Set(key2, value2);
+        _localCache.Set(key1, value1);
+        _localCache.Set(key2, value2);
 
-        var result1 = _cache.Get<string>(key1);
-        var result2 = _cache.Get<string>(key2);
+        var result1 = _localCache.Get<string>(key1);
+        var result2 = _localCache.Get<string>(key2);
 
         Assert.That(result1, Is.EqualTo(value1));
         Assert.That(result2, Is.EqualTo(value2));
@@ -67,10 +67,10 @@ public class RequestScopedCacheTest
         var value1 = "value1";
         var value2 = "value2";
 
-        _cache.Set(key, value1);
-        _cache.Set(key, value2);
+        _localCache.Set(key, value1);
+        _localCache.Set(key, value2);
 
-        var result = _cache.Get<string>(key);
+        var result = _localCache.Get<string>(key);
 
         Assert.That(result, Is.EqualTo(value2));
     }

@@ -44,7 +44,7 @@ void InjectDependencies()
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
     builder.Services.AddSingleton<IRedisRepository, RedisRepository>(); // thread safe 함
     builder.Services.AddScoped<IMySqlConnectionProvider, MySqlConnectionProvider>(); // thread safe 하지 않음
-    builder.Services.AddScoped<IRequestScopedCache, RequestScopedCache>();
+    builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
     builder.Services.AddScoped<IGuestRepository, GuestRepository>();
     builder.Services.AddScoped<IAccountRepository, AccountRepository>();
     builder.Services.AddTransient<ILoginService, LoginService>();

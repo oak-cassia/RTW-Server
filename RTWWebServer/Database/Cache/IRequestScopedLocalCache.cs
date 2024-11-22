@@ -1,6 +1,6 @@
 namespace RTWWebServer.Database.Cache;
 
-public interface IRequestScopedCache
+public interface IRequestScopedLocalCache
 {
     T? Get<T>(string key);
     void Set<T>(string key, T value);

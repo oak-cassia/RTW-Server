@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace RTWWebServer.Database.Cache;
 
-public class RequestScopedCache : IRequestScopedCache
+public class RequestScopedLocalCache : IRequestScopedLocalCache
 {
     private readonly ConcurrentDictionary<string, object> _cache = new();
 
