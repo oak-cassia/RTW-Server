@@ -9,7 +9,8 @@ public enum WebServerErrorCode
     AccountNotFound = 1003,
     GuestNotFound = 1004,
     DatabaseError = 1100,
-    RedisError = 1200,
+    RemoteCacheError = 1200,
+    RemoteCacheLockFailed = 1201, 
  
     InternalServerError = 1999,
 }

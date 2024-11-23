@@ -1,5 +1,6 @@
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Authentication;
+using RTWWebServer.Database.Cache;
 using RTWWebServer.Database.Repository;
 
 namespace RTWWebServer.Service;
@@ -8,7 +9,7 @@ public class LoginService(
     IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
     IGuestRepository guestRepository,
-    IRedisRepository redisRepository,
+    IRemoteCache remoteCache,
     IAuthTokenGenerator authTokenGenerator,
     ILogger<LoginService> logger
 ) : ILoginService
@@ -33,7 +34,7 @@ public class LoginService(
         var authToken = authTokenGenerator.GenerateToken();
         var userId = 1;
 
-        var errorCode = await redisRepository.SetAsync(authToken, userId);
+        var errorCode = await remoteCache.SetAsync(authToken, userId);
 
         return (errorCode, authToken);
     }
@@ -51,7 +52,7 @@ public class LoginService(
         var authToken = authTokenGenerator.GenerateToken();
         var userId = 1;
 
-        var errorCode = await redisRepository.SetAsync(authToken, userId);
+        var errorCode = await remoteCache.SetAsync(authToken, userId);
 
         return (errorCode, authToken);
     }
