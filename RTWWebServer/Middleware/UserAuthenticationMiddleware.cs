@@ -36,14 +36,18 @@ public class UserAuthenticationMiddleware(
         var requestBody = await ReadRequestBodyAsync(context);
         if (string.IsNullOrEmpty(requestBody))
         {
+            logger.LogError("Failed to read request body");
             await RespondWithError(context, WebServerErrorCode.InvalidRequestHttpBody);
+
             return;
         }
 
         var (userId, authToken) = ExtractUserIdAndAuthToken(requestBody);
         if (userId == default || string.IsNullOrEmpty(authToken))
         {
+            logger.LogError("Failed to extract user id and auth token from request body");
             await RespondWithError(context, WebServerErrorCode.InvalidRequestHttpBody);
+
             return;
         }
 
@@ -57,12 +61,19 @@ public class UserAuthenticationMiddleware(
 
     private async Task<string> ReadRequestBodyAsync(HttpContext context)
     {
-        using var bodyReader = new StreamReader(context.Request.Body, leaveOpen: true);
-        var body = await bodyReader.ReadToEndAsync();
+        try
+        {
+            using var bodyReader = new StreamReader(context.Request.Body, leaveOpen: true);
+            var body = await bodyReader.ReadToEndAsync();
 
-        context.Request.Body.Position = 0;
+            context.Request.Body.Position = 0;
 
-        return body;
+            return body;
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
     }
 
     private (int userId, string authToken) ExtractUserIdAndAuthToken(string requestBody)
@@ -82,9 +93,8 @@ public class UserAuthenticationMiddleware(
 
             return (userId, authToken);
         }
-        catch (Exception e)
+        catch (Exception)
         {
-            logger.LogError(e, "Failed to extract userId and authToken from request body");
             return (default, string.Empty);
         }
     }
@@ -98,13 +108,17 @@ public class UserAuthenticationMiddleware(
             var result = await remoteCache.LockAsync(userId, lockValue);
             if (result != WebServerErrorCode.Success)
             {
+                logger.LogError($"Failed to lock user {userId}");
                 await RespondWithError(context, result);
+
                 return;
             }
 
             if (!await IsValidUserAuthToken(userId, authToken))
             {
+                logger.LogError($"Invalid auth token for user {userId}");
                 await RespondWithError(context, WebServerErrorCode.InvalidAuthToken);
+
                 return;
             }
 
