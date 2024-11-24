@@ -6,10 +6,10 @@ using RTWWebServer.DTO.response;
 
 namespace RTWWebServer.Middleware;
 
-public class UserAuthentication(
+public class UserAuthenticationMiddleware(
     IRemoteCache remoteCache,
     IRemoteCacheKeyGenerator remoteCacheKeyGenerator,
-    ILogger<UserAuthentication> logger,
+    ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
     const string RESPONSE_CONTENT_TYPE = "application/json";
