@@ -1,12 +1,25 @@
 using System.Text.Json;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Database.Cache;
+using RTWWebServer.Database.Data;
 using RTWWebServer.DTO.response;
 
 namespace RTWWebServer.Middleware;
 
-public class UserAuthentication(IRemoteCache remoteCache, ILogger logger, RequestDelegate next)
+public class UserAuthentication(
+    IRemoteCache remoteCache,
+    IRemoteCacheKeyGenerator remoteCacheKeyGenerator,
+    ILogger<UserAuthentication> logger,
+    RequestDelegate next)
 {
+    const string RESPONSE_CONTENT_TYPE = "application/json";
+
+    private static readonly HashSet<string> EXCLUDED_PATHS =
+    [
+        "/login",
+        "/account"
+    ];
+
     public async Task InvokeAsync(HttpContext context)
     {
         context.Request.EnableBuffering();
@@ -25,36 +38,19 @@ public class UserAuthentication(IRemoteCache remoteCache, ILogger logger, Reques
             return;
         }
 
-        var requestAuthToken = ExtractAuthTokenFromBody(requestBody);
-        if (await IsValidAuthToken(requestAuthToken) == false)
+        var (userId, authToken) = ExtractUserIdAndAuthToken(requestBody);
+        if (userId == default || string.IsNullOrEmpty(authToken))
         {
-            await RespondWithError(context, WebServerErrorCode.InvalidAuthToken);
+            await RespondWithError(context, WebServerErrorCode.InvalidRequestHttpBody);
             return;
         }
 
-        var lockKey = $"authToken:{requestAuthToken}";
-
-        try
-        {
-            var result = await remoteCache.LockAsync(lockKey, requestAuthToken);
-            if (result != WebServerErrorCode.Success)
-            {
-                await RespondWithError(context, result);
-                return;
-            }
-
-            await next(context);
-        }
-        finally
-        {
-            await remoteCache.UnlockAsync(lockKey, requestAuthToken);
-        }
+        await HandleRequest(context, userId, authToken, next);
     }
 
     private bool IsExcludedPath(string path)
     {
-        return path.StartsWith("/login", StringComparison.OrdinalIgnoreCase) ||
-               path.StartsWith("/account", StringComparison.OrdinalIgnoreCase);
+        return EXCLUDED_PATHS.Any(path.StartsWith);
     }
 
     private async Task<string> ReadRequestBodyAsync(HttpContext context)
@@ -67,34 +63,74 @@ public class UserAuthentication(IRemoteCache remoteCache, ILogger logger, Reques
         return body;
     }
 
-    private string ExtractAuthTokenFromBody(string requestBody)
+    private (int userId, string authToken) ExtractUserIdAndAuthToken(string requestBody)
     {
-        using var bodyDocument = JsonDocument.Parse(requestBody);
-        if (!bodyDocument.RootElement.TryGetProperty("authToken", out var authTokenElement))
+        try
         {
-            return string.Empty;
-        }
+            using var bodyDocument = JsonDocument.Parse(requestBody);
 
-        return authTokenElement.GetString() ?? string.Empty;
+            if (!bodyDocument.RootElement.TryGetProperty("userId", out var userIdElement) ||
+                !bodyDocument.RootElement.TryGetProperty("authToken", out var authTokenElement))
+            {
+                return (default, string.Empty);
+            }
+
+            var userId = userIdElement.GetInt32();
+            var authToken = authTokenElement.GetString() ?? string.Empty;
+
+            return (userId, authToken);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to extract userId and authToken from request body");
+            return (default, string.Empty);
+        }
     }
 
-    private async Task<bool> IsValidAuthToken(string requestAuthToken)
+    private async Task HandleRequest(HttpContext context, int userId, string authToken, RequestDelegate nextMiddleware)
     {
-        var key = $"authToken:{requestAuthToken}";
-        var (cachedAuthToken, errorCode) = await remoteCache.GetAsync<string>(key);
+        var lockValue = "lockValue";
+
+        try
+        {
+            var result = await remoteCache.LockAsync(userId, lockValue);
+            if (result != WebServerErrorCode.Success)
+            {
+                await RespondWithError(context, result);
+                return;
+            }
+
+            if (!await IsValidUserAuthToken(userId, authToken))
+            {
+                await RespondWithError(context, WebServerErrorCode.InvalidAuthToken);
+                return;
+            }
+
+            await nextMiddleware(context);
+        }
+        finally
+        {
+            await remoteCache.UnlockAsync(userId, lockValue);
+        }
+    }
+
+    private async Task<bool> IsValidUserAuthToken(int userId, string requestAuthToken)
+    {
+        var key = remoteCacheKeyGenerator.GenerateUserSessionKey(userId);
+        var (cachedAuthToken, errorCode) = await remoteCache.GetAsync<UserSession>(key);
 
         if (errorCode != WebServerErrorCode.Success)
         {
             return false;
         }
 
-        return cachedAuthToken == requestAuthToken;
+        return cachedAuthToken?.AuthToken == requestAuthToken;
     }
 
     private async Task RespondWithError(HttpContext context, WebServerErrorCode errorCode)
     {
-        context.Response.ContentType = "application/json";
-        
+        context.Response.ContentType = RESPONSE_CONTENT_TYPE;
+
         var errorJson = JsonSerializer.Serialize(new UserAuthenticationResponse(errorCode));
         await context.Response.WriteAsync(errorJson);
     }
