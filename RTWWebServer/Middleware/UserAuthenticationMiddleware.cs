@@ -1,5 +1,6 @@
 using System.Text.Json;
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Authentication;
 using RTWWebServer.Database.Cache;
 using RTWWebServer.Database.Data;
 using RTWWebServer.DTO.response;
@@ -9,6 +10,7 @@ namespace RTWWebServer.Middleware;
 public class UserAuthenticationMiddleware(
     IRemoteCache remoteCache,
     IRemoteCacheKeyGenerator remoteCacheKeyGenerator,
+    IGuidGenerator guidGenerator,
     ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
@@ -16,8 +18,8 @@ public class UserAuthenticationMiddleware(
 
     private static readonly HashSet<string> EXCLUDED_PATHS =
     [
-        "/login",
-        "/account"
+        "/Login",
+        "/Account"
     ];
 
     public async Task InvokeAsync(HttpContext context)
@@ -89,7 +91,7 @@ public class UserAuthenticationMiddleware(
 
     private async Task HandleRequest(HttpContext context, int userId, string authToken, RequestDelegate nextMiddleware)
     {
-        var lockValue = "lockValue";
+        var lockValue = guidGenerator.GenerateGuid().ToString();
 
         try
         {

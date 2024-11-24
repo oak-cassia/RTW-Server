@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Authentication;
 using RTWWebServer.Database.Cache;
 using RTWWebServer.Database.Data;
 using RTWWebServer.Middleware;
@@ -15,6 +16,7 @@ public class UserAuthenticationMiddlewareTest
 {
     private Mock<IRemoteCache> _mockRemoteCache;
     private IRemoteCacheKeyGenerator _remoteCacheKeyGenerator;
+    private Mock<IGuidGenerator> _mockGuiGenerator;
     private Mock<ILogger<UserAuthenticationMiddleware>> _mockLogger;
     private Mock<RequestDelegate> _mockNext;
 
@@ -23,6 +25,7 @@ public class UserAuthenticationMiddlewareTest
     {
         _mockRemoteCache = new Mock<IRemoteCache>();
         _remoteCacheKeyGenerator = new RemoteCacheKeyGenerator();
+        _mockGuiGenerator = new Mock<IGuidGenerator>();
         _mockLogger = new Mock<ILogger<UserAuthenticationMiddleware>>();
         _mockNext = new Mock<RequestDelegate>();
     }
@@ -44,9 +47,10 @@ public class UserAuthenticationMiddlewareTest
         var middleware = new UserAuthenticationMiddleware(
             _mockRemoteCache.Object,
             _remoteCacheKeyGenerator,
+            _mockGuiGenerator.Object,
             _mockLogger.Object,
             _mockNext.Object);
-        var context = CreateHttpContext("/login", "");
+        var context = CreateHttpContext("/Login", "");
 
         // Act
         await middleware.InvokeAsync(context);
@@ -63,6 +67,7 @@ public class UserAuthenticationMiddlewareTest
         var middleware = new UserAuthenticationMiddleware(
             _mockRemoteCache.Object,
             _remoteCacheKeyGenerator,
+            _mockGuiGenerator.Object,
             _mockLogger.Object,
             _mockNext.Object);
         var context = CreateHttpContext("/secure", "");
@@ -82,6 +87,7 @@ public class UserAuthenticationMiddlewareTest
         var middleware = new UserAuthenticationMiddleware(
             _mockRemoteCache.Object,
             _remoteCacheKeyGenerator,
+            _mockGuiGenerator.Object,
             _mockLogger.Object,
             _mockNext.Object);
         var context = CreateHttpContext("/secure", "{\"userId\":1,\"authToken\":\"invalid-token\"}");
@@ -105,6 +111,7 @@ public class UserAuthenticationMiddlewareTest
         var middleware = new UserAuthenticationMiddleware(
             _mockRemoteCache.Object,
             _remoteCacheKeyGenerator,
+            _mockGuiGenerator.Object,
             _mockLogger.Object,
             _mockNext.Object);
         var context = CreateHttpContext("/secure", "{\"userId\":1,\"authToken\":\"valid-token\"}");
@@ -114,14 +121,18 @@ public class UserAuthenticationMiddlewareTest
             .ReturnsAsync((new UserSession(1, "valid-token"), WebServerErrorCode.Success));
 
         _mockRemoteCache
-            .Setup(cache => cache.LockAsync(1, "lockValue"))
+            .Setup(cache => cache.LockAsync(1, "00000000-0000-0000-0000-000000000000"))
             .ReturnsAsync(WebServerErrorCode.Success);
+
+        _mockGuiGenerator
+            .Setup(generator => generator.GenerateGuid())
+            .Returns(Guid.Parse("00000000-0000-0000-0000-000000000000"));
 
         // Act
         await middleware.InvokeAsync(context);
 
         // Assert
         _mockNext.Verify(next => next(context), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync(1, "lockValue"), Times.Once);
+        _mockRemoteCache.Verify(cache => cache.UnlockAsync(1, "00000000-0000-0000-0000-000000000000"), Times.Once);
     }
 }

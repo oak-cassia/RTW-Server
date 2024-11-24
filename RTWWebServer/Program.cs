@@ -1,10 +1,9 @@
-using Microsoft.Extensions.Options;
-using MySqlConnector;
 using RTWWebServer.Authentication;
 using RTWWebServer.Configuration;
 using RTWWebServer.Database;
 using RTWWebServer.Database.Cache;
 using RTWWebServer.Database.Repository;
+using RTWWebServer.Middleware;
 using RTWWebServer.Service;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,8 +30,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<UserAuthenticationMiddleware>();
 app.UseAuthorization();
-
 app.MapControllers();
 
 void InjectDependencies()
