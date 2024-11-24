@@ -14,15 +14,17 @@ public class RedisRemoteCache : IRemoteCache
     private const int MULTIPLIER_LOCK_DELAY = 4;
 
     private readonly RedisConnection _redisConnection;
+    private readonly IRemoteCacheKeyGenerator _keyGenerator;
     private readonly ILogger<RedisRemoteCache> _logger;
 
     private readonly TimeSpan _lockExpirationTime = TimeSpan.FromSeconds(3);
     private readonly TimeSpan _authTokenExpirationTime = TimeSpan.FromHours(24);
 
-    public RedisRemoteCache(IOptions<DatabaseConfiguration> configuration, ILogger<RedisRemoteCache> logger)
+    public RedisRemoteCache(IOptions<DatabaseConfiguration> configuration, IRemoteCacheKeyGenerator keyGenerator, ILogger<RedisRemoteCache> logger)
     {
         var config = new RedisConfig("default", configuration.Value.Redis);
         _redisConnection = new RedisConnection(config);
+        _keyGenerator = keyGenerator;
         _logger = logger;
     }
 
@@ -67,8 +69,9 @@ public class RedisRemoteCache : IRemoteCache
         return WebServerErrorCode.Success;
     }
 
-    public async Task<WebServerErrorCode> LockAsync(string key, string lockValue)
+    public async Task<WebServerErrorCode> LockAsync(int userId, string lockValue)
     {
+        var key = _keyGenerator.GenerateUserLockKey(userId);
         var redisLock = new RedisLock<string>(_redisConnection, key);
 
         var retryCount = 0;
@@ -90,17 +93,18 @@ public class RedisRemoteCache : IRemoteCache
             retryCount++;
         }
 
-        _logger.LogError($"Failed to lock key {key}, retry count: {retryCount}");
+        _logger.LogError($"Failed to lock key {userId}, retry count: {retryCount}");
         return WebServerErrorCode.RemoteCacheLockFailed;
     }
 
-    public async Task<WebServerErrorCode> UnlockAsync(string key, string lockValue)
+    public async Task<WebServerErrorCode> UnlockAsync(int userId, string lockValue)
     {
+        var key = _keyGenerator.GenerateUserLockKey(userId);
         var redisLock = new RedisLock<string>(_redisConnection, key);
 
         if (await redisLock.ReleaseAsync(lockValue) == false)
         {
-            _logger.LogError($"Failed to unlock key {key}, lock value: {lockValue}");
+            _logger.LogError($"Failed to unlock key {userId}, lock value: {lockValue}");
             return WebServerErrorCode.RemoteCacheError;
         }
 

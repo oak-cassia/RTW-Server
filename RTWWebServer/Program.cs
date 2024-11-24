@@ -1,10 +1,9 @@
-using Microsoft.Extensions.Options;
-using MySqlConnector;
 using RTWWebServer.Authentication;
 using RTWWebServer.Configuration;
 using RTWWebServer.Database;
 using RTWWebServer.Database.Cache;
 using RTWWebServer.Database.Repository;
+using RTWWebServer.Middleware;
 using RTWWebServer.Service;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,11 +30,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<UserAuthenticationMiddleware>();
 app.UseAuthorization();
-
 app.MapControllers();
-
-app.Run();
 
 void InjectDependencies()
 {
@@ -43,6 +40,7 @@ void InjectDependencies()
     builder.Services.AddSingleton<IAuthTokenGenerator, AuthTokenGenerator>();
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
     builder.Services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // thread safe 함
+    builder.Services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
     builder.Services.AddScoped<IMySqlConnectionProvider, MySqlConnectionProvider>(); // thread safe 하지 않음
     builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
     builder.Services.AddScoped<IGuestRepository, GuestRepository>();
@@ -50,3 +48,5 @@ void InjectDependencies()
     builder.Services.AddTransient<ILoginService, LoginService>();
     builder.Services.AddTransient<IAccountService, AccountService>();
 }
+
+app.Run();
