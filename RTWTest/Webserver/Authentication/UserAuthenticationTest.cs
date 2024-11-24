@@ -2,9 +2,10 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RTWWebServer.Database.Cache;
-using RTWWebServer.Middleware;
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Database.Cache;
+using RTWWebServer.Database.Data;
+using RTWWebServer.Middleware;
 
 namespace RTWTest.Webserver.Authentication;
 
@@ -13,14 +14,16 @@ namespace RTWTest.Webserver.Authentication;
 public class UserAuthenticationTest
 {
     private Mock<IRemoteCache> _mockRemoteCache;
-    private Mock<ILogger> _mockLogger;
+    private IRemoteCacheKeyGenerator _remoteCacheKeyGenerator;
+    private Mock<ILogger<UserAuthentication>> _mockLogger;
     private Mock<RequestDelegate> _mockNext;
 
     [SetUp]
     public void Setup()
     {
         _mockRemoteCache = new Mock<IRemoteCache>();
-        _mockLogger = new Mock<ILogger>();
+        _remoteCacheKeyGenerator = new RemoteCacheKeyGenerator();
+        _mockLogger = new Mock<ILogger<UserAuthentication>>();
         _mockNext = new Mock<RequestDelegate>();
     }
 
@@ -38,7 +41,11 @@ public class UserAuthenticationTest
     public async Task ShouldSkipExcludedPath()
     {
         // Arrange
-        var middleware = new UserAuthentication(_mockRemoteCache.Object, _mockLogger.Object, _mockNext.Object);
+        var middleware = new UserAuthentication(
+            _mockRemoteCache.Object,
+            _remoteCacheKeyGenerator,
+            _mockLogger.Object,
+            _mockNext.Object);
         var context = CreateHttpContext("/login", "");
 
         // Act
@@ -46,14 +53,18 @@ public class UserAuthenticationTest
 
         // Assert
         _mockNext.Verify(next => next(context), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync("authToken:valid-token", "valid-token"), Times.Never);
+        _mockRemoteCache.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task ShouldReturnInvalidRequestHttpBody_WhenBodyIsEmpty()
     {
         // Arrange
-        var middleware = new UserAuthentication(_mockRemoteCache.Object, _mockLogger.Object, _mockNext.Object);
+        var middleware = new UserAuthentication(
+            _mockRemoteCache.Object,
+            _remoteCacheKeyGenerator,
+            _mockLogger.Object,
+            _mockNext.Object);
         var context = CreateHttpContext("/secure", "");
 
         // Act
@@ -61,18 +72,22 @@ public class UserAuthenticationTest
 
         // Assert
         Assert.That(context.Response.ContentType, Is.EqualTo("application/json"));
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync("authToken:valid-token", "valid-token"), Times.Never);
+        _mockRemoteCache.VerifyNoOtherCalls();
     }
 
     [Test]
     public async Task ShouldReturnInvalidAuthToken_WhenAuthTokenIsInvalid()
     {
         // Arrange
-        var middleware = new UserAuthentication(_mockRemoteCache.Object, _mockLogger.Object, _mockNext.Object);
-        var context = CreateHttpContext("/secure", "{\"authToken\":\"invalid-token\"}");
+        var middleware = new UserAuthentication(
+            _mockRemoteCache.Object,
+            _remoteCacheKeyGenerator,
+            _mockLogger.Object,
+            _mockNext.Object);
+        var context = CreateHttpContext("/secure", "{\"userId\":1,\"authToken\":\"invalid-token\"}");
 
         _mockRemoteCache
-            .Setup(cache => cache.GetAsync<string>("authToken:valid-token"))
+            .Setup(cache => cache.GetAsync<UserSession>("userSession:1"))
             .ReturnsAsync((null, WebServerErrorCode.Success));
 
         // Act
@@ -80,22 +95,26 @@ public class UserAuthenticationTest
 
         // Assert
         Assert.That(context.Response.ContentType, Is.EqualTo("application/json"));
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync("authToken:valid-token", "valid-token"), Times.Never);
+        _mockNext.Verify(next => next(context), Times.Never);
     }
 
     [Test]
     public async Task ShouldProceedWithValidAuthToken()
     {
         // Arrange
-        var middleware = new UserAuthentication(_mockRemoteCache.Object, _mockLogger.Object, _mockNext.Object);
-        var context = CreateHttpContext("/secure", "{\"authToken\":\"valid-token\"}");
+        var middleware = new UserAuthentication(
+            _mockRemoteCache.Object,
+            _remoteCacheKeyGenerator,
+            _mockLogger.Object,
+            _mockNext.Object);
+        var context = CreateHttpContext("/secure", "{\"userId\":1,\"authToken\":\"valid-token\"}");
 
         _mockRemoteCache
-            .Setup(cache => cache.GetAsync<string>("authToken:valid-token"))
-            .ReturnsAsync(("valid-token", WebServerErrorCode.Success));
+            .Setup(cache => cache.GetAsync<UserSession>("session_1"))
+            .ReturnsAsync((new UserSession(1, "valid-token"), WebServerErrorCode.Success));
 
         _mockRemoteCache
-            .Setup(cache => cache.LockAsync("authToken:valid-token", "valid-token"))
+            .Setup(cache => cache.LockAsync(1, "lockValue"))
             .ReturnsAsync(WebServerErrorCode.Success);
 
         // Act
@@ -103,6 +122,6 @@ public class UserAuthenticationTest
 
         // Assert
         _mockNext.Verify(next => next(context), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync("authToken:valid-token", "valid-token"), Times.Once);
+        _mockRemoteCache.Verify(cache => cache.UnlockAsync(1, "lockValue"), Times.Once);
     }
 }
