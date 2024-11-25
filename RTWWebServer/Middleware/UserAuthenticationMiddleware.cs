@@ -119,6 +119,8 @@ public class UserAuthenticationMiddleware(
                 logger.LogError($"Invalid auth token for user {userId}");
                 await RespondWithError(context, WebServerErrorCode.InvalidAuthToken);
 
+
+                await remoteCache.UnlockAsync(userId, lockValue);
                 return;
             }
 
