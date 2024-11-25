@@ -3,7 +3,7 @@ using RTWWebServer.Database.Data;
 
 namespace RTWWebServer.Database.Repository;
 
-public class AccountRepository(IMySqlConnectionProvider connectionProvider) : IAccountRepository
+public class AccountRepository(AccountDatabaseContext databaseContext) : IAccountRepository
 {
     public async Task<Account?> FindByIdAsync(int id)
     {
@@ -13,8 +13,7 @@ public class AccountRepository(IMySqlConnectionProvider connectionProvider) : IA
                         WHERE id = @{nameof(id)}
                         """;
 
-        var connection = await connectionProvider.GetAccountConnectionAsync();
-        await using var command = new MySqlCommand(query, connection);
+        await using var command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(id)}", id);
 
@@ -43,8 +42,7 @@ public class AccountRepository(IMySqlConnectionProvider connectionProvider) : IA
                         WHERE email = @{nameof(email)} 
                         """;
 
-        var connection = await connectionProvider.GetAccountConnectionAsync();
-        await using var command = new MySqlCommand(query, connection);
+        await using var command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
 
@@ -72,8 +70,7 @@ public class AccountRepository(IMySqlConnectionProvider connectionProvider) : IA
                         VALUES (@{nameof(username)}, @{nameof(email)}, @{nameof(password)}, @{nameof(salt)})
                         """;
 
-        var connection = await connectionProvider.GetAccountConnectionAsync();
-        await using var command = new MySqlCommand(query, connection);
+        await using var command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(username)}", username);
         command.Parameters.AddWithValue($"@{nameof(email)}", email);

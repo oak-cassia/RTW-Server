@@ -5,7 +5,7 @@ using RTWWebServer.Database.Repository;
 namespace RTWWebServer.Service;
 
 public class AccountService(
-    IMySqlConnectionProvider mySqlConnectionProvider,
+    AccountDatabaseContext databaseContext,
     IAccountRepository accountRepository,
     IGuestRepository guestRepository,
     IPasswordHasher passwordHasher,
@@ -15,8 +15,7 @@ public class AccountService(
 {
     public async Task<bool> CreateAccountAsync(string userName, string email, string password)
     {
-        var connection = await mySqlConnectionProvider.GetAccountConnectionAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
+        await databaseContext.BeginTransactionAsync();
 
         try
         {
@@ -28,18 +27,18 @@ public class AccountService(
             var result = await accountRepository.CreateAccountAsync(userName, email, hashedPassword, salt);
             if (result == false)
             {
-                await transaction.RollbackAsync();
+                await databaseContext.RollbackTransactionAsync();
 
                 return false;
             }
 
-            await transaction.CommitAsync();
+            await databaseContext.CommitTransactionAsync();
 
             return true;
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync();
+            await databaseContext.RollbackTransactionAsync();
 
             throw;
         }
@@ -47,30 +46,29 @@ public class AccountService(
 
     public async Task<string> CreateGuestAccountAsync()
     {
-        var connection = await mySqlConnectionProvider.GetAccountConnectionAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
+        await databaseContext.BeginTransactionAsync();
 
         try
         {
-            var guid = guidGenerator.GenerateGuid();
+            var guid = guidGenerator.GenerateGuid(); // 고유 식별자
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 guest 테이블에 입력
 
             var result = await guestRepository.CreateGuestAsync(guid.ToByteArray());
             if (result <= 0)
             {
-                await transaction.RollbackAsync();
+                await databaseContext.RollbackTransactionAsync();
 
                 throw new Exception("Failed to create guest account");
             }
 
-            await transaction.CommitAsync();
+            await databaseContext.CommitTransactionAsync();
 
-            return guid.ToString();
+            return guid.ToString(); 
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync();
+            await databaseContext.RollbackTransactionAsync();
 
             throw;
         }

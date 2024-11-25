@@ -9,7 +9,6 @@ namespace RTWWebServer.Controllers;
 [ApiController]
 [Route("[controller]")]
 public class AccountController(ILogger<AccountController> logger, IAccountService accountService) : ControllerBase
-
 {
     [HttpPost("createGuestAccount")]
     public async Task<CreateGuestAccountResponse> CreateGuestAccount()

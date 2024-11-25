@@ -3,7 +3,7 @@ using RTWWebServer.Database.Data;
 
 namespace RTWWebServer.Database.Repository;
 
-public class GuestRepository(IMySqlConnectionProvider connectionProvider) : IGuestRepository
+public class GuestRepository(AccountDatabaseContext databaseContext) : IGuestRepository
 {
     public async Task<Guest?> FindByGuidAsync(byte[] guestGuid)
     {
@@ -13,14 +13,12 @@ public class GuestRepository(IMySqlConnectionProvider connectionProvider) : IGue
                         WHERE guid = @{nameof(guestGuid)} 
                         """;
 
-        var connection = await connectionProvider.GetAccountConnectionAsync();
-
-        await using var command = new MySqlCommand(query, connection);
+        await using var command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.Add($"@{nameof(guestGuid)}", MySqlDbType.VarBinary).Value = guestGuid;
 
         await using var reader = await command.ExecuteReaderAsync();
-        
+
         if (await reader.ReadAsync())
         {
             return new Guest(reader.GetInt64("id"), reader.GetGuid("guid"));
@@ -36,9 +34,7 @@ public class GuestRepository(IMySqlConnectionProvider connectionProvider) : IGue
                         VALUES (@{nameof(guestGuid)})
                         """;
 
-        var connection = await connectionProvider.GetAccountConnectionAsync();
-
-        await using var command = new MySqlCommand(query, connection);
+        await using var command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
 
