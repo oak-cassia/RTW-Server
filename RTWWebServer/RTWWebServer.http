@@ -4,8 +4,8 @@ POST {{RTWWebServer_HostAddress}}/Auth/login/
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "password": "admin"
+    "username": "admin",
+    "password": "admin"
 }
 
 
