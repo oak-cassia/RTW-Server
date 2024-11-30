@@ -6,7 +6,7 @@ using RTWWebServer.Database.Repository;
 using RTWWebServer.Middleware;
 using RTWWebServer.Service;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 IConfiguration configuration = builder.Configuration;
 builder.Services.Configure<DatabaseConfiguration>(configuration.GetSection(nameof(DatabaseConfiguration)));
@@ -21,7 +21,7 @@ builder.Services.AddSwaggerGen();
 
 InjectDependencies();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -42,18 +42,18 @@ void InjectDependencies()
     builder.Services.AddSingleton<IGuidGenerator, GuidGenerator>();
     builder.Services.AddSingleton<IAuthTokenGenerator, AuthTokenGenerator>();
     builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
-    
+
     builder.Services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // thread safe 함
     builder.Services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
-    
+
     builder.Services.AddScoped<GameDatabaseContext, GameDatabaseContext>();
     builder.Services.AddScoped<AccountDatabaseContext, AccountDatabaseContext>();
-    
+
     builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
-    
+
     builder.Services.AddScoped<IGuestRepository, GuestRepository>();
     builder.Services.AddScoped<IAccountRepository, AccountRepository>();
-    
+
     builder.Services.AddTransient<ILoginService, LoginService>();
     builder.Services.AddTransient<IAccountService, AccountService>();
 }

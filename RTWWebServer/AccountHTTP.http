@@ -1,0 +1,19 @@
+### Post create Guest
+POST localhost:5000/Account/createGuestAccount
+Content-Type: application/json
+
+{
+    
+}
+
+
+
+### Login Guest
+POST localhost:5000/Login/guestLogin
+Content-Type: application/json
+
+{
+    "GuestGuid": "a057bd2f-6853-4c63-ac3d-abc0507b1a17"
+}
+
+

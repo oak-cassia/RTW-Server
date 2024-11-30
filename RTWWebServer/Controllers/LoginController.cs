@@ -15,7 +15,7 @@ public class LoginController(ILogger<LoginController> logger, ILoginService logi
     {
         try
         {
-            var (errorCode, authToken) = await loginService.LoginAsync(request.Email, request.Password);
+            (WebServerErrorCode errorCode, string authToken) = await loginService.LoginAsync(request.Email, request.Password);
             if (errorCode != WebServerErrorCode.Success)
             {
                 return new LoginResponse(errorCode, string.Empty);
@@ -35,7 +35,7 @@ public class LoginController(ILogger<LoginController> logger, ILoginService logi
     {
         try
         {
-            var (errorCode, authToken) = await loginService.GuestLoginAsync(request.GuestGuid);
+            (WebServerErrorCode errorCode, string authToken) = await loginService.GuestLoginAsync(request.GuestGuid);
             if (errorCode != WebServerErrorCode.Success)
             {
                 return new GuestLoginResponse(errorCode, string.Empty);

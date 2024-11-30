@@ -15,7 +15,7 @@ public class AccountController(ILogger<AccountController> logger, IAccountServic
     {
         try
         {
-            var guestGuid = await accountService.CreateGuestAccountAsync();
+            string guestGuid = await accountService.CreateGuestAccountAsync();
 
             return new CreateGuestAccountResponse(WebServerErrorCode.Success, guestGuid);
         }
@@ -31,7 +31,7 @@ public class AccountController(ILogger<AccountController> logger, IAccountServic
     {
         try
         {
-            var result = await accountService.CreateAccountAsync("", request.Email, request.Password);
+            bool result = await accountService.CreateAccountAsync("", request.Email, request.Password);
             return result ? new CreateAccountResponse(WebServerErrorCode.Success) : new CreateAccountResponse(WebServerErrorCode.InternalServerError);
         }
         catch (Exception e)

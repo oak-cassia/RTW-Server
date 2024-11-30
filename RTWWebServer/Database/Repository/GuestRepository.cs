@@ -1,5 +1,5 @@
 using MySqlConnector;
-using RTWWebServer.Database.Data;
+using RTWWebServer.Database.Entity;
 
 namespace RTWWebServer.Database.Repository;
 
@@ -13,11 +13,11 @@ public class GuestRepository(AccountDatabaseContext databaseContext) : IGuestRep
                         WHERE guid = @{nameof(guestGuid)} 
                         """;
 
-        await using var command = await databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.Add($"@{nameof(guestGuid)}", MySqlDbType.VarBinary).Value = guestGuid;
 
-        await using var reader = await command.ExecuteReaderAsync();
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
         if (await reader.ReadAsync())
         {
@@ -34,7 +34,7 @@ public class GuestRepository(AccountDatabaseContext databaseContext) : IGuestRep
                         VALUES (@{nameof(guestGuid)})
                         """;
 
-        await using var command = await databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
 

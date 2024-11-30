@@ -9,9 +9,9 @@ public class PasswordHasher : IPasswordHasher
 
     public string GenerateSaltValue()
     {
-        using var randomNumberGenerator = RandomNumberGenerator.Create();
+        using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
 
-        var saltValue = new byte[64];
+        byte[] saltValue = new byte[64];
         randomNumberGenerator.GetBytes(saltValue);
 
         return Convert.ToBase64String(saltValue);
@@ -19,10 +19,10 @@ public class PasswordHasher : IPasswordHasher
 
     public string CalcHashedPassword(string password, string salt)
     {
-        var passwordBytes = Encoding.UTF8.GetBytes(password + salt);
-        using var sha256Hash = SHA256.Create();
+        byte[] passwordBytes = Encoding.UTF8.GetBytes(password + salt);
+        using SHA256 sha256Hash = SHA256.Create();
 
-        for (var i = 0; i < StretchCount; i++)
+        for (int i = 0; i < StretchCount; i++)
         {
             passwordBytes = sha256Hash.ComputeHash(passwordBytes);
         }

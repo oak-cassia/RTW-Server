@@ -5,7 +5,7 @@ using Moq;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Authentication;
 using RTWWebServer.Database.Cache;
-using RTWWebServer.Database.Data;
+using RTWWebServer.Database.Entity;
 using RTWWebServer.Middleware;
 
 namespace RTWTest.Webserver.Authentication;
