@@ -1,4 +1,4 @@
-namespace RTWWebServer.Database.Data;
+namespace RTWWebServer.Database.Entity;
 
 public class UserSession(int userId, string authToken)
 {

@@ -11,8 +11,8 @@ public class BaseDatabaseContext(string connectionConfigString) : IDatabaseConte
 
     public async Task<MySqlCommand> CreateCommandAsync(string query)
     {
-        var connection = await GetConnectionAsync();
-        var command = new MySqlCommand(query, connection);
+        MySqlConnection connection = await GetConnectionAsync();
+        MySqlCommand command = new MySqlCommand(query, connection);
         
         if (_transaction is not null)
         {
@@ -24,7 +24,7 @@ public class BaseDatabaseContext(string connectionConfigString) : IDatabaseConte
 
     public async Task BeginTransactionAsync()
     {
-        var connection = GetConnectionAsync();
+        Task<MySqlConnection> connection = GetConnectionAsync();
         _transaction = await connection.Result.BeginTransactionAsync();
     }
 
@@ -72,7 +72,7 @@ public class BaseDatabaseContext(string connectionConfigString) : IDatabaseConte
 
     private async Task<MySqlConnection> CreateConnectionAsync(string connectionString)
     {
-        var connection = new MySqlConnection(connectionString);
+        MySqlConnection connection = new MySqlConnection(connectionString);
         await connection.OpenAsync();
 
         return connection;
