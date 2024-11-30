@@ -1,5 +1,5 @@
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.Database.Data;
+using RTWWebServer.Database.Entity;
 
 namespace RTWWebServer.Database.Repository;
 

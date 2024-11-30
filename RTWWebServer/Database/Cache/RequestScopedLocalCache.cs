@@ -8,7 +8,7 @@ public class RequestScopedLocalCache : IRequestScopedLocalCache
 
     public T? Get<T>(string key)
     {
-        if (_cache.TryGetValue(key, out var value))
+        if (_cache.TryGetValue(key, out object? value))
         {
             return (T)value;
         }

@@ -19,12 +19,12 @@ public class AccountService(
 
         try
         {
-            var salt = passwordHasher.GenerateSaltValue();
-            var hashedPassword = passwordHasher.CalcHashedPassword(password, salt);
+            string salt = passwordHasher.GenerateSaltValue();
+            string hashedPassword = passwordHasher.CalcHashedPassword(password, salt);
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 Account 테이블에 입력
 
-            var result = await accountRepository.CreateAccountAsync(userName, email, hashedPassword, salt);
+            bool result = await accountRepository.CreateAccountAsync(userName, email, hashedPassword, salt);
             if (result == false)
             {
                 await databaseContext.RollbackTransactionAsync();
@@ -50,11 +50,11 @@ public class AccountService(
 
         try
         {
-            var guid = guidGenerator.GenerateGuid(); // 고유 식별자
+            Guid guid = guidGenerator.GenerateGuid(); // 고유 식별자
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 guest 테이블에 입력
 
-            var result = await guestRepository.CreateGuestAsync(guid.ToByteArray());
+            long result = await guestRepository.CreateGuestAsync(guid.ToByteArray());
             if (result <= 0)
             {
                 await databaseContext.RollbackTransactionAsync();
@@ -64,7 +64,7 @@ public class AccountService(
 
             await databaseContext.CommitTransactionAsync();
 
-            return guid.ToString(); 
+            return guid.ToString();
         }
         catch (Exception)
         {

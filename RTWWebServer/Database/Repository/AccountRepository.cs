@@ -1,5 +1,5 @@
 using MySqlConnector;
-using RTWWebServer.Database.Data;
+using RTWWebServer.Database.Entity;
 
 namespace RTWWebServer.Database.Repository;
 
@@ -13,11 +13,11 @@ public class AccountRepository(AccountDatabaseContext databaseContext) : IAccoun
                         WHERE id = @{nameof(id)}
                         """;
 
-        await using var command = await databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(id)}", id);
 
-        await using var reader = await command.ExecuteReaderAsync();
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
         if (await reader.ReadAsync())
         {
@@ -42,11 +42,11 @@ public class AccountRepository(AccountDatabaseContext databaseContext) : IAccoun
                         WHERE email = @{nameof(email)} 
                         """;
 
-        await using var command = await databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
 
-        await using var reader = await command.ExecuteReaderAsync();
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
         if (await reader.ReadAsync())
         {
@@ -70,7 +70,7 @@ public class AccountRepository(AccountDatabaseContext databaseContext) : IAccoun
                         VALUES (@{nameof(username)}, @{nameof(email)}, @{nameof(password)}, @{nameof(salt)})
                         """;
 
-        await using var command = await databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await databaseContext.CreateCommandAsync(query);
 
         command.Parameters.AddWithValue($"@{nameof(username)}", username);
         command.Parameters.AddWithValue($"@{nameof(email)}", email);
