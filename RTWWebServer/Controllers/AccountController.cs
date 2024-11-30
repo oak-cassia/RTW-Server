@@ -32,7 +32,9 @@ public class AccountController(ILogger<AccountController> logger, IAccountServic
         try
         {
             bool result = await accountService.CreateAccountAsync("", request.Email, request.Password);
-            return result ? new CreateAccountResponse(WebServerErrorCode.Success) : new CreateAccountResponse(WebServerErrorCode.InternalServerError);
+            return result
+                ? new CreateAccountResponse(WebServerErrorCode.Success)
+                : new CreateAccountResponse(WebServerErrorCode.InternalServerError);
         }
         catch (Exception e)
         {

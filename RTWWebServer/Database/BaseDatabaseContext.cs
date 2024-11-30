@@ -13,12 +13,12 @@ public class BaseDatabaseContext(string connectionConfigString) : IDatabaseConte
     {
         MySqlConnection connection = await GetConnectionAsync();
         MySqlCommand command = new MySqlCommand(query, connection);
-        
+
         if (_transaction is not null)
         {
             command.Transaction = _transaction;
         }
-        
+
         return command;
     }
 
