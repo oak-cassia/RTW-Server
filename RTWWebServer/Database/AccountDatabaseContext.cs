@@ -3,4 +3,5 @@ using RTWWebServer.Configuration;
 
 namespace RTWWebServer.Database;
 
-public class AccountDatabaseContext(IOptions<DatabaseConfiguration> configuration) : BaseDatabaseContext(configuration.Value.AccountDatabase);
+public class AccountDatabaseContext(IOptions<DatabaseConfiguration> configuration)
+    : BaseDatabaseContext(configuration.Value.AccountDatabase);
