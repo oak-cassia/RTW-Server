@@ -2,7 +2,7 @@ using MySqlConnector;
 
 namespace RTWWebServer.Database;
 
-public class MySqlDatabaseCommand(MySqlCommand command) : IDatabaseCommand, IAsyncDisposable
+public class MySqlDatabaseCommand(MySqlCommand command) : IDatabaseCommand
 {
     public void AddParameter(string name, object value)
     {
