@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace RTWWebServer.Database.Cache;
+namespace RTWWebServer.Cache;
 
 public class RequestScopedLocalCache : IRequestScopedLocalCache
 {

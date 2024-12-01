@@ -1,6 +1,6 @@
 using NetworkDefinition.ErrorCode;
 
-namespace RTWWebServer.Database.Cache;
+namespace RTWWebServer.Cache;
 
 public interface IRemoteCache
 {

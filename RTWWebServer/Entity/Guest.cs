@@ -1,4 +1,4 @@
-namespace RTWWebServer.Database.Entity;
+namespace RTWWebServer.Entity;
 
 public class Guest(long id, Guid guid)
 {

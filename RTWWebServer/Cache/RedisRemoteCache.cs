@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Configuration;
 
-namespace RTWWebServer.Database.Cache;
+namespace RTWWebServer.Cache;
 
 public class RedisRemoteCache : IRemoteCache
 {
