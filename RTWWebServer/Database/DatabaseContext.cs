@@ -3,7 +3,7 @@ using MySqlConnector;
 
 namespace RTWWebServer.Database;
 
-public class BaseDatabaseContext(string connectionConfigString) : IDatabaseContext
+public class DatabaseContext(string connectionConfigString) : IDatabaseContext
 {
     private MySqlConnection? _connection;
 
