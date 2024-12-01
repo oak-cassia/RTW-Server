@@ -1,7 +1,8 @@
 using MySqlConnector;
-using RTWWebServer.Database.Entity;
+using RTWWebServer.Database;
+using RTWWebServer.Entity;
 
-namespace RTWWebServer.Database.Repository;
+namespace RTWWebServer.Repository;
 
 public class GuestRepository(IDatabaseContextProvider databaseContextProvider) : IGuestRepository
 {

@@ -1,6 +1,6 @@
 using RTWWebServer.Authentication;
 using RTWWebServer.Database;
-using RTWWebServer.Database.Repository;
+using RTWWebServer.Repository;
 
 namespace RTWWebServer.Service;
 

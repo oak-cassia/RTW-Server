@@ -4,7 +4,7 @@ using RTWWebServer.Configuration;
 
 namespace RTWWebServer.Database;
 
-public class DatabaseContextProvider(IOptions<DatabaseConfiguration> configuration) : IDatabaseContextProvider
+public class MySqlDatabaseContextProvider(IOptions<DatabaseConfiguration> configuration) : IDatabaseContextProvider
 {
     private readonly ConcurrentDictionary<string, IDatabaseContext> _contextCache = new();
 

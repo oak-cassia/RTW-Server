@@ -1,9 +1,9 @@
 using RTWWebServer.Authentication;
+using RTWWebServer.Cache;
 using RTWWebServer.Configuration;
 using RTWWebServer.Database;
-using RTWWebServer.Database.Cache;
-using RTWWebServer.Database.Repository;
 using RTWWebServer.Middleware;
+using RTWWebServer.Repository;
 using RTWWebServer.Service;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -46,7 +46,7 @@ void InjectDependencies()
     builder.Services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // thread safe 함
     builder.Services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
 
-    builder.Services.AddScoped<IDatabaseContextProvider, DatabaseContextProvider>();
+    builder.Services.AddScoped<IDatabaseContextProvider, MySqlDatabaseContextProvider>();
 
     builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
 
