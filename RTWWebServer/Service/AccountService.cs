@@ -5,7 +5,7 @@ using RTWWebServer.Database.Repository;
 namespace RTWWebServer.Service;
 
 public class AccountService(
-    AccountDatabaseContext databaseContext,
+    IDatabaseContextProvider databaseContextProvider,
     IAccountRepository accountRepository,
     IGuestRepository guestRepository,
     IPasswordHasher passwordHasher,
@@ -13,9 +13,11 @@ public class AccountService(
     ILogger<LoginService> logger
 ) : IAccountService
 {
+    private readonly IDatabaseContext _databaseContext = databaseContextProvider.GetDatabaseContext("Account");
+
     public async Task<bool> CreateAccountAsync(string userName, string email, string password)
     {
-        await databaseContext.BeginTransactionAsync();
+        await _databaseContext.BeginTransactionAsync();
 
         try
         {
@@ -27,18 +29,18 @@ public class AccountService(
             bool result = await accountRepository.CreateAccountAsync(userName, email, hashedPassword, salt);
             if (result == false)
             {
-                await databaseContext.RollbackTransactionAsync();
+                await _databaseContext.RollbackTransactionAsync();
 
                 return false;
             }
 
-            await databaseContext.CommitTransactionAsync();
+            await _databaseContext.CommitTransactionAsync();
 
             return true;
         }
         catch (Exception)
         {
-            await databaseContext.RollbackTransactionAsync();
+            await _databaseContext.RollbackTransactionAsync();
 
             throw;
         }
@@ -46,7 +48,7 @@ public class AccountService(
 
     public async Task<string> CreateGuestAccountAsync()
     {
-        await databaseContext.BeginTransactionAsync();
+        await _databaseContext.BeginTransactionAsync();
 
         try
         {
@@ -57,18 +59,18 @@ public class AccountService(
             long result = await guestRepository.CreateGuestAsync(guid.ToByteArray());
             if (result <= 0)
             {
-                await databaseContext.RollbackTransactionAsync();
+                await _databaseContext.RollbackTransactionAsync();
 
                 throw new Exception("Failed to create guest account");
             }
 
-            await databaseContext.CommitTransactionAsync();
+            await _databaseContext.CommitTransactionAsync();
 
             return guid.ToString();
         }
         catch (Exception)
         {
-            await databaseContext.RollbackTransactionAsync();
+            await _databaseContext.RollbackTransactionAsync();
 
             throw;
         }
