@@ -10,7 +10,7 @@ public class AccountService(
     IGuestRepository guestRepository,
     IPasswordHasher passwordHasher,
     IGuidGenerator guidGenerator,
-    ILogger<LoginService> logger
+    ILogger<AccountService> logger
 ) : IAccountService
 {
     private readonly IDatabaseContext _databaseContext = databaseContextProvider.GetDatabaseContext("Account");

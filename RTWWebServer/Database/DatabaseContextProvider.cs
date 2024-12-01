@@ -28,8 +28,8 @@ public class DatabaseContextProvider(IOptions<DatabaseConfiguration> configurati
     {
         return databaseName switch
         {
-            "Account" => new DatabaseContext(_configuration.AccountDatabase),
-            "Game" => new DatabaseContext(_configuration.GameDatabase),
+            "Account" => new MySqlDatabaseContext(_configuration.AccountDatabase),
+            "Game" => new MySqlDatabaseContext(_configuration.GameDatabase),
             _ => throw new ArgumentException($"Database name '{databaseName}' is not supported", nameof(databaseName))
         };
     }
