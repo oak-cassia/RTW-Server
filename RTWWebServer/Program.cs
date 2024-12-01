@@ -46,8 +46,7 @@ void InjectDependencies()
     builder.Services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // thread safe 함
     builder.Services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
 
-    builder.Services.AddScoped<GameDatabaseContext, GameDatabaseContext>();
-    builder.Services.AddScoped<AccountDatabaseContext, AccountDatabaseContext>();
+    builder.Services.AddScoped<IDatabaseContextProvider, DatabaseContextProvider>();
 
     builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
 

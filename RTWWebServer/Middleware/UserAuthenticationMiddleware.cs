@@ -26,6 +26,13 @@ public class UserAuthenticationMiddleware(
     {
         context.Request.EnableBuffering();
 
+        string path = context.Request.Path.Value ?? string.Empty;
+        if (IsExcludedPath(path))
+        {
+                await next(context);
+            return;
+        }
+
         string requestBody = await ReadRequestBodyAsync(context);
         if (string.IsNullOrEmpty(requestBody))
         {
@@ -104,13 +111,6 @@ public class UserAuthenticationMiddleware(
                 logger.LogError($"Failed to lock user {userId}");
                 await RespondWithError(context, result);
 
-                return;
-            }
-
-            string path = context.Request.Path.Value ?? string.Empty;
-            if (IsExcludedPath(path))
-            {
-                await next(context);
                 return;
             }
 
