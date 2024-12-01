@@ -15,9 +15,9 @@ public class AccountRepository(IDatabaseContextProvider databaseContextProvider)
                         WHERE id = @{nameof(id)}
                         """;
 
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.Parameters.AddWithValue($"@{nameof(id)}", id);
+        command.AddParameter($"@{nameof(id)}", id);
 
         await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
@@ -44,9 +44,9 @@ public class AccountRepository(IDatabaseContextProvider databaseContextProvider)
                         WHERE email = @{nameof(email)} 
                         """;
 
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.Parameters.AddWithValue($"@{nameof(email)}", email);
+        command.AddParameter($"@{nameof(email)}", email);
 
         await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
@@ -72,15 +72,14 @@ public class AccountRepository(IDatabaseContextProvider databaseContextProvider)
                         VALUES (@{nameof(username)}, @{nameof(email)}, @{nameof(password)}, @{nameof(salt)})
                         """;
 
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.Parameters.AddWithValue($"@{nameof(username)}", username);
-        command.Parameters.AddWithValue($"@{nameof(email)}", email);
-        command.Parameters.AddWithValue($"@{nameof(password)}", password);
-        command.Parameters.AddWithValue($"@{nameof(salt)}", salt);
+        command.AddParameter($"@{nameof(username)}", username);
+        command.AddParameter($"@{nameof(email)}", email);
+        command.AddParameter($"@{nameof(password)}", password);
+        command.AddParameter($"@{nameof(salt)}", salt);
 
-        await command.ExecuteNonQueryAsync();
-
-        return command.LastInsertedId > 0;
+        int lastInsertedId = await command.ExecuteNonQueryAsync();
+        return lastInsertedId > 0;
     }
 }
