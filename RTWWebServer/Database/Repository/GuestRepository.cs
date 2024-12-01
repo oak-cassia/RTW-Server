@@ -6,7 +6,7 @@ namespace RTWWebServer.Database.Repository;
 public class GuestRepository(IDatabaseContextProvider databaseContextProvider) : IGuestRepository
 {
     private readonly IDatabaseContext _databaseContext = databaseContextProvider.GetDatabaseContext("Account");
-    
+
     public async Task<Guest?> FindByGuidAsync(byte[] guestGuid)
     {
         string query = $"""
@@ -15,9 +15,9 @@ public class GuestRepository(IDatabaseContextProvider databaseContextProvider) :
                         WHERE guid = @{nameof(guestGuid)} 
                         """;
 
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.Parameters.Add($"@{nameof(guestGuid)}", MySqlDbType.VarBinary).Value = guestGuid;
+        command.AddParameter($"@{nameof(guestGuid)}", guestGuid);
 
         await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
@@ -36,12 +36,10 @@ public class GuestRepository(IDatabaseContextProvider databaseContextProvider) :
                         VALUES (@{nameof(guestGuid)})
                         """;
 
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
+        command.AddParameter($"@{nameof(guestGuid)}", guestGuid);
 
-        await command.ExecuteNonQueryAsync();
-
-        return command.LastInsertedId;
+        return await command.ExecuteNonQueryAsync();
     }
 }

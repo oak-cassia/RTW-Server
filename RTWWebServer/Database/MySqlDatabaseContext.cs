@@ -3,13 +3,13 @@ using MySqlConnector;
 
 namespace RTWWebServer.Database;
 
-public class DatabaseContext(string connectionConfigString) : IDatabaseContext
+public class MySqlDatabaseContext(string connectionConfigString) : IDatabaseContext
 {
     private MySqlConnection? _connection;
 
     private MySqlTransaction? _transaction;
 
-    public async Task<MySqlCommand> CreateCommandAsync(string query)
+    public async Task<IDatabaseCommand> CreateCommandAsync(string query)
     {
         MySqlConnection connection = await GetConnectionAsync();
         MySqlCommand command = new MySqlCommand(query, connection);
@@ -19,7 +19,7 @@ public class DatabaseContext(string connectionConfigString) : IDatabaseContext
             command.Transaction = _transaction;
         }
 
-        return command;
+        return new MySqlDatabaseCommand(command);
     }
 
     public async Task BeginTransactionAsync()
