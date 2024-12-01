@@ -2,5 +2,5 @@ namespace RTWWebServer.Database;
 
 public interface IDatabaseContextProvider : IDisposable
 {
-    IDatabaseContext GetDatabaseContext(string databaseName); 
+    IDatabaseContext GetDatabaseContext(string databaseName);
 }

@@ -9,7 +9,7 @@ public class MySqlDatabaseContext(string connectionConfigString) : IDatabaseCont
 
     private MySqlTransaction? _transaction;
 
-    public async Task<IDatabaseCommand> CreateCommandAsync(string query)
+    public async Task<MySqlCommand> CreateCommandAsync(string query)
     {
         MySqlConnection connection = await GetConnectionAsync();
         MySqlCommand command = new MySqlCommand(query, connection);
@@ -19,7 +19,7 @@ public class MySqlDatabaseContext(string connectionConfigString) : IDatabaseCont
             command.Transaction = _transaction;
         }
 
-        return new MySqlDatabaseCommand(command);
+        return command;
     }
 
     public async Task BeginTransactionAsync()

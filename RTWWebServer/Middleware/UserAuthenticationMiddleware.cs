@@ -29,7 +29,7 @@ public class UserAuthenticationMiddleware(
         string path = context.Request.Path.Value ?? string.Empty;
         if (IsExcludedPath(path))
         {
-                await next(context);
+            await next(context);
             return;
         }
 

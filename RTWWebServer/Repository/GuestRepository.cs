@@ -16,9 +16,9 @@ public class GuestRepository(IDatabaseContextProvider databaseContextProvider) :
                         WHERE guid = @{nameof(guestGuid)} 
                         """;
 
-        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.AddParameter($"@{nameof(guestGuid)}", guestGuid);
+        command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
 
         await using MySqlDataReader reader = await command.ExecuteReaderAsync();
 
@@ -37,9 +37,9 @@ public class GuestRepository(IDatabaseContextProvider databaseContextProvider) :
                         VALUES (@{nameof(guestGuid)})
                         """;
 
-        await using IDatabaseCommand command = await _databaseContext.CreateCommandAsync(query);
+        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
 
-        command.AddParameter($"@{nameof(guestGuid)}", guestGuid);
+        command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
 
         return await command.ExecuteNonQueryAsync();
     }
