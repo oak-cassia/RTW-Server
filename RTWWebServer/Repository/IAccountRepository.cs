@@ -1,7 +1,6 @@
-using NetworkDefinition.ErrorCode;
-using RTWWebServer.Database.Entity;
+using RTWWebServer.Entity;
 
-namespace RTWWebServer.Database.Repository;
+namespace RTWWebServer.Repository;
 
 public interface IAccountRepository
 {

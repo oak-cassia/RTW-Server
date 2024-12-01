@@ -1,4 +1,4 @@
-namespace RTWWebServer.Database.Cache;
+namespace RTWWebServer.Cache;
 
 public class RemoteCacheKeyGenerator : IRemoteCacheKeyGenerator
 {
