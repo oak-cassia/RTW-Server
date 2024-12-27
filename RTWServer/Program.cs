@@ -28,7 +28,21 @@ try
     Console.WriteLine($"Server running at {ipAddress}:{port}");
 
     // 서버 실행
-    await server.Start();
+    using var cts = new CancellationTokenSource();
+    var serverTask = server.Start(cts.Token);
+
+    while (true)
+    {
+        var input = Console.ReadLine();
+        if (input == "quit")
+        {
+            cts.Cancel();
+            break;
+        }
+    }
+
+    // 서버 정상 종료 대기
+    await serverTask;
 }
 catch (Exception ex)
 {

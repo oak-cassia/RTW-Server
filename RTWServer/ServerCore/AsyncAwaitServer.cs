@@ -17,13 +17,14 @@ class AsyncAwaitServer
     private readonly IClientFactory _clientFactory;
     private readonly IPacketFactory _packetFactory;
 
-    private const int HeaderSize = 8;
-    private const int HeaderPacketIdOffset = 0;
-    private const int HeaderLengthOffset = 4;
-    private const int Backlog = 100;
-    private const int BufferSize = 4096;
+    private const int HEADER_SIZE = 8;
+    private const int HEADER_PACKET_ID_OFFSET = 0;
+    private const int HEADER_LENGTH_OFFSET = 4;
+    private const int BACKLOG = 100;
+    private const int BUFFER_SIZE = 4096;
 
-    public AsyncAwaitServer(IPEndPoint endpoint, IPacketHandler packetHandler, ILoggerFactory loggerFactory, IClientFactory clientFactory,
+    public AsyncAwaitServer(IPEndPoint endpoint, IPacketHandler packetHandler, ILoggerFactory loggerFactory,
+        IClientFactory clientFactory,
         IPacketFactory packetFactory)
     {
         _endPoint = endpoint;
@@ -33,30 +34,43 @@ class AsyncAwaitServer
         _packetFactory = packetFactory;
     }
 
-    public async Task Start()
+    public async Task Start(CancellationToken token)
     {
         var listener = new TcpListener(_endPoint);
-        listener.Start(Backlog);
+        listener.Start(BACKLOG);
+        _logger.LogInformation("Server started...");
 
-        while (true)
+        try
         {
-            TcpClient tcpClient = await listener.AcceptTcpClientAsync();
-            SetSocketOption(tcpClient.Client);
+            while (!token.IsCancellationRequested)
+            {
+                // token 취소 시 TaskCanceledException 발생
+                TcpClient tcpClient = await listener.AcceptTcpClientAsync(token);
 
-            IClient client = _clientFactory.CreateClient(tcpClient);
-            HandleTcpClient(client);
+                // 클라이언트가 정상 연결됨
+                SetSocketOption(tcpClient.Client);
+                Interlocked.Increment(ref _acceptCount);
 
-            Interlocked.Increment(ref _acceptCount);
+                IClient client = _clientFactory.CreateClient(tcpClient);
+                _ = HandleTcpClient(client);
+            }
         }
-
-        // ReSharper disable once FunctionNeverReturns
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Accepting client failed.");
+        }
+        finally
+        {
+            listener.Stop();
+            _logger.LogInformation("Server stopped.");
+        }
     }
 
-    private async void HandleTcpClient(IClient client)
+    private async Task HandleTcpClient(IClient client)
     {
         try
         {
-            var buffer = new byte[BufferSize]; // TODO: 메모리 풀 사용하는 거 공부하고 적용해보기, 카피 최소화 하자
+            var buffer = new byte[BUFFER_SIZE]; // TODO: 메모리 풀 사용하는 거 공부하고 적용해보기, 카피 최소화 하자
 
             // 클라이언트로부터 패킷을 계속 읽음
             while (true)
@@ -80,32 +94,32 @@ class AsyncAwaitServer
 
     private async Task<IPacket> HandleNetworkStream(NetworkStream stream, byte[] buffer)
     {
-        if (!await Fill(stream, buffer, HeaderSize, HeaderPacketIdOffset))
+        if (!await Fill(stream, buffer, HEADER_SIZE, HEADER_PACKET_ID_OFFSET))
         {
             Interlocked.Increment(ref _closeByInvalidStream);
             throw new InvalidOperationException("Failed to read header.");
         }
 
-        var packetLength = BitConverter.ToInt32(buffer, HeaderLengthOffset);
+        var packetLength = BitConverter.ToInt32(buffer, HEADER_LENGTH_OFFSET);
 
-        if (packetLength <= HeaderSize || packetLength > BufferSize)
+        if (packetLength <= HEADER_SIZE || packetLength > BUFFER_SIZE)
         {
             Interlocked.Increment(ref _closeByInvalidStream);
             throw new InvalidOperationException("Invalid packet length.");
         }
 
-        int payloadSize = packetLength - HeaderSize;
+        int payloadSize = packetLength - HEADER_SIZE;
 
-        if (!await Fill(stream, buffer, payloadSize, HeaderSize))
+        if (!await Fill(stream, buffer, payloadSize, HEADER_SIZE))
         {
             Interlocked.Increment(ref _closeByInvalidStream);
             throw new InvalidOperationException("Failed to read payload.");
         }
 
-        var packetId = BitConverter.ToInt32(buffer, HeaderPacketIdOffset);
+        var packetId = BitConverter.ToInt32(buffer, HEADER_PACKET_ID_OFFSET);
 
         // TODO : Memory랑 Span, https://learn.microsoft.com/ko-kr/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
-        var payload = new ReadOnlyMemory<byte>(buffer, HeaderSize, payloadSize);
+        var payload = new ReadOnlyMemory<byte>(buffer, HEADER_SIZE, payloadSize);
 
         return _packetFactory.CreatePacket(packetId, payload);
     }
