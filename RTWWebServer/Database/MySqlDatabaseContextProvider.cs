@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Xml;
 using Microsoft.Extensions.Options;
+using RTWWebServer.Cache;
 using RTWWebServer.Configuration;
 
 namespace RTWWebServer.Database;
@@ -17,7 +19,7 @@ public class MySqlDatabaseContextProvider(IOptions<DatabaseConfiguration> config
             return cachedContext;
         }
 
-        var newContext = CreateDatabaseContext(databaseName);
+        IDatabaseContext newContext = CreateDatabaseContext(databaseName);
 
         _contextCache[databaseName] = newContext;
 
@@ -36,7 +38,7 @@ public class MySqlDatabaseContextProvider(IOptions<DatabaseConfiguration> config
 
     public void Dispose()
     {
-        foreach (var context in _contextCache.Values)
+        foreach (IDatabaseContext context in _contextCache.Values)
         {
             context.Dispose();
         }
