@@ -49,6 +49,7 @@ void InjectDependencies()
     builder.Services.AddScoped<IDatabaseContextProvider, MySqlDatabaseContextProvider>();
 
     builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
+    builder.Services.AddScoped<ICacheManager, CacheManager>();
 
     builder.Services.AddScoped<IGuestRepository, GuestRepository>();
     builder.Services.AddScoped<IAccountRepository, AccountRepository>();
