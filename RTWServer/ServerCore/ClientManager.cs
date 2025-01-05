@@ -14,6 +14,8 @@ public class ClientManager
     public void RemoveClient(IClient client)
     {
         _clients.TryRemove(client.Id, out _);
+        
+        client.Close();
     }
     
     public IClient? GetClient(string id)
