@@ -16,6 +16,7 @@ class AsyncAwaitServer
     private readonly ILogger _logger;
     private readonly IClientFactory _clientFactory;
     private readonly IPacketFactory _packetFactory;
+    private readonly ClientManager _clientManager;
 
     private const int HEADER_SIZE = 8;
     private const int HEADER_PACKET_ID_OFFSET = 0;
@@ -23,15 +24,21 @@ class AsyncAwaitServer
     private const int BACKLOG = 100;
     private const int BUFFER_SIZE = 4096;
 
-    public AsyncAwaitServer(IPEndPoint endpoint, IPacketHandler packetHandler, ILoggerFactory loggerFactory,
+    public AsyncAwaitServer(
+        IPEndPoint endpoint,
+        IPacketHandler packetHandler,
+        ILoggerFactory loggerFactory,
         IClientFactory clientFactory,
-        IPacketFactory packetFactory)
+        IPacketFactory packetFactory,
+        ClientManager clientManager
+    )
     {
         _endPoint = endpoint;
         _packetHandler = packetHandler;
         _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
         _clientFactory = clientFactory;
         _packetFactory = packetFactory;
+        _clientManager = clientManager;
     }
 
     public async Task Start(CancellationToken token)
@@ -52,6 +59,9 @@ class AsyncAwaitServer
                 Interlocked.Increment(ref _acceptCount);
 
                 IClient client = _clientFactory.CreateClient(tcpClient);
+
+                _clientManager.AddClient(client);
+
                 _ = HandleTcpClient(client);
             }
         }
@@ -70,13 +80,13 @@ class AsyncAwaitServer
     {
         try
         {
-            var buffer = new byte[BUFFER_SIZE]; // TODO: 메모리 풀 사용하는 거 공부하고 적용해보기, 카피 최소화 하자
+            // TODO: 메모리 풀 사용하는 거 공부하고 적용해보기, 카피 최소화 하자
+            var buffer = new byte[BUFFER_SIZE];
 
             // 클라이언트로부터 패킷을 계속 읽음
             while (true)
             {
                 var stream = client.GetStream();
-
                 var packet = await HandleNetworkStream(stream, buffer);
 
                 await _packetHandler.HandlePacketAsync(packet, client);
@@ -88,7 +98,7 @@ class AsyncAwaitServer
         }
         finally
         {
-            client.Close();
+            _clientManager.RemoveClient(client);
         }
     }
 
@@ -132,7 +142,8 @@ class AsyncAwaitServer
             return false;
         }
 
-        while (rest > 0) // 남은 데이터를 모두 읽을 때까지 반복
+        // 남은 데이터를 모두 읽을 때까지 반복
+        while (rest > 0)
         {
             var length = await stream.ReadAsync(buffer, offset, rest);
             Interlocked.Increment(ref _readCount);
@@ -151,7 +162,8 @@ class AsyncAwaitServer
 
     private void SetSocketOption(Socket sock)
     {
-        sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true); // Nagle 알고리즘 비활성화
+        // Nagle 알고리즘 비활성화
+        sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
     }
 
     public override string ToString()
