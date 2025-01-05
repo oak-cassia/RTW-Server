@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 
@@ -6,63 +5,55 @@ namespace RTWServer.ServerCore;
 
 class AsyncAwaitServer
 {
-    // 서버 상태를 기록하는 필드
-    private int _acceptCount; // 수락된 연결 수
-    private int _readCount; // 읽은 데이터 수
-    private int _closeByInvalidStream; // 잘못된 스트림으로 종료된 수
-
-    private readonly IPEndPoint _endPoint;
-    private readonly IPacketHandler _packetHandler;
-    private readonly ILogger _logger;
-    private readonly IClientFactory _clientFactory;
-    private readonly IPacketFactory _packetFactory;
-    private readonly ClientManager _clientManager;
-
     private const int HEADER_SIZE = 8;
     private const int HEADER_PACKET_ID_OFFSET = 0;
     private const int HEADER_LENGTH_OFFSET = 4;
     private const int BACKLOG = 100;
     private const int BUFFER_SIZE = 4096;
 
+    // 서버 상태를 기록하는 필드
+    private int _acceptCount; // 수락된 연결 수
+    private int _readCount; // 읽은 데이터 수
+    private int _closeByInvalidStream; // 잘못된 스트림으로 종료된 수
+
+    private readonly ServerListener _serverListener;
+    private readonly IPacketHandler _packetHandler;
+    private readonly ILogger _logger;
+
+    private readonly IPacketFactory _packetFactory;
+    private readonly ClientManager _clientManager;
+
     public AsyncAwaitServer(
-        IPEndPoint endpoint,
+        ServerListener serverListener,
         IPacketHandler packetHandler,
         ILoggerFactory loggerFactory,
-        IClientFactory clientFactory,
         IPacketFactory packetFactory,
         ClientManager clientManager
     )
     {
-        _endPoint = endpoint;
+        _serverListener = serverListener;
         _packetHandler = packetHandler;
         _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
-        _clientFactory = clientFactory;
         _packetFactory = packetFactory;
         _clientManager = clientManager;
     }
 
     public async Task Start(CancellationToken token)
     {
-        var listener = new TcpListener(_endPoint);
-        listener.Start(BACKLOG);
+        _serverListener.Start(BACKLOG);
         _logger.LogInformation("Server started...");
 
         try
         {
             while (!token.IsCancellationRequested)
             {
-                // token 취소 시 TaskCanceledException 발생
-                TcpClient tcpClient = await listener.AcceptTcpClientAsync(token);
+                IClient client = await _serverListener.AcceptClientAsync(token);
 
-                // 클라이언트가 정상 연결됨
-                SetSocketOption(tcpClient.Client);
                 Interlocked.Increment(ref _acceptCount);
-
-                IClient client = _clientFactory.CreateClient(tcpClient);
 
                 _clientManager.AddClient(client);
 
-                _ = HandleTcpClient(client);
+                _ = HandleClient(client);
             }
         }
         catch (Exception e)
@@ -71,12 +62,12 @@ class AsyncAwaitServer
         }
         finally
         {
-            listener.Stop();
+            _serverListener.Stop();
             _logger.LogInformation("Server stopped.");
         }
     }
 
-    private async Task HandleTcpClient(IClient client)
+    private async Task HandleClient(IClient client)
     {
         try
         {
@@ -158,12 +149,6 @@ class AsyncAwaitServer
         }
 
         return true;
-    }
-
-    private void SetSocketOption(Socket sock)
-    {
-        // Nagle 알고리즘 비활성화
-        sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
     }
 
     public override string ToString()
