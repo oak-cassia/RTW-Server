@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
+using RTWServer.ServerCore.Interface;
 
-namespace RTWServer.ServerCore;
+namespace RTWServer.ServerCore.implementation;
 
 public class ClientManager
 {

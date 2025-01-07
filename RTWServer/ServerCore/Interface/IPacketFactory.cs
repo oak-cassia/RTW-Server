@@ -1,4 +1,4 @@
-namespace RTWServer.ServerCore;
+namespace RTWServer.ServerCore.Interface;
 
 public interface IPacketFactory
 {
