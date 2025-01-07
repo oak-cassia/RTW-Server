@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RTWServer.Enum;
 using RTWServer.ServerCore;
+using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game;
 
@@ -20,7 +21,7 @@ public class GamePacketHandler : IPacketHandler
         switch (packet.PacketId)
         {
             case PacketId.EchoTest:
-                await client.SendPacketAsync(PacketId.EchoTest, packet.Serialize());
+                await client.SendAsync(PacketId.EchoTest, packet.Serialize());
                 break;
 
             default:

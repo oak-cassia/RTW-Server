@@ -1,6 +1,6 @@
 using RTWServer.Enum;
 using RTWServer.Packet;
-using RTWServer.ServerCore;
+using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game
 {
