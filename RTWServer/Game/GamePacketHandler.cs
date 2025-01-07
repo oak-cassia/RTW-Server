@@ -21,7 +21,7 @@ public class GamePacketHandler : IPacketHandler
         switch (packet.PacketId)
         {
             case PacketId.EchoTest:
-                await client.SendAsync(PacketId.EchoTest, packet.Serialize());
+                await client.SendAsync(packet.Serialize());
                 break;
 
             default:
