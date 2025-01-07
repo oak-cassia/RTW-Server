@@ -1,4 +1,3 @@
-using System.Net.Sockets;
 using RTWServer.Enum;
 
 namespace RTWServer.ServerCore;
@@ -6,7 +5,11 @@ namespace RTWServer.ServerCore;
 public interface IClient
 {
     public string Id { get; }
-    Task SendPacketAsync(PacketId packetId, byte[] payload);
-    NetworkStream GetStream();
+    public bool IsConnected { get; }
+    
+    Task SendAsync(PacketId packetId, byte[] payload);
+    
+    Task<int> ReadAsync(byte[] buffer, int offset, int length);
+    
     void Close();
 }
