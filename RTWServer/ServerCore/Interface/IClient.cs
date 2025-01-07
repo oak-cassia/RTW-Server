@@ -7,7 +7,7 @@ public interface IClient
     public string Id { get; }
     public bool IsConnected { get; }
     
-    Task SendAsync(PacketId packetId, byte[] payload);
+    Task SendAsync(byte[] buffer);
     
     Task<int> ReadAsync(byte[] buffer, int offset, int length);
     
