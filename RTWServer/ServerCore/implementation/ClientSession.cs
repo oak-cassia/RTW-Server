@@ -1,4 +1,6 @@
-namespace RTWServer.ServerCore;
+using RTWServer.ServerCore.Interface;
+
+namespace RTWServer.ServerCore.implementation;
 
 public class ClientSession
 {

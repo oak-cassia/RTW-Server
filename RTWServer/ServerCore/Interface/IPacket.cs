@@ -1,6 +1,6 @@
 using RTWServer.Enum;
 
-namespace RTWServer.ServerCore;
+namespace RTWServer.ServerCore.Interface;
 
 public interface IPacket
 {

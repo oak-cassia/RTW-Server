@@ -1,6 +1,6 @@
 using System.Net.Sockets;
 
-namespace RTWServer.ServerCore;
+namespace RTWServer.ServerCore.Interface;
 
 public interface IClientFactory
 {
