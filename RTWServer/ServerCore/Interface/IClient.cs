@@ -9,7 +9,7 @@ public interface IClient
     
     Task SendAsync(byte[] buffer);
     
-    Task<int> ReadAsync(byte[] buffer, int offset, int length);
+    Task<int> ReceiveAsync(byte[] buffer, int offset, int length);
     
     void Close();
 }
