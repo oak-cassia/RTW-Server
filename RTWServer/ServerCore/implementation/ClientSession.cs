@@ -28,7 +28,7 @@ public class ClientSession
             
             while (!token.IsCancellationRequested)
             {
-                var isReadHeader = await FillAsync(buffer, HEADER_SIZE, 0);
+                var isReadHeader = await ReadAsync(buffer, HEADER_SIZE, 0);
                 if (!isReadHeader)
                 {
                     break;
@@ -41,7 +41,7 @@ public class ClientSession
                     break;
                 }
                 
-                var isReadPayload = await FillAsync(buffer, payloadLength, HEADER_SIZE);
+                var isReadPayload = await ReadAsync(buffer, payloadLength, HEADER_SIZE);
                 if (!isReadPayload)
                 {
                     break;
@@ -60,25 +60,24 @@ public class ClientSession
         }
     }
     
-    private async Task<bool> FillAsync(byte[] buffer, int size, int offset)
+    private async Task<bool> ReadAsync(byte[] buffer, int length, int offset)
     {
-        // 요청된 크기가 버퍼 크기를 초과하면 false 반환
-        if (size > buffer.Length)
+        if (length > buffer.Length)
         {
             return false;
         }
 
         // 남은 데이터를 모두 읽을 때까지 반복
-        while (size > 0)
+        while (length > 0)
         {
-            var readLength = await _client.ReadAsync(buffer, offset, size);
-            if (readLength == 0)
+            var receivedLength = await _client.ReceiveAsync(buffer, offset, length);
+            if (receivedLength == 0)
             {
                 return false;
             }
             
-            offset += readLength;
-            size -= readLength;
+            offset += receivedLength;
+            length -= receivedLength;
         }
 
         return true;

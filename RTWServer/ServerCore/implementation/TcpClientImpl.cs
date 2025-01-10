@@ -20,7 +20,7 @@ public class TcpClientImpl : IClient
         await _client.GetStream().WriteAsync(buffer, 0, buffer.Length);
     }
 
-    public async Task<int> ReadAsync(byte[] buffer, int offset, int length)
+    public async Task<int> ReceiveAsync(byte[] buffer, int offset, int length)
     {
         return await _client.GetStream().ReadAsync(buffer, offset, length); 
     }
