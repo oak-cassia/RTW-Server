@@ -17,6 +17,23 @@ public class EchoPacket : IPacket
 
     public byte[] Serialize()
     {
-        return Payload;
+        // 1) PacketId 4바이트
+        var packetIdBytes = BitConverter.GetBytes((int)PacketId);
+
+        // 2) 총 길이 = 헤더(8) + 페이로드 길이
+        int totalLength = 8 + Payload.Length;
+        var lengthBytes = BitConverter.GetBytes(totalLength);
+
+        // 3) 최종 패킷: 8 + 페이로드 길이
+        var packet = new byte[8 + Payload.Length];
+
+        // 4) 헤더 복사 (packetId + totalLength)
+        Array.Copy(packetIdBytes, 0, packet, 0, 4);
+        Array.Copy(lengthBytes, 0, packet, 4, 4);
+
+        // 5) 페이로드 복사
+        Array.Copy(Payload, 0, packet, 8, Payload.Length);
+
+        return packet;
     }
 }

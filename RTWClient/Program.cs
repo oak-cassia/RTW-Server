@@ -77,7 +77,7 @@ namespace RealTimeSocketClient
         {
             var header = new byte[8];
             var packetIdBytes = BitConverter.GetBytes(packetId);
-            var lengthBytes = BitConverter.GetBytes(payload.Length + 8);
+            var lengthBytes = BitConverter.GetBytes(payload.Length);
 
             Array.Copy(packetIdBytes, 0, header, 0, 4);
             Array.Copy(lengthBytes, 0, header, 4, 4);
