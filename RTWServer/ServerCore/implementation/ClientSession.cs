@@ -13,11 +13,14 @@ public class ClientSession
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketFactory _packetFactory;
 
-    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketFactory packetFactory)
+    public string Id { get; private init; }
+
+    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketFactory packetFactory, string id)
     {
         _client = client;
         _packetHandler = packetHandler;
         _packetFactory = packetFactory;
+        Id = id;
     }
 
     public async Task StartSessionAsync(CancellationToken token)
@@ -82,5 +85,10 @@ public class ClientSession
         }
 
         return true;
+    }
+    
+    public void Disconnect()
+    {
+        _client.Close();
     }
 }
