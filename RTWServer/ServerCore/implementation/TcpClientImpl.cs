@@ -12,8 +12,6 @@ public class TcpClientImpl : IClient
         _client = client;
     }
     
-    public string Id { get; } = Guid.NewGuid().ToString();
-    
     public bool IsConnected => _client.Connected;
     public async Task SendAsync(byte[] buffer)
     {

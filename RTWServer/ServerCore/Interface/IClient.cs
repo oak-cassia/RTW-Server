@@ -4,7 +4,6 @@ namespace RTWServer.ServerCore.Interface;
 
 public interface IClient
 {
-    public string Id { get; }
     public bool IsConnected { get; }
     
     Task SendAsync(byte[] buffer);
