@@ -24,7 +24,7 @@ try
         new GamePacketHandler(loggerFactory),
         loggerFactory,
         new GamePacketFactory(),
-        new ClientManager()
+        new ClientSessionManager()
     );
 
     Console.WriteLine($"Server running at {ipAddress}:{port}");

@@ -15,21 +15,21 @@ class AsyncAwaitServer
     private readonly ILogger _logger;
 
     private readonly IPacketFactory _packetFactory;
-    private readonly ClientManager _clientManager;
+    private readonly ClientSessionManager _clientSessionManager;
 
     public AsyncAwaitServer(
         ServerListener serverListener,
         IPacketHandler packetHandler,
         ILoggerFactory loggerFactory,
         IPacketFactory packetFactory,
-        ClientManager clientManager
+        ClientSessionManager clientSessionManager
     )
     {
         _serverListener = serverListener;
         _packetHandler = packetHandler;
         _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
         _packetFactory = packetFactory;
-        _clientManager = clientManager;
+        _clientSessionManager = clientSessionManager;
     }
 
     public async Task Start(CancellationToken token)
@@ -44,8 +44,6 @@ class AsyncAwaitServer
                 IClient client = await _serverListener.AcceptClientAsync(token);
 
                 Interlocked.Increment(ref _acceptCount);
-
-                _clientManager.AddClient(client);
 
                 _ = HandleClient(client, token);
             }
@@ -63,9 +61,12 @@ class AsyncAwaitServer
 
     private async Task HandleClient(IClient client, CancellationToken token)
     {
+        var session = new ClientSession(client, _packetHandler, _packetFactory, Guid.NewGuid().ToString());
+        
         try
         {
-            var session = new ClientSession(client, _packetHandler, _packetFactory);
+            _clientSessionManager.AddClientSession(session);
+            
             await session.StartSessionAsync(token);
         }
         catch (Exception ex)
@@ -74,7 +75,7 @@ class AsyncAwaitServer
         }
         finally
         {
-            _clientManager.RemoveClient(client);
+            _clientSessionManager.RemoveClientSession(session);
         }
     }
 }
