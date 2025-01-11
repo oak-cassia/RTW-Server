@@ -31,28 +31,11 @@ public class ClientSession
 
             while (!token.IsCancellationRequested)
             {
-                var isReadHeader = await ReadAsync(buffer, HEADER_SIZE, 0);
-                if (!isReadHeader)
+                var packet = await ReadPacketAsync(buffer);
+                if (packet == null)
                 {
                     break;
                 }
-
-                var packetId = BitConverter.ToInt32(buffer, HEADER_PACKET_ID_OFFSET);
-                var payloadLength = BitConverter.ToInt32(buffer, HEADER_LENGTH_OFFSET);
-
-                if (payloadLength < 0 || HEADER_SIZE + payloadLength > BUFFER_SIZE)
-                {
-                    break;
-                }
-
-                var isReadPayload = await ReadAsync(buffer, payloadLength, HEADER_SIZE);
-                if (!isReadPayload)
-                {
-                    break;
-                }
-
-                var payload = new ReadOnlyMemory<byte>(buffer, HEADER_SIZE, payloadLength);
-                var packet = _packetFactory.CreatePacket(packetId, payload);
 
                 await _packetHandler.HandlePacketAsync(packet, _client);
             }
@@ -64,7 +47,37 @@ public class ClientSession
         }
     }
 
-    private async Task<bool> ReadAsync(byte[] buffer, int lengthToRead, int offset)
+    private async Task<IPacket?> ReadPacketAsync(byte[] buffer)
+    {
+        // 헤더 읽기
+        var isReadHeader = await ReadBytesAsync(buffer, HEADER_SIZE, 0);
+        if (!isReadHeader)
+        {
+            return null;
+        }
+
+        // 페이로드 길이 확인
+        var payloadLength = BitConverter.ToInt32(buffer, HEADER_LENGTH_OFFSET);
+        if (payloadLength < 0 || HEADER_SIZE + payloadLength > BUFFER_SIZE)
+        {
+            return null;
+        }
+
+        // 페이로드 읽기
+        var isReadPayload = await ReadBytesAsync(buffer, payloadLength, HEADER_SIZE);
+        if (!isReadPayload)
+        {
+            return null;
+        }
+
+        // 패킷 생성
+        var packetId = BitConverter.ToInt32(buffer, HEADER_PACKET_ID_OFFSET);
+        var payload = new ReadOnlyMemory<byte>(buffer, HEADER_SIZE, payloadLength);
+        
+        return _packetFactory.CreatePacket(packetId, payload);
+    }
+
+    private async Task<bool> ReadBytesAsync(byte[] buffer, int lengthToRead, int offset)
     {
         if (lengthToRead > buffer.Length)
         {
@@ -86,7 +99,7 @@ public class ClientSession
 
         return true;
     }
-    
+
     public void Disconnect()
     {
         _client.Close();
