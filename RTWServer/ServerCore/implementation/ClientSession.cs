@@ -6,26 +6,23 @@ namespace RTWServer.ServerCore.implementation;
 public class ClientSession
 {
     private const int BUFFER_SIZE = 4096;
-    private const int HEADER_SIZE = 8;
-    private const int HEADER_PACKET_ID_OFFSET = 0;
-    private const int HEADER_LENGTH_OFFSET = 4;
 
     private readonly IClient _client;
     private readonly IPacketHandler _packetHandler;
-    private readonly IPacketFactory _packetFactory;
+    private readonly IPacketSerializer _packetSerializer;
 
-    private readonly ConcurrentQueue<IPacket> _sendQueue = new();
+    private readonly ConcurrentQueue<byte[]> _sendQueue = new();
     private readonly Lock _sendLock = new();
 
     private bool _isSending;
 
     public string Id { get; private init; }
 
-    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketFactory packetFactory, string id)
+    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketSerializer packetSerializer, string id)
     {
         _client = client;
         _packetHandler = packetHandler;
-        _packetFactory = packetFactory;
+        _packetSerializer = packetSerializer;
         Id = id;
         _isSending = false;
     }
@@ -56,7 +53,7 @@ public class ClientSession
 
     public async Task SendAsync(IPacket packet)
     {
-        _sendQueue.Enqueue(packet);
+        _sendQueue.Enqueue(_packetSerializer.Serialize(packet));
         
         await FlushSendQueueAsync();
     }
@@ -64,51 +61,49 @@ public class ClientSession
     private async Task<IPacket?> ReadPacketAsync(byte[] buffer)
     {
         // 헤더 읽기
-        var isReadHeader = await ReadBytesAsync(buffer, HEADER_SIZE, 0);
+        var headerSize = _packetSerializer.GetHeaderSize();
+        var isReadHeader = await ReadBytesAsync(buffer, headerSize, 0);
         if (!isReadHeader)
         {
             return null;
         }
 
         // 페이로드 길이 확인
-        var payloadLength = BitConverter.ToInt32(buffer, HEADER_LENGTH_OFFSET);
-        if (payloadLength < 0 || HEADER_SIZE + payloadLength > BUFFER_SIZE)
+        var payloadSize = _packetSerializer.GetPayloadSize(buffer);
+        if (payloadSize < 0 || headerSize + payloadSize > BUFFER_SIZE)
         {
             return null;
         }
 
         // 페이로드 읽기
-        var isReadPayload = await ReadBytesAsync(buffer, payloadLength, HEADER_SIZE);
+        var isReadPayload = await ReadBytesAsync(buffer, payloadSize, headerSize);
         if (!isReadPayload)
         {
             return null;
         }
 
         // 패킷 생성
-        var packetId = BitConverter.ToInt32(buffer, HEADER_PACKET_ID_OFFSET);
-        var payload = new ReadOnlyMemory<byte>(buffer, HEADER_SIZE, payloadLength);
-
-        return _packetFactory.CreatePacket(packetId, payload);
+        return _packetSerializer.Deserialize(buffer);
     }
 
-    private async Task<bool> ReadBytesAsync(byte[] buffer, int lengthToRead, int offset)
+    private async Task<bool> ReadBytesAsync(byte[] buffer, int sizeToRead, int offset)
     {
-        if (lengthToRead > buffer.Length)
+        if (sizeToRead > buffer.Length)
         {
             return false;
         }
 
         // 남은 데이터를 모두 읽을 때까지 반복
-        while (lengthToRead > 0)
+        while (sizeToRead > 0)
         {
-            var lengthReceived = await _client.ReceiveAsync(buffer, offset, lengthToRead);
-            if (lengthReceived == 0)
+            var sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead);
+            if (sizeReceived == 0)
             {
                 return false;
             }
 
-            offset += lengthReceived;
-            lengthToRead -= lengthReceived;
+            offset += sizeReceived;
+            sizeToRead -= sizeReceived;
         }
 
         return true;
@@ -128,7 +123,7 @@ public class ClientSession
 
         while (true)
         {
-            if (!_sendQueue.TryDequeue(out var packet))
+            if (!_sendQueue.TryDequeue(out var packetBytes))
             {
                 lock (_sendLock)
                 {
@@ -137,7 +132,7 @@ public class ClientSession
                     // 2. 다른 스레드: Enqueue 후 첫번째 lock 획득, isSending 이 참이므로 반환
                     // 3. 현재 스레드: lock 획득, isSending = false 후 반환
                     // 2번에서 Enqueue한 패킷 기아
-                    if (!_sendQueue.TryDequeue(out packet))
+                    if (!_sendQueue.TryDequeue(out packetBytes))
                     {
                         _isSending = false;
                         return;
@@ -147,7 +142,7 @@ public class ClientSession
 
             try
             {
-                await SendPacketAsync(packet);
+                await _client.SendAsync(packetBytes);
             }
             catch (Exception ex)
             {
@@ -155,23 +150,6 @@ public class ClientSession
             }
         }
     }
-
-    private async Task SendPacketAsync(IPacket packet)
-    {
-        // TODO: 직렬화를 미리 끝내면 전송 간의 시간 차이가 줄어들어 성능 향상
-        var payload = packet.Serialize();
-
-        var packetIdLength = BitConverter.GetBytes((int)packet.PacketId);
-        var payloadLength = BitConverter.GetBytes(payload.Length);
-
-        var sendBuffer = new byte[HEADER_SIZE + payload.Length];
-        Buffer.BlockCopy(packetIdLength, 0, sendBuffer, HEADER_PACKET_ID_OFFSET, sizeof(int));
-        Buffer.BlockCopy(payloadLength, 0, sendBuffer, HEADER_LENGTH_OFFSET, sizeof(int));
-        Buffer.BlockCopy(payload, 0, sendBuffer, HEADER_SIZE, payload.Length);
-
-        await _client.SendAsync(sendBuffer);
-    }
-
 
     public void Disconnect()
     {
