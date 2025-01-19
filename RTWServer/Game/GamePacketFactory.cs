@@ -6,7 +6,7 @@ namespace RTWServer.Game
 {
     public class GamePacketFactory : IPacketFactory
     {
-        public IPacket CreatePacket(int packetId, ReadOnlyMemory<byte> payload)
+        public IPacket CreatePacket(int packetId, ReadOnlySpan<byte> payload)
         {
             PacketId castedPacketId = (PacketId)packetId;
             return castedPacketId switch

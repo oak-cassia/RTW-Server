@@ -14,21 +14,21 @@ class AsyncAwaitServer
     private readonly IPacketHandler _packetHandler;
     private readonly ILogger _logger;
 
-    private readonly IPacketFactory _packetFactory;
+    private readonly IPacketSerializer _packetSerializer;
     private readonly ClientSessionManager _clientSessionManager;
 
     public AsyncAwaitServer(
         ServerListener serverListener,
         IPacketHandler packetHandler,
         ILoggerFactory loggerFactory,
-        IPacketFactory packetFactory,
+        IPacketSerializer packetSerializer,
         ClientSessionManager clientSessionManager
     )
     {
         _serverListener = serverListener;
         _packetHandler = packetHandler;
         _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
-        _packetFactory = packetFactory;
+        _packetSerializer = packetSerializer;
         _clientSessionManager = clientSessionManager;
     }
 
@@ -61,7 +61,7 @@ class AsyncAwaitServer
 
     private async Task HandleClient(IClient client, CancellationToken token)
     {
-        var session = new ClientSession(client, _packetHandler, _packetFactory, Guid.NewGuid().ToString());
+        var session = new ClientSession(client, _packetHandler, _packetSerializer, Guid.NewGuid().ToString());
         
         try
         {
