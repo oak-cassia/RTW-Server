@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
 using RTWServer.Game;
+using RTWServer.Packet;
 using RTWServer.ServerCore;
 using RTWServer.ServerCore.implementation;
 
@@ -18,12 +19,13 @@ try
             .SetMinimumLevel(LogLevel.Debug);
     });
 
+    var packetFactory = new GamePacketFactory();
     
     var server = new AsyncAwaitServer(
         new ServerListener(endpoint, new TcpClientFactory()),
         new GamePacketHandler(loggerFactory),
         loggerFactory,
-        new GamePacketFactory(),
+        new PacketSerializer(packetFactory),
         new ClientSessionManager()
     );
 
