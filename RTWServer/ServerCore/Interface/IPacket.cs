@@ -6,5 +6,6 @@ public interface IPacket
 {
     PacketId PacketId { get; }
     
-    byte[] Serialize();
+    int GetPayloadSize();
+    void WriteToBuffer(Span<byte> buffer);
 }

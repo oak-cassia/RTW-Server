@@ -41,7 +41,7 @@ public class ClientSession
                     break;
                 }
 
-                await _packetHandler.HandlePacketAsync(packet, _client);
+                await _packetHandler.HandlePacketAsync(packet, this);
             }
         }
         catch (Exception e)
@@ -69,7 +69,7 @@ public class ClientSession
         }
 
         // 페이로드 길이 확인
-        var payloadSize = _packetSerializer.GetPayloadSize(buffer);
+        var payloadSize = _packetSerializer.GetPayloadSize(buffer.AsSpan(0, headerSize));
         if (payloadSize < 0 || headerSize + payloadSize > BUFFER_SIZE)
         {
             return null;

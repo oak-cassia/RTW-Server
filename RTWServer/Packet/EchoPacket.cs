@@ -1,5 +1,4 @@
 using RTWServer.Enum;
-using RTWServer.ServerCore;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Packet;
@@ -13,6 +12,16 @@ public class EchoPacket : IPacket
     }
 
     public PacketId PacketId { get; }
+    public int GetPayloadSize()
+    {
+        return Payload.Length;
+    }
+
+    public void WriteToBuffer(Span<byte> buffer)
+    {
+        Payload.CopyTo(buffer);
+    }
+
     public byte[] Payload { get; }
 
     public byte[] Serialize()
