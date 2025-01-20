@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using RTWServer.Enum;
 using RTWServer.ServerCore.Interface;
 
@@ -13,29 +14,26 @@ public class PacketSerializer(IPacketFactory packetFactory) : IPacketSerializer
         return HEADER_SIZE;
     }
 
-    public int GetPayloadSize(ReadOnlySpan<byte> header)
+    public int GetPayloadSizeFromHeader(ReadOnlySpan<byte> header)
     {
         return BitConverter.ToInt32(header[PAYLOAD_SIZE_OFFSET..]);
     }
 
-    public byte[] Serialize(IPacket packet)
+    public void SerializeToBuffer(IPacket packet, Span<byte> buffer)
     {
         var payloadSize = packet.GetPayloadSize();
-        var buffer = new byte[HEADER_SIZE + payloadSize];
+        
+        BitConverter.TryWriteBytes(buffer, (int)packet.PacketId);
+        BitConverter.TryWriteBytes(buffer.Slice(PAYLOAD_SIZE_OFFSET), payloadSize);
 
-        BitConverter.TryWriteBytes(buffer.AsSpan(), (int)packet.PacketId);
-        BitConverter.TryWriteBytes(buffer.AsSpan(PAYLOAD_SIZE_OFFSET), payloadSize);
-
-        packet.WriteToBuffer(buffer.AsSpan(HEADER_SIZE, payloadSize));
-
-        return buffer;
+        packet.WriteToBuffer(buffer.Slice(HEADER_SIZE, payloadSize));
     }
 
     public IPacket Deserialize(ReadOnlySpan<byte> buffer)
     {
         var packetId = (PacketId)BitConverter.ToInt32(buffer.Slice(0, PAYLOAD_SIZE_OFFSET));
 
-        var payloadSize = GetPayloadSize(buffer.Slice(0, HEADER_SIZE));
+        var payloadSize = GetPayloadSizeFromHeader(buffer.Slice(0, HEADER_SIZE));
         ReadOnlySpan<byte> payload = buffer.Slice(HEADER_SIZE, payloadSize);
 
         return packetFactory.CreatePacket((int)packetId, payload);
