@@ -37,13 +37,13 @@ public class ClientSession
 
     public async Task StartSessionAsync(CancellationToken token)
     {
-        var buffer = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);
 
         try
         {
             while (!token.IsCancellationRequested)
             {
-                var packet = await ReadPacketAsync(buffer);
+                IPacket? packet = await ReadPacketAsync(buffer);
                 if (packet == null)
                 {
                     break;
@@ -72,25 +72,30 @@ public class ClientSession
         await FlushSendQueueAsync();
     }
 
+    public void Disconnect()
+    {
+        _client.Close();
+    }
+
     private async Task<IPacket?> ReadPacketAsync(byte[] buffer)
     {
         // 헤더 읽기
-        var headerSize = _packetSerializer.GetHeaderSize();
-        var isReadHeader = await ReadBytesAsync(buffer, headerSize, 0);
+        int headerSize = _packetSerializer.GetHeaderSize();
+        bool isReadHeader = await ReadBytesAsync(buffer, headerSize, 0);
         if (!isReadHeader)
         {
             return null;
         }
 
         // 페이로드 길이 확인
-        var payloadSize = _packetSerializer.GetPayloadSizeFromHeader(buffer.AsSpan(0, headerSize));
+        int payloadSize = _packetSerializer.GetPayloadSizeFromHeader(buffer.AsSpan(0, headerSize));
         if (payloadSize < 0 || headerSize + payloadSize > BUFFER_SIZE)
         {
             return null;
         }
 
         // 페이로드 읽기
-        var isReadPayload = await ReadBytesAsync(buffer, payloadSize, headerSize);
+        bool isReadPayload = await ReadBytesAsync(buffer, payloadSize, headerSize);
         if (!isReadPayload)
         {
             return null;
@@ -110,7 +115,7 @@ public class ClientSession
         // 남은 데이터를 모두 읽을 때까지 반복
         while (sizeToRead > 0)
         {
-            var sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead);
+            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead);
             if (sizeReceived == 0)
             {
                 return false;
@@ -137,7 +142,7 @@ public class ClientSession
 
         while (true)
         {
-            if (!_sendQueue.TryDequeue(out var packet))
+            if (!_sendQueue.TryDequeue(out IPacket? packet))
             {
                 lock (_sendLock)
                 {
@@ -170,17 +175,12 @@ public class ClientSession
         int headerSize = _packetSerializer.GetHeaderSize();
         int payloadSize = packet.GetPayloadSize();
 
-        var buffer = _writer.GetSpan(headerSize + payloadSize);
+        Span<byte> buffer = _writer.GetSpan(headerSize + payloadSize);
 
         _packetSerializer.SerializeToBuffer(packet, buffer);
 
         _writer.Advance(headerSize + payloadSize);
 
         await _writer.FlushAsync();
-    }
-
-    public void Disconnect()
-    {
-        _client.Close();
     }
 }
