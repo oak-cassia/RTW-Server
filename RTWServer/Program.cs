@@ -11,17 +11,17 @@ int port = 5000;
 
 try
 {
-    var endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+    IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
-    var loggerFactory = LoggerFactory.Create(builder =>
+    ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
     {
         builder.AddConsole()
             .SetMinimumLevel(LogLevel.Debug);
     });
 
-    var packetFactory = new GamePacketFactory();
+    GamePacketFactory packetFactory = new GamePacketFactory();
     
-    var server = new AsyncAwaitServer(
+    AsyncAwaitServer server = new AsyncAwaitServer(
         new ServerListener(endpoint, new TcpClientFactory()),
         new GamePacketHandler(loggerFactory),
         loggerFactory,
@@ -32,12 +32,12 @@ try
     Console.WriteLine($"Server running at {ipAddress}:{port}");
 
     // 서버 실행
-    using var cts = new CancellationTokenSource();
-    var serverTask = server.Start(cts.Token);
+    using CancellationTokenSource cts = new CancellationTokenSource();
+    Task serverTask = server.Start(cts.Token);
 
     while (true)
     {
-        var input = Console.ReadLine();
+        string input = Console.ReadLine();
         if (input == "quit")
         {
             cts.Cancel();
