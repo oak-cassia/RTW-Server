@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.Collections.Concurrent;
+using System.IO.Pipelines;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
@@ -8,10 +10,11 @@ public class ClientSession
     private const int BUFFER_SIZE = 4096;
 
     private readonly IClient _client;
+    private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
 
-    private readonly ConcurrentQueue<byte[]> _sendQueue = new();
+    private readonly ConcurrentQueue<IPacket> _sendQueue = new();
     private readonly Lock _sendLock = new();
 
     private bool _isSending;
@@ -21,18 +24,23 @@ public class ClientSession
     public ClientSession(IClient client, IPacketHandler packetHandler, IPacketSerializer packetSerializer, string id)
     {
         _client = client;
+
+        StreamPipeWriterOptions options = new(leaveOpen: false);
+        _writer = PipeWriter.Create(client.Stream, options);
+
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
+
         Id = id;
         _isSending = false;
     }
 
     public async Task StartSessionAsync(CancellationToken token)
     {
+        var buffer = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);
+
         try
         {
-            var buffer = new byte[BUFFER_SIZE];
-
             while (!token.IsCancellationRequested)
             {
                 var packet = await ReadPacketAsync(buffer);
@@ -49,12 +57,18 @@ public class ClientSession
             Console.WriteLine(e);
             throw;
         }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+
+            await _writer.CompleteAsync();
+        }
     }
 
     public async Task SendAsync(IPacket packet)
     {
-        _sendQueue.Enqueue(_packetSerializer.Serialize(packet));
-        
+        _sendQueue.Enqueue(packet);
+
         await FlushSendQueueAsync();
     }
 
@@ -69,7 +83,7 @@ public class ClientSession
         }
 
         // 페이로드 길이 확인
-        var payloadSize = _packetSerializer.GetPayloadSize(buffer.AsSpan(0, headerSize));
+        var payloadSize = _packetSerializer.GetPayloadSizeFromHeader(buffer.AsSpan(0, headerSize));
         if (payloadSize < 0 || headerSize + payloadSize > BUFFER_SIZE)
         {
             return null;
@@ -123,7 +137,7 @@ public class ClientSession
 
         while (true)
         {
-            if (!_sendQueue.TryDequeue(out var packetBytes))
+            if (!_sendQueue.TryDequeue(out var packet))
             {
                 lock (_sendLock)
                 {
@@ -132,7 +146,7 @@ public class ClientSession
                     // 2. 다른 스레드: Enqueue 후 첫번째 lock 획득, isSending 이 참이므로 반환
                     // 3. 현재 스레드: lock 획득, isSending = false 후 반환
                     // 2번에서 Enqueue한 패킷 기아
-                    if (!_sendQueue.TryDequeue(out packetBytes))
+                    if (!_sendQueue.TryDequeue(out packet))
                     {
                         _isSending = false;
                         return;
@@ -142,13 +156,27 @@ public class ClientSession
 
             try
             {
-                await _client.SendAsync(packetBytes);
+                await FlushAsync(packet);
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
         }
+    }
+
+    private async Task FlushAsync(IPacket packet)
+    {
+        int headerSize = _packetSerializer.GetHeaderSize();
+        int payloadSize = packet.GetPayloadSize();
+
+        var buffer = _writer.GetSpan(headerSize + payloadSize);
+
+        _packetSerializer.SerializeToBuffer(packet, buffer);
+
+        _writer.Advance(headerSize + payloadSize);
+
+        await _writer.FlushAsync();
     }
 
     public void Disconnect()
