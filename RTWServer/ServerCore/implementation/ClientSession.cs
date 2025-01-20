@@ -25,7 +25,7 @@ public class ClientSession
     {
         _client = client;
 
-        StreamPipeWriterOptions options = new(leaveOpen: false);
+        StreamPipeWriterOptions options = new(leaveOpen: true);
         _writer = PipeWriter.Create(client.Stream, options);
 
         _packetHandler = packetHandler;
