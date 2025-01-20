@@ -1,9 +1,12 @@
+using System.IO.Pipelines;
+
 namespace RTWServer.ServerCore.Interface;
 
 public interface IPacketSerializer
 {
     int GetHeaderSize();
-    int GetPayloadSize(ReadOnlySpan<byte> header);
-    byte[] Serialize(IPacket packet);
+    int GetPayloadSizeFromHeader(ReadOnlySpan<byte> header);
+
+    void SerializeToBuffer(IPacket packet, Span<byte> buffer);
     IPacket Deserialize(ReadOnlySpan<byte> buffer);
 }
