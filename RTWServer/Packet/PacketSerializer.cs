@@ -21,7 +21,7 @@ public class PacketSerializer(IPacketFactory packetFactory) : IPacketSerializer
 
     public void SerializeToBuffer(IPacket packet, Span<byte> buffer)
     {
-        var payloadSize = packet.GetPayloadSize();
+        int payloadSize = packet.GetPayloadSize();
         
         BitConverter.TryWriteBytes(buffer, (int)packet.PacketId);
         BitConverter.TryWriteBytes(buffer.Slice(PAYLOAD_SIZE_OFFSET), payloadSize);
@@ -31,9 +31,9 @@ public class PacketSerializer(IPacketFactory packetFactory) : IPacketSerializer
 
     public IPacket Deserialize(ReadOnlySpan<byte> buffer)
     {
-        var packetId = (PacketId)BitConverter.ToInt32(buffer.Slice(0, PAYLOAD_SIZE_OFFSET));
+        PacketId packetId = (PacketId)BitConverter.ToInt32(buffer.Slice(0, PAYLOAD_SIZE_OFFSET));
 
-        var payloadSize = GetPayloadSizeFromHeader(buffer.Slice(0, HEADER_SIZE));
+        int payloadSize = GetPayloadSizeFromHeader(buffer.Slice(0, HEADER_SIZE));
         ReadOnlySpan<byte> payload = buffer.Slice(HEADER_SIZE, payloadSize);
 
         return packetFactory.CreatePacket((int)packetId, payload);

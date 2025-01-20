@@ -31,7 +31,7 @@ public class ServerListener
     public async Task<IClient> AcceptClientAsync(CancellationToken token)
     {
         // token 취소 시 TaskCanceledException 발생
-        var tcpClient = await _listener.AcceptTcpClientAsync(token);
+        TcpClient tcpClient = await _listener.AcceptTcpClientAsync(token);
         tcpClient.Client.SetSocketOption(SOCKET_OPTION_LEVEL, SOCKET_OPTION_NAME, true);
 
         IClient client = _clientFactory.CreateClient(tcpClient);
