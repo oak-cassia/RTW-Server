@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RTWServer.Enum;
-using RTWServer.ServerCore.implementation;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game;
@@ -14,7 +13,7 @@ public class GamePacketHandler : IPacketHandler
         _logger = loggerFactory.CreateLogger<GamePacketHandler>();
     }
 
-    public async Task HandlePacketAsync(IPacket packet, ClientSession clientSession)
+    public async Task HandlePacketAsync(IPacket packet, IClientSession clientSession)
     {
         // _logger.LogInformation($"PacketId: {packet.PacketId}");
 

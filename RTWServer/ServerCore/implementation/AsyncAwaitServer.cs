@@ -61,7 +61,7 @@ class AsyncAwaitServer
 
     private async Task HandleClient(IClient client, CancellationToken token)
     {
-        ClientSession session = new ClientSession(client, _packetHandler, _packetSerializer, Guid.NewGuid().ToString());
+        IClientSession session = new ClientSession(client, _packetHandler, _packetSerializer, Guid.NewGuid().ToString());
         
         try
         {
