@@ -3,7 +3,7 @@ using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
 
-public class ClientSessionManager
+public class ClientSessionManager : IClientSessionManager
 {
     private ConcurrentDictionary<string, IClientSession> _clientSessions = new ();
     
