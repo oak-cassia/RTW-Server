@@ -5,7 +5,7 @@ using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
 
-public class ClientSession
+public class ClientSession : IClientSession
 {
     private const int BUFFER_SIZE = 4096;
 
