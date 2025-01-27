@@ -15,14 +15,14 @@ class AsyncAwaitServer
     private readonly ILogger _logger;
 
     private readonly IPacketSerializer _packetSerializer;
-    private readonly ClientSessionManager _clientSessionManager;
+    private readonly IClientSessionManager _clientSessionManager;
 
     public AsyncAwaitServer(
         ServerListener serverListener,
         IPacketHandler packetHandler,
         ILoggerFactory loggerFactory,
         IPacketSerializer packetSerializer,
-        ClientSessionManager clientSessionManager
+        IClientSessionManager clientSessionManager
     )
     {
         _serverListener = serverListener;
