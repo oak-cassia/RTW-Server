@@ -4,7 +4,7 @@ public interface IClientSessionManager
 {
     void AddClientSession(IClientSession clientSession);
     
-    void RemoveClientSession(IClientSession clientSession);
+    void RemoveClientSession(string id);
     
     IClientSession? GetClientSession(string id);
     

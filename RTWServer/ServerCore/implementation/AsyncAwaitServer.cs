@@ -61,21 +61,18 @@ class AsyncAwaitServer
 
     private async Task HandleClient(IClient client, CancellationToken token)
     {
-        IClientSession session = new ClientSession(client, _packetHandler, _packetSerializer, Guid.NewGuid().ToString());
-        
+        IClientSession session = new ClientSession(client, _packetHandler, _packetSerializer, _clientSessionManager,
+            Guid.NewGuid().ToString());
+
         try
         {
             _clientSessionManager.AddClientSession(session);
-            
+
             await session.StartSessionAsync(token);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while handling the client.");
-        }
-        finally
-        {
-            _clientSessionManager.RemoveClientSession(session);
         }
     }
 }

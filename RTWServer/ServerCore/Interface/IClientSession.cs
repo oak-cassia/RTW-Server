@@ -7,6 +7,4 @@ public interface IClientSession
     Task StartSessionAsync(CancellationToken token);
     
     Task SendAsync(IPacket packet);
-    
-    void Disconnect();
 }
