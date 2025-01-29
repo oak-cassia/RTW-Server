@@ -22,7 +22,7 @@ try
     GamePacketFactory packetFactory = new GamePacketFactory();
     
     AsyncAwaitServer server = new AsyncAwaitServer(
-        new ServerListener(endpoint, new TcpClientFactory()),
+        new TcpServerListener(endpoint),
         new GamePacketHandler(loggerFactory),
         loggerFactory,
         new PacketSerializer(packetFactory),
