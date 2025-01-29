@@ -13,15 +13,18 @@ public class ClientSession : IClientSession
     private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
+    private readonly IClientSessionManager _clientSessionManager;
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
     private readonly Lock _sendLock = new();
 
     private bool _isSending;
+    private bool _isConnected;
 
     public string Id { get; private init; }
 
-    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketSerializer packetSerializer, string id)
+    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketSerializer packetSerializer,
+        IClientSessionManager clientSessionManager, string id)
     {
         _client = client;
 
@@ -30,9 +33,11 @@ public class ClientSession : IClientSession
 
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
+        _clientSessionManager = clientSessionManager;
 
         Id = id;
         _isSending = false;
+        _isConnected = true;
     }
 
     public async Task StartSessionAsync(CancellationToken token)
@@ -59,21 +64,40 @@ public class ClientSession : IClientSession
         }
         finally
         {
+            _clientSessionManager.RemoveClientSession(Id);
+
             ArrayPool<byte>.Shared.Return(buffer);
 
-            await _writer.CompleteAsync();
+            await Disconnect();
         }
     }
 
     public async Task SendAsync(IPacket packet)
     {
+        if (!_isConnected)
+        {
+            // 이미 연결이 끊긴 경우 접근했으므로 세션 제거
+            _clientSessionManager.RemoveClientSession(Id);
+
+            return;
+        }
+
         _sendQueue.Enqueue(packet);
 
         await FlushSendQueueAsync();
     }
 
-    public void Disconnect()
+    private async Task Disconnect()
     {
+        if (!_isConnected)
+        {
+            return;
+        }
+
+        _isConnected = false;
+
+        await _writer.CompleteAsync();
+
         _client.Close();
     }
 
@@ -163,9 +187,14 @@ public class ClientSession : IClientSession
             {
                 await FlushAsync(packet);
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine(e);
+
+                // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
+                await Disconnect();
+
+                return;
             }
         }
     }
