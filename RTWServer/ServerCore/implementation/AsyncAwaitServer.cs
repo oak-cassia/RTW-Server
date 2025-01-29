@@ -10,7 +10,7 @@ class AsyncAwaitServer
     // 서버 상태를 기록하는 필드
     private int _acceptCount; // 수락된 연결 수
 
-    private readonly ServerListener _serverListener;
+    private readonly IServerListener _serverListener;
     private readonly IPacketHandler _packetHandler;
     private readonly ILogger _logger;
 
@@ -18,7 +18,7 @@ class AsyncAwaitServer
     private readonly IClientSessionManager _clientSessionManager;
 
     public AsyncAwaitServer(
-        ServerListener serverListener,
+        IServerListener serverListener,
         IPacketHandler packetHandler,
         ILoggerFactory loggerFactory,
         IPacketSerializer packetSerializer,
