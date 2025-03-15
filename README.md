@@ -15,6 +15,8 @@
 - **실시간 통신**: TCP 소켓
 - **웹 서버**: ASP.NET Core
 ## 아키텍처
-준비중
+[수정 확장에 용이한 구조를 어떻게 설계해야 할까?](https://github.com/oak-cassia/RTW-Server/wiki/B.-TCP-%EC%84%9C%EB%B2%84)
+![image](https://github.com/user-attachments/assets/f21c2268-ada9-4788-8971-24218e72f0c6)
+
 ## 기능
 준비중
