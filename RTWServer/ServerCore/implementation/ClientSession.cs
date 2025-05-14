@@ -1,19 +1,22 @@
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.IO.Pipelines;
+using Microsoft.Extensions.Logging;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
 
 public class ClientSession : IClientSession
 {
-    private const int BUFFER_SIZE = 4096;
+    // Network buffer size for packet reading
+    private const int NETWORK_BUFFER_SIZE = 4096;
 
     private readonly IClient _client;
     private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
     private readonly IClientSessionManager _clientSessionManager;
+    private readonly ILogger _logger;
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
     private readonly Lock _sendLock = new();
@@ -23,8 +26,13 @@ public class ClientSession : IClientSession
 
     public string Id { get; private init; }
 
-    public ClientSession(IClient client, IPacketHandler packetHandler, IPacketSerializer packetSerializer,
-        IClientSessionManager clientSessionManager, string id)
+    public ClientSession(
+        IClient client, 
+        IPacketHandler packetHandler, 
+        IPacketSerializer packetSerializer,
+        IClientSessionManager clientSessionManager, 
+        ILoggerFactory loggerFactory,
+        string id)
     {
         _client = client;
 
@@ -34,6 +42,7 @@ public class ClientSession : IClientSession
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
         _clientSessionManager = clientSessionManager;
+        _logger = loggerFactory.CreateLogger<ClientSession>();
 
         Id = id;
         _isSending = false;
@@ -42,7 +51,8 @@ public class ClientSession : IClientSession
 
     public async Task StartSessionAsync(CancellationToken token)
     {
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(NETWORK_BUFFER_SIZE);
+        _logger.LogDebug("Session started for client {ClientId}", Id);
 
         try
         {
@@ -51,19 +61,30 @@ public class ClientSession : IClientSession
                 IPacket? packet = await ReadPacketAsync(buffer);
                 if (packet == null)
                 {
+                    _logger.LogDebug("Null packet received, ending session for client {ClientId}", Id);
                     break;
                 }
 
+                _logger.LogTrace("Handling packet {PacketId} for client {ClientId}", packet.PacketId, Id);
                 await _packetHandler.HandlePacketAsync(packet, this);
             }
         }
-        catch (Exception e)
+        catch (OperationCanceledException)
         {
-            Console.WriteLine(e);
+            _logger.LogInformation("Session cancelled for client {ClientId}", Id);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Network error for client {ClientId}", Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in session for client {ClientId}", Id);
             throw;
         }
         finally
         {
+            _logger.LogDebug("Removing session for client {ClientId}", Id);
             _clientSessionManager.RemoveClientSession(Id);
 
             ArrayPool<byte>.Shared.Return(buffer);
@@ -77,11 +98,12 @@ public class ClientSession : IClientSession
         if (!_isConnected)
         {
             // 이미 연결이 끊긴 경우 접근했으므로 세션 제거
+            _logger.LogDebug("Attempted to send packet to disconnected client {ClientId}", Id);
             _clientSessionManager.RemoveClientSession(Id);
-
             return;
         }
 
+        _logger.LogTrace("Enqueueing packet {PacketId} for client {ClientId}", packet.PacketId, Id);
         _sendQueue.Enqueue(packet);
 
         await FlushSendQueueAsync();
@@ -91,14 +113,23 @@ public class ClientSession : IClientSession
     {
         if (!_isConnected)
         {
+            _logger.LogTrace("Disconnect called on already disconnected client {ClientId}", Id);
             return;
         }
 
+        _logger.LogDebug("Disconnecting client {ClientId}", Id);
         _isConnected = false;
 
-        await _writer.CompleteAsync();
-
-        _client.Close();
+        try
+        {
+            await _writer.CompleteAsync();
+            _client.Close();
+            _logger.LogInformation("Client {ClientId} disconnected successfully", Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during disconnect for client {ClientId}", Id);
+        }
     }
 
     private async Task<IPacket?> ReadPacketAsync(byte[] buffer)
@@ -108,13 +139,15 @@ public class ClientSession : IClientSession
         bool isReadHeader = await ReadBytesAsync(buffer, headerSize, 0);
         if (!isReadHeader)
         {
+            _logger.LogTrace("Failed to read header for client {ClientId}", Id);
             return null;
         }
 
         // 페이로드 길이 확인
         int payloadSize = _packetSerializer.GetPayloadSizeFromHeader(buffer.AsSpan(0, headerSize));
-        if (payloadSize < 0 || headerSize + payloadSize > BUFFER_SIZE)
+        if (payloadSize < 0 || headerSize + payloadSize > NETWORK_BUFFER_SIZE)
         {
+            _logger.LogWarning("Invalid payload size {PayloadSize} for client {ClientId}", payloadSize, Id);
             return null;
         }
 
@@ -122,10 +155,12 @@ public class ClientSession : IClientSession
         bool isReadPayload = await ReadBytesAsync(buffer, payloadSize, headerSize);
         if (!isReadPayload)
         {
+            _logger.LogTrace("Failed to read payload for client {ClientId}", Id);
             return null;
         }
 
         // 패킷 생성
+        _logger.LogTrace("Successfully read packet with payload size {PayloadSize} for client {ClientId}", payloadSize, Id);
         return _packetSerializer.Deserialize(buffer);
     }
 
@@ -162,6 +197,7 @@ public class ClientSession : IClientSession
             }
 
             _isSending = true;
+            _logger.LogTrace("Started sending packets for client {ClientId}", Id);
         }
 
         while (true)
@@ -178,6 +214,7 @@ public class ClientSession : IClientSession
                     if (!_sendQueue.TryDequeue(out packet))
                     {
                         _isSending = false;
+                        _logger.LogTrace("No more packets to send for client {ClientId}", Id);
                         return;
                     }
                 }
@@ -185,15 +222,29 @@ public class ClientSession : IClientSession
 
             try
             {
+                _logger.LogTrace("Sending packet {PacketId} to client {ClientId}", packet.PacketId, Id);
                 await FlushAsync(packet);
             }
-            catch (Exception e)
+            catch (IOException ex)
             {
-                Console.WriteLine(e);
+                _logger.LogWarning(ex, "Network error while sending packet to client {ClientId}", Id);
 
                 // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
                 await Disconnect();
+                return;
+            }
+            catch (ObjectDisposedException ex)
+            {
+                _logger.LogWarning(ex, "Connection already closed for client {ClientId}", Id);
+                await Disconnect();
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while sending packet to client {ClientId}", Id);
 
+                // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
+                await Disconnect();
                 return;
             }
         }

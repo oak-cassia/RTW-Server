@@ -9,27 +9,29 @@ using RTWServer.ServerCore.implementation;
 string ipAddress = "127.0.0.1";
 int port = 5000;
 
+// Create logger factory and logger
+ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder.AddConsole()
+        .SetMinimumLevel(LogLevel.Debug);
+});
+ILogger logger = loggerFactory.CreateLogger("Program");
+
 try
 {
     IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
-    ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-    {
-        builder.AddConsole()
-            .SetMinimumLevel(LogLevel.Debug);
-    });
-
     GamePacketFactory packetFactory = new GamePacketFactory();
-    
+
     AsyncAwaitServer server = new AsyncAwaitServer(
-        new TcpServerListener(endpoint),
+        new TcpServerListener(endpoint, loggerFactory),
         new GamePacketHandler(loggerFactory),
         loggerFactory,
         new PacketSerializer(packetFactory),
         new ClientSessionManager()
     );
 
-    Console.WriteLine($"Server running at {ipAddress}:{port}");
+    logger.LogInformation("Server running at {IpAddress}:{Port}", ipAddress, port);
 
     // 서버 실행
     using CancellationTokenSource cts = new CancellationTokenSource();
@@ -40,6 +42,7 @@ try
         string input = Console.ReadLine();
         if (input == "quit")
         {
+            logger.LogInformation("Shutdown command received, stopping server...");
             cts.Cancel();
             break;
         }
@@ -51,5 +54,5 @@ try
 catch (Exception ex)
 {
     // 예외 처리
-    Console.WriteLine($"An error occurred while starting the server: {ex.Message}");
+    logger.LogError(ex, "An error occurred while starting the server");
 }
