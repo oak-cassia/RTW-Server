@@ -1,26 +1,16 @@
 using RTWServer.Enum;
-using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Packet;
 
-public class EchoPacket : IPacket
+public class EchoPacket : BasePacket
 {
-    public PacketId PacketId { get; }
-    public byte[] Payload { get; }
-
-    public EchoPacket(PacketId packetId, byte[] payload)
+    public EchoPacket(PacketId packetId, byte[] payload) 
+        : base(packetId, payload)
     {
-        PacketId = packetId;
-        Payload = payload;
     }
-
-    public int GetPayloadSize()
+    
+    public EchoPacket(byte[] payload)
+        : base(PacketId.EchoTest, payload)
     {
-        return Payload.Length;
-    }
-
-    public void WriteToBuffer(Span<byte> buffer)
-    {
-        Payload.CopyTo(buffer);
     }
 }
