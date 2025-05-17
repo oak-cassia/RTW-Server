@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using Microsoft.Extensions.Logging;
+using NetworkDefinition.ErrorCode;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
@@ -28,7 +29,9 @@ public class ClientSession : IClientSession
     private bool _isSending;
     private int _connectionState; // CONNECTION_STATE_CONNECTED or CONNECTION_STATE_DISCONNECTED
 
-    public string Id { get; private init; }
+    public string Id { get; private init; } // Session ID, will also serve as Player ID
+    public string? AuthToken { get; private set; }
+    public bool IsAuthenticated { get; private set; }
 
     public ClientSession(
         IClient client, 
@@ -51,6 +54,7 @@ public class ClientSession : IClientSession
         Id = id;
         _isSending = false;
         Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
+        IsAuthenticated = false; // Initialize as not authenticated
     }
 
     public async Task StartSessionAsync(CancellationToken token)
@@ -266,5 +270,37 @@ public class ClientSession : IClientSession
         _writer.Advance(headerSize + payloadSize);
 
         await _writer.FlushAsync();
+    }
+
+    public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken)
+    {
+        _logger.LogDebug("Validating auth token {AuthToken} for session {SessionId}", authToken, Id);
+
+        // Placeholder validation logic
+        // In a real scenario, you would:
+        // 1. Check the authToken against a persistent store (e.g., Redis cache, database)
+        // 2. If valid, the Session ID (this.Id) can be used as the PlayerId or mapped to one.
+        // 3. Store relevant user/player data in the session.
+
+        if (!string.IsNullOrEmpty(authToken))
+        {
+            // The SessionId (this.Id) is now effectively the PlayerId upon successful authentication.
+            // If you need a separate PlayerId that's an integer, you'd generate/fetch it here.
+            // For this merge, we'll assume Id (string) is acceptable or can be parsed/hashed if an int is strictly needed elsewhere.
+            // However, the SAuthResult packet expects an int PlayerId.
+            // We will use the hash of the Id string as the PlayerId for now.
+            // This needs to be a consistent mapping if the string Id is the true unique player identifier.
+            int playerIdForPacket = Id.GetHashCode(); // Or a more robust mapping
+
+            this.AuthToken = authToken;
+            this.IsAuthenticated = true;
+            
+            _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, playerIdForPacket);
+            return (RTWErrorCode.Success, playerIdForPacket); // Return the integer PlayerId for the packet
+        }
+
+        _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
+        this.IsAuthenticated = false;
+        return (RTWErrorCode.AuthenticationFailed, 0);
     }
 }
