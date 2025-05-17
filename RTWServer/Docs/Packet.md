@@ -8,7 +8,7 @@ C_AuthToken (클라이언트 -> 서버)
 데이터: string AuthToken
 S_AuthResult (서버 -> 클라이언트)
 목적: 실시간 서버 인증 결과 통보
-데이터: bool IsSuccess, string Reason (실패 시 이유), int PlayerId (인증 성공 시 할당/확인된 플레이어 고유 ID)
+데이터: RTWErrorCode errorCode, int PlayerId (인증 성공 시 할당/확인된 플레이어 고유 ID)
 C_Disconnect (클라이언트 -> 서버)
 목적: 명시적 연결 해제 요청
 데이터: (없음 또는 int ReasonCode)
@@ -25,7 +25,7 @@ C_EnterWorld (클라이언트 -> 서버)
 데이터: int WorldId (선택 사항)
 S_EnterWorldResult (서버 -> 클라이언트)
 목적: 월드 진입 결과 및 초기 월드 상태(내 플레이어 정보) 전달
-데이터: bool IsSuccess, string Reason (실패 시), 성공 시: Vector3 InitialPosition, float InitialHp, float InitialMp, byte InitialReputationLevel, long CurrentExp, int Level, long Gold (등 초기 정보)
+데이터: RTWErrorCode errorCode, 성공 시: Vector3 InitialPosition, float InitialHp, float InitialMp, byte InitialReputationLevel, long CurrentExp, int Level, long Gold (등 초기 정보)
 S_SpawnPlayer (서버 -> 클라이언트)
 목적: 내 주변에 다른 플레이어가 나타났음을 알림
 데이터: int PlayerId, string Name, Vector3 Position, float Hp, byte State, byte ReputationLevel, List<EquippedItemInfo> EquippedItems (현재 장비 정보 요약)
@@ -118,7 +118,7 @@ C_BuyItemFromShop (클라이언트 -> 서버)
 데이터: int ShopId, int ItemTemplateId, int Amount
 S_BuyItemResult (서버 -> 클라이언트)
 목적: 아이템 구매 결과 통보
-데이터: bool IsSuccess, string Reason (실패 시), 성공 시: int ItemTemplateId, int Amount (어떤 아이템을 구매했는지 확인)
+데이터: RTWErrorCode errorCode, 성공 시: int ItemTemplateId, int Amount (어떤 아이템을 구매했는지 확인)
 S_CurrencyChange (서버 -> 클라이언트)
 목적: 플레이어 소지 화폐(골드 등) 변화 알림
 데이터: byte CurrencyType (골드=1, 보석=2 등), long NewAmount
@@ -144,13 +144,13 @@ C_EquipItem (클라이언트 -> 서버)
 데이터: int InventorySlotIndex
 S_EquipResult (서버 -> 클라이언트)
 목적: 장비 장착 결과 통보
-데이터: bool IsSuccess, string Reason (실패 시), 성공 시: int InventorySlotIndex (사용한 인벤토리 슬롯), byte EquippedSlotType (장착된 장비 슬롯), int ItemTemplateId (장착된 아이템 ID)
+데이터: RTWErrorCode errorCode, 성공 시: int InventorySlotIndex (사용한 인벤토리 슬롯), byte EquippedSlotType (장착된 장비 슬롯), int ItemTemplateId (장착된 아이템 ID)
 C_UnequipItem (클라이언트 -> 서버)
 목적: 장비 해제 요청
 데이터: byte EquippedSlotType
 S_UnequipResult (서버 -> 클라이언트)
 목적: 장비 해제 결과 통보
-데이터: bool IsSuccess, string Reason (실패 시), 성공 시: byte UnequippedSlotType, int InventorySlotIndex (들어간 인벤토리 슬롯), int ItemTemplateId (해제된 아이템 ID)
+데이터: RTWErrorCode errorCode, 성공 시: byte UnequippedSlotType, int InventorySlotIndex (들어간 인벤토리 슬롯), int ItemTemplateId (해제된 아이템 ID)
 S_PlayerAppearanceChange (서버 -> 클라이언트) - 다른 플레이어에게 자신의 장비 변화 알림
 목적: 특정 플레이어의 장비 외형 변화 통보
 데이터: int PlayerId, List<EquippedItemInfo> (변경되거나 추가된 장비 슬롯/아이템 ID 목록)
@@ -159,7 +159,7 @@ C_EnhanceItem (클라이언트 -> 서버)
 데이터: int TargetSlotIndex (강화 대상 아이템 슬롯), List<int> MaterialSlotIndices (재료 아이템 슬롯 목록), byte CurrencyType (사용할 화폐 타입), long CurrencyAmount (사용할 화폐량)
 S_EnhanceItemResult (서버 -> 클라이언트)
 목적: 아이템 강화 결과 통보
-데이터: bool IsSuccess, string Reason (실패 시), 성공/실패 시: int TargetSlotIndex, int NewEnhancementLevel, bool IsDestroyed (실패 시 파괴 여부), List<ItemStat> NewStats (강화 성공 시 변경된 능력치 목록)
+데이터: RTWErrorCode errorCode, 성공/실패 시: int TargetSlotIndex, int NewEnhancementLevel, bool IsDestroyed (실패 시 파괴 여부), List<ItemStat> NewStats (강화 성공 시 변경된 능력치 목록)
 
 [성장 (레벨/경험치)]
 S_GainExp (서버 -> 클라이언트)
@@ -275,4 +275,4 @@ C_StealTarget / S_StealResult: 훔치기 성공 여부, 발각 여부, 획득 �
 C_UseSkill / S_UseSkill: 스킬 사용 조건(쿨타임, 자원) 및 효과 판정은 서버에서 담당합니다.   
 탈것 (C_MountVehicle, S_MountVehicle): 탈것 탑승/하차 상태를 동기화합니다.  
 S_WantedLevelChange: 수배 레벨 변경 시 플레이어 본인에게 알리고, 필요시 주변 플레이어에게도 S_PlayerWantedStatus와 같은 형태로 알릴 수 있습니다.   
-C_SurrenderToGuard: 항복 시 수배 레벨 해제 및 페널티(골드 차감, 아이템 압수 등)를 서버에서 처리합니다.  
+C_SurrenderToGuard: 항복 시 수배 레벨 해제 및 페널티(골드 차감, 아이템 압수 등)를 서버에서 처리합니다.
