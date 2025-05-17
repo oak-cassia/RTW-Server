@@ -74,34 +74,36 @@ class AsyncAwaitServer
 
     private async Task HandleClient(IClient client, CancellationToken token)
     {
-        string sessionId = Guid.NewGuid().ToString();
-        _logger.LogDebug("Creating new session {SessionId} for client", sessionId);
+        _logger.LogDebug("Attempting to create new session for client");
+        IClientSession? session = null; // Initialize session to null
 
         try
         {
-            IClientSession session = new ClientSession(
+            // Create session using the ClientSessionManager
+            session = _clientSessionManager.CreateClientSession(
                 client, 
                 _packetHandler, 
                 _packetSerializer, 
-                _clientSessionManager,
-                _loggerFactory,
-                sessionId);
-
-            _clientSessionManager.AddClientSession(session);
-            _logger.LogDebug("Session {SessionId} added to session manager", sessionId);
+                _loggerFactory // Pass the logger factory for the session to use
+            );
+            _logger.LogDebug("Session {SessionId} created and added to session manager", session.Id);
 
             await session.StartSessionAsync(token);
         }
         catch (OperationCanceledException)
         {
+            // If session is null, it means cancellation happened before or during session creation.
+            string sessionId = session?.Id ?? "unknown";
             _logger.LogInformation("Session {SessionId} cancelled due to server shutdown", sessionId);
         }
         catch (IOException ex)
         {
+            string sessionId = session?.Id ?? "unknown";
             _logger.LogWarning(ex, "Network error for session {SessionId}", sessionId);
         }
         catch (Exception ex)
         {
+            string sessionId = session?.Id ?? "unknown";
             _logger.LogError(ex, "Unexpected error while handling client session {SessionId}", sessionId);
         }
     }
