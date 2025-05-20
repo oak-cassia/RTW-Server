@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NetworkDefinition.ErrorCode;
+using RTWServer.Auth;
 using RTWServer.Enum;
 using RTWServer.Packet.System;
 using RTWServer.ServerCore.Interface;
@@ -9,10 +10,12 @@ namespace RTWServer.Game;
 public class GamePacketHandler : IPacketHandler
 {
     private readonly ILogger _logger;
+    private readonly IUserStateManager _userStateManager;
 
-    public GamePacketHandler(ILoggerFactory loggerFactory)
+    public GamePacketHandler(ILoggerFactory loggerFactory, IUserStateManager userStateManager)
     {
         _logger = loggerFactory.CreateLogger<GamePacketHandler>();
+        _userStateManager = userStateManager;
     }
 
     public async Task HandlePacketAsync(IPacket packet, IClientSession clientSession)
@@ -41,8 +44,8 @@ public class GamePacketHandler : IPacketHandler
         _logger.LogDebug("Received authentication token: {AuthToken} from client {ClientId}", 
             authToken, clientSession.Id);
 
-        // Validate token using the method on ClientSession
-        var (errorCode, playerId) = await clientSession.ValidateAuthTokenAsync(authToken);
+        // Here you would validate the token against your authentication system
+        var (errorCode, playerId) = await _userStateManager.ValidateAuthTokenAsync(authToken);
         
         if (errorCode == RTWErrorCode.Success)
         {

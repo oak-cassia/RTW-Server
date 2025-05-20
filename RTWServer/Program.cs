@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
+using RTWServer.Auth;
 using RTWServer.Game;
 using RTWServer.Packet;
 using RTWServer.ServerCore.implementation;
-using RTWServer.ServerCore.Interface;
 
 // TODO : 설정 파일에서 IP 주소와 포트 번호를 읽어와서 사용하도록 수정
 string ipAddress = "127.0.0.1";
@@ -22,16 +22,16 @@ try
     IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
     GamePacketFactory packetFactory = new GamePacketFactory();
-
-    // ClientSessionManager now requires ILoggerFactory
-    IClientSessionManager clientSessionManager = new ClientSessionManager(loggerFactory); 
+    
+    // Create the user state manager
+    IUserStateManager userStateManager = new UserStateManager(loggerFactory);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
-        new GamePacketHandler(loggerFactory),
+        new GamePacketHandler(loggerFactory, userStateManager),
         loggerFactory,
         new PacketSerializer(packetFactory),
-        clientSessionManager // Pass the initialized clientSessionManager
+        new ClientSessionManager()
     );
 
     logger.LogInformation("Server running at {IpAddress}:{Port}", ipAddress, port);
