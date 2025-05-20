@@ -23,12 +23,12 @@ public class TcpClientImpl : IClient
         _logger.LogDebug("TCP client created for {ClientEndPoint}", _clientId);
     }
 
-    public async Task SendAsync(byte[] buffer)
+    public async Task SendAsync(byte[] buffer, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogTrace("Sending {ByteCount} bytes to client {ClientEndPoint}", buffer.Length, _clientId);
-            await _client.GetStream().WriteAsync(buffer, 0, buffer.Length);
+            await _client.GetStream().WriteAsync(buffer, 0, buffer.Length, cancellationToken);;
         }
         catch (IOException ex)
         {
@@ -42,12 +42,12 @@ public class TcpClientImpl : IClient
         }
     }
 
-    public async Task<int> ReceiveAsync(byte[] buffer, int offset, int length)
+    public async ValueTask<int> ReceiveAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogTrace("Receiving up to {ByteCount} bytes from client {ClientEndPoint}", length, _clientId);
-            int bytesRead = await _client.GetStream().ReadAsync(buffer, offset, length);
+            int bytesRead = await _client.GetStream().ReadAsync(buffer.AsMemory(offset, length), cancellationToken);
             _logger.LogTrace("Received {BytesRead} bytes from client {ClientEndPoint}", bytesRead, _clientId);
             return bytesRead;
         }
@@ -69,6 +69,7 @@ public class TcpClientImpl : IClient
         {
             _logger.LogDebug("Closing connection to client {ClientEndPoint}", _clientId);
             _client.Close();
+            _logger.LogInformation("TCP client {ClientEndPoint} closed.", _clientId);
         }
         catch (Exception ex)
         {
