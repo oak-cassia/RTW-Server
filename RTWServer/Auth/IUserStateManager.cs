@@ -4,7 +4,7 @@ namespace RTWServer.Auth;
 
 public interface IUserStateManager
 {
-    UserState GetUserStateAsync(string userId);
+    Task<UserState> GetUserStateAsync(string userId);
     
     /// <summary>
     /// Validates an authentication token received from a client

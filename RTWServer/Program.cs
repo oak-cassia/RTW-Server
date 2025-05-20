@@ -1,8 +1,8 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
-using RTWServer.Auth;
 using RTWServer.Game;
 using RTWServer.Packet;
+using RTWServer.ServerCore;
 using RTWServer.ServerCore.implementation;
 
 // TODO : 설정 파일에서 IP 주소와 포트 번호를 읽어와서 사용하도록 수정
@@ -22,13 +22,10 @@ try
     IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
     GamePacketFactory packetFactory = new GamePacketFactory();
-    
-    // Create the user state manager
-    IUserStateManager userStateManager = new UserStateManager(loggerFactory);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
-        new GamePacketHandler(loggerFactory, userStateManager),
+        new GamePacketHandler(loggerFactory),
         loggerFactory,
         new PacketSerializer(packetFactory),
         new ClientSessionManager()
@@ -42,7 +39,7 @@ try
 
     while (true)
     {
-        string? input = Console.ReadLine();
+        string input = Console.ReadLine();
         if (input == "quit")
         {
             logger.LogInformation("Shutdown command received, stopping server...");
