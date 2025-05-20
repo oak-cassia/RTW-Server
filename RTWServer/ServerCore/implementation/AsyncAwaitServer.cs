@@ -13,26 +13,18 @@ class AsyncAwaitServer
     private int _acceptCount; // 수락된 연결 수
 
     private readonly IServerListener _serverListener;
-    private readonly IPacketHandler _packetHandler;
-    private readonly ILogger _logger;
-    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<AsyncAwaitServer> _logger;
 
-    private readonly IPacketSerializer _packetSerializer;
     private readonly IClientSessionManager _clientSessionManager;
 
     public AsyncAwaitServer(
         IServerListener serverListener,
-        IPacketHandler packetHandler,
         ILoggerFactory loggerFactory,
-        IPacketSerializer packetSerializer,
         IClientSessionManager clientSessionManager
     )
     {
         _serverListener = serverListener;
-        _packetHandler = packetHandler;
-        _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
-        _packetSerializer = packetSerializer;
         _clientSessionManager = clientSessionManager;
     }
 
@@ -74,37 +66,21 @@ class AsyncAwaitServer
 
     private async Task HandleClient(IClient client, CancellationToken token)
     {
-        _logger.LogDebug("Attempting to create new session for client");
-        IClientSession? session = null; // Initialize session to null
+        _logger.LogDebug("Handing off client to ClientSessionManager");
 
         try
         {
-            // Create session using the ClientSessionManager
-            session = _clientSessionManager.CreateClientSession(
-                client, 
-                _packetHandler, 
-                _packetSerializer, 
-                _loggerFactory // Pass the logger factory for the session to use
-            );
-            _logger.LogDebug("Session {SessionId} created and added to session manager", session.Id);
-
-            await session.StartSessionAsync(token);
+            // ClientSessionManager의 HandleNewClientAsync를 호출하여 클라이언트 처리 위임
+            // ClientSessionManager와 ClientSession이 연결 종료 및 정리를 담당합니다.
+            await _clientSessionManager.HandleNewClientAsync(client, token);
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) // ClientSessionManager.HandleNewClientAsync에서 처리되지 않은 최상위 예외
         {
-            // If session is null, it means cancellation happened before or during session creation.
-            string sessionId = session?.Id ?? "unknown";
-            _logger.LogInformation("Session {SessionId} cancelled due to server shutdown", sessionId);
-        }
-        catch (IOException ex)
-        {
-            string sessionId = session?.Id ?? "unknown";
-            _logger.LogWarning(ex, "Network error for session {SessionId}", sessionId);
-        }
-        catch (Exception ex)
-        {
-            string sessionId = session?.Id ?? "unknown";
-            _logger.LogError(ex, "Unexpected error while handling client session {SessionId}", sessionId);
+            // HandleNewClientAsync 또는 그 내부에서 발생한 예외는 해당 위치에서 로깅 및 처리가 우선되어야 합니다.
+            // 이 catch 블록은 정말 예외적인 상황(예: HandleNewClientAsync 자체가 throw)을 위한 것입니다.
+            _logger.LogError(ex, "Unhandled exception during client handoff to ClientSessionManager for client: {ClientIdentifier}", client.ToString());
+            // client.Close()는 ClientSession의 Disconnect 메서드 또는 ClientSessionManager의 정리 로직에서 담당합니다.
+            // 여기서 직접 client.Close()를 호출하면 이중 해제 시도가 발생할 수 있습니다.
         }
     }
 }

@@ -12,4 +12,10 @@ public interface IClientSession
 
     // PlayerId in the return tuple now refers to the authenticated Session ID (or a mapping if needed)
     Task<(NetworkDefinition.ErrorCode.RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken); 
+
+    /// <summary>
+    /// Requests the session to start its shutdown procedure.
+    /// </summary>
+    /// <param name="reason">The reason for the shutdown request.</param>
+    Task RequestShutdownAsync(string reason);
 }

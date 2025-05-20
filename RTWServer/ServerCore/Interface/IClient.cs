@@ -2,12 +2,10 @@ namespace RTWServer.ServerCore.Interface;
 
 public interface IClient
 {
-    public Stream Stream { get; }
-    public bool IsConnected { get; }
+    Stream Stream { get; }
+    bool IsConnected { get; }
 
-    Task SendAsync(byte[] buffer);
-
-    Task<int> ReceiveAsync(byte[] buffer, int offset, int length);
+    ValueTask<int> ReceiveAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken = default);
 
     void Close();
 }
