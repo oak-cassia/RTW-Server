@@ -25,7 +25,6 @@ public class ClientSession : IClientSession
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
     private readonly Lock _sendLock = new();
-    private readonly CancellationTokenSource _sessionCts = new(); // CancellationTokenSource for session-specific cancellation
 
     private bool _isSending;
     private int _connectionState; // CONNECTION_STATE_CONNECTED or CONNECTION_STATE_DISCONNECTED
@@ -63,16 +62,14 @@ public class ClientSession : IClientSession
         byte[] buffer = ArrayPool<byte>.Shared.Rent(NETWORK_BUFFER_SIZE);
         _logger.LogDebug("Session started for client {ClientId}", Id);
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, _sessionCts.Token);
-
         try
         {
-            while (!linkedCts.Token.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
-                IPacket? packet = await ReadPacketAsync(buffer, linkedCts.Token);
+                IPacket? packet = await ReadPacketAsync(buffer);
                 if (packet == null)
                 {
-                    _logger.LogDebug("Null packet received or read operation cancelled, ending session for client {ClientId}", Id);
+                    _logger.LogDebug("Null packet received, ending session for client {ClientId}", Id);
                     break;
                 }
 
@@ -82,19 +79,7 @@ public class ClientSession : IClientSession
         }
         catch (OperationCanceledException)
         {
-            // Log if cancellation was due to external token or session's own RequestShutdown
-            if (token.IsCancellationRequested)
-            {
-                _logger.LogInformation("Session cancelled for client {ClientId} due to server shutdown.", Id);
-            }
-            else if (_sessionCts.IsCancellationRequested)
-            {
-                _logger.LogInformation("Session {ClientId} shut down as per request.", Id);
-            }
-            else
-            {
-                _logger.LogInformation("Session cancelled for client {ClientId}.", Id); // General cancellation
-            }
+            _logger.LogInformation("Session cancelled for client {ClientId}", Id);
         }
         catch (IOException ex)
         {
@@ -107,13 +92,12 @@ public class ClientSession : IClientSession
         }
         finally
         {
-            _logger.LogDebug("Cleaning up session for client {ClientId}", Id);
-            // Ensure Disconnect is called before removing from manager to avoid race conditions on _connectionState
-            await DisconnectAsync(); 
-
+            _logger.LogDebug("Removing session for client {ClientId}", Id);
             _clientSessionManager.RemoveClientSession(Id);
+
             ArrayPool<byte>.Shared.Return(buffer);
-            _sessionCts.Dispose(); // Dispose the CancellationTokenSource
+
+            await Disconnect();
         }
     }
 
@@ -121,8 +105,9 @@ public class ClientSession : IClientSession
     {
         if (Interlocked.CompareExchange(ref _connectionState, CONNECTION_STATE_CONNECTED, CONNECTION_STATE_CONNECTED) == CONNECTION_STATE_DISCONNECTED)
         {
-            _logger.LogDebug("Attempted to send packet to disconnected client {ClientId}, requesting shutdown.", Id);
-            await RequestShutdownAsync("Attempted to send to disconnected client");
+            // 이미 연결이 끊긴 경우 접근했으므로 세션 제거
+            _logger.LogDebug("Attempted to send packet to disconnected client {ClientId}", Id);
+            _clientSessionManager.RemoveClientSession(Id);
             return;
         }
 
@@ -132,7 +117,7 @@ public class ClientSession : IClientSession
         await FlushSendQueueAsync();
     }
 
-    private async Task DisconnectAsync()
+    private async Task Disconnect()
     {
         // 이미 연결 해제된 경우 early return
         if (Interlocked.CompareExchange(ref _connectionState, CONNECTION_STATE_DISCONNECTED, CONNECTION_STATE_CONNECTED) == CONNECTION_STATE_DISCONNECTED)
@@ -142,7 +127,6 @@ public class ClientSession : IClientSession
         }
 
         _logger.LogDebug("Disconnecting client {ClientId}", Id);
-        await _sessionCts.CancelAsync(); // Signal session loop to stop
 
         try
         {
@@ -156,11 +140,11 @@ public class ClientSession : IClientSession
         }
     }
 
-    private async Task<IPacket?> ReadPacketAsync(byte[] buffer, CancellationToken cancellationToken)
+    private async Task<IPacket?> ReadPacketAsync(byte[] buffer)
     {
         // 헤더 읽기
         int headerSize = _packetSerializer.GetHeaderSize();
-        bool isReadHeader = await ReadBytesAsync(buffer, headerSize, 0, cancellationToken);
+        bool isReadHeader = await ReadBytesAsync(buffer, headerSize, 0);
         if (!isReadHeader)
         {
             _logger.LogTrace("Failed to read header for client {ClientId}", Id);
@@ -176,7 +160,7 @@ public class ClientSession : IClientSession
         }
 
         // 페이로드 읽기
-        bool isReadPayload = await ReadBytesAsync(buffer, payloadSize, headerSize, cancellationToken);
+        bool isReadPayload = await ReadBytesAsync(buffer, payloadSize, headerSize);
         if (!isReadPayload)
         {
             _logger.LogTrace("Failed to read payload for client {ClientId}", Id);
@@ -188,7 +172,7 @@ public class ClientSession : IClientSession
         return _packetSerializer.Deserialize(buffer);
     }
 
-    private async Task<bool> ReadBytesAsync(byte[] buffer, int sizeToRead, int offset, CancellationToken cancellationToken)
+    private async Task<bool> ReadBytesAsync(byte[] buffer, int sizeToRead, int offset)
     {
         if (sizeToRead > buffer.Length)
         {
@@ -198,7 +182,7 @@ public class ClientSession : IClientSession
         // 남은 데이터를 모두 읽을 때까지 반복
         while (sizeToRead > 0)
         {
-            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead, cancellationToken); 
+            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead);
             if (sizeReceived == 0)
             {
                 return false;
@@ -209,22 +193,6 @@ public class ClientSession : IClientSession
         }
 
         return true;
-    }
-
-    public async Task RequestShutdownAsync(string reason)
-    {
-        _logger.LogInformation("Shutdown requested for session {SessionId}. Reason: {Reason}", Id, reason);
-        try
-        {
-            if (!_sessionCts.IsCancellationRequested)
-            {
-                await _sessionCts.CancelAsync();
-            }
-        }
-        catch (ObjectDisposedException)
-        {
-            _logger.LogWarning("RequestShutdownAsync called on a disposed CancellationTokenSource for session {SessionId}. Session already shutting down.", Id);
-        }
     }
 
     private async Task FlushSendQueueAsync()
@@ -246,6 +214,11 @@ public class ClientSession : IClientSession
             {
                 lock (_sendLock)
                 {
+                    // 한번 더 확인하는 이유 - 아래 조건문이 없는 경우
+                    // 1. 현재 스레드: Dequeue 실패,lock 대기
+                    // 2. 다른 스레드: Enqueue 후 첫번째 lock 획득, isSending 이 참이므로 반환
+                    // 3. 현재 스레드: lock 획득, isSending = false 후 반환
+                    // 2번에서 Enqueue한 패킷 기아
                     if (!_sendQueue.TryDequeue(out packet))
                     {
                         _isSending = false;
@@ -263,23 +236,25 @@ public class ClientSession : IClientSession
             catch (IOException ex)
             {
                 _logger.LogWarning(ex, "Network error while sending packet to client {ClientId}", Id);
-                await RequestShutdownAsync($"Network error during send: {ex.GetType().Name}");
+
+                // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
+                await Disconnect();
                 return;
             }
             catch (ObjectDisposedException ex)
             {
                 _logger.LogWarning(ex, "Connection already closed for client {ClientId}", Id);
-                await RequestShutdownAsync($"Connection already closed during send: {ex.GetType().Name}");
+                await Disconnect();
                 return;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while sending packet to client {ClientId}", Id);
-                await RequestShutdownAsync($"Unexpected error during send: {ex.GetType().Name}");
+
+                // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
+                await Disconnect();
                 return;
             }
-            
-            // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
         }
     }
 
@@ -301,19 +276,27 @@ public class ClientSession : IClientSession
     {
         _logger.LogDebug("Validating auth token {AuthToken} for session {SessionId}", authToken, Id);
 
+        // Placeholder validation logic
+        // In a real scenario, you would:
         // 1. Check the authToken against a persistent store (e.g., Redis cache, database)
         // 2. If valid, the Session ID (this.Id) can be used as the PlayerId or mapped to one.
         // 3. Store relevant user/player data in the session.
 
         if (!string.IsNullOrEmpty(authToken))
         {
-            int playerIdForPacket = Id.GetHashCode();
+            // The SessionId (this.Id) is now effectively the PlayerId upon successful authentication.
+            // If you need a separate PlayerId that's an integer, you'd generate/fetch it here.
+            // For this merge, we'll assume Id (string) is acceptable or can be parsed/hashed if an int is strictly needed elsewhere.
+            // However, the SAuthResult packet expects an int PlayerId.
+            // We will use the hash of the Id string as the PlayerId for now.
+            // This needs to be a consistent mapping if the string Id is the true unique player identifier.
+            int playerIdForPacket = Id.GetHashCode(); // Or a more robust mapping
 
-            AuthToken = authToken;
-            IsAuthenticated = true;
+            this.AuthToken = authToken;
+            this.IsAuthenticated = true;
             
             _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, playerIdForPacket);
-            return (RTWErrorCode.Success, playerIdForPacket);
+            return (RTWErrorCode.Success, playerIdForPacket); // Return the integer PlayerId for the packet
         }
 
         _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
