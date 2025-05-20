@@ -22,17 +22,15 @@ try
     IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
     GamePacketFactory packetFactory = new GamePacketFactory();
-    // IPacketHandler와 IPacketSerializer 인스턴스 생성
-    IPacketHandler packetHandler = new GamePacketHandler(loggerFactory);
-    IPacketSerializer packetSerializer = new PacketSerializer(packetFactory);
 
-    // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
-    IClientSessionManager clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer); 
+    // ClientSessionManager now requires ILoggerFactory
+    IClientSessionManager clientSessionManager = new ClientSessionManager(loggerFactory); 
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
-        // packetHandler와 packetSerializer는 AsyncAwaitServer 생성자에서 제거되었으므로 여기서도 제거
+        new GamePacketHandler(loggerFactory),
         loggerFactory,
+        new PacketSerializer(packetFactory),
         clientSessionManager // Pass the initialized clientSessionManager
     );
 
