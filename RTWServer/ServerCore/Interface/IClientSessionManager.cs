@@ -2,14 +2,20 @@ namespace RTWServer.ServerCore.Interface;
 
 public interface IClientSessionManager
 {
-    // Added: Method to create and add a new client session
-    IClientSession CreateClientSession(IClient client, IPacketHandler packetHandler, IPacketSerializer packetSerializer, Microsoft.Extensions.Logging.ILoggerFactory loggerFactory);
-
-    void AddClientSession(IClientSession clientSession); // Kept for flexibility, though CreateClientSession might be preferred
+    // Method to handle a new client connection, including session creation and starting the session.
+    Task HandleNewClientAsync(IClient client, CancellationToken token);
     
     void RemoveClientSession(string id);
     
     IClientSession? GetClientSession(string id);
     
     IEnumerable<IClientSession> GetAllClientSessions();
+
+    /// <summary>
+    /// Initiates a graceful disconnect for the specified client session.
+    /// </summary>
+    /// <param name="sessionId">The ID of the session to disconnect.</param>
+    /// <param name="reason">The reason for the disconnection.</param>
+    /// <returns>A task that represents the asynchronous disconnect operation.</returns>
+    Task InitiateClientDisconnectAsync(string sessionId, string reason);
 }
