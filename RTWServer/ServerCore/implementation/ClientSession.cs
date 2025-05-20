@@ -10,10 +10,6 @@ public class ClientSession : IClientSession
 {
     // Network buffer size for packet reading
     private const int NETWORK_BUFFER_SIZE = 4096;
-    
-    // Connection state constants
-    private const int CONNECTION_STATE_DISCONNECTED = 0;
-    private const int CONNECTION_STATE_CONNECTED = 1;
 
     private readonly IClient _client;
     private readonly PipeWriter _writer;
@@ -26,7 +22,7 @@ public class ClientSession : IClientSession
     private readonly Lock _sendLock = new();
 
     private bool _isSending;
-    private int _connectionState; // CONNECTION_STATE_CONNECTED or CONNECTION_STATE_DISCONNECTED
+    private bool _isConnected;
 
     public string Id { get; private init; }
 
@@ -50,7 +46,7 @@ public class ClientSession : IClientSession
 
         Id = id;
         _isSending = false;
-        Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
+        _isConnected = true;
     }
 
     public async Task StartSessionAsync(CancellationToken token)
@@ -99,7 +95,7 @@ public class ClientSession : IClientSession
 
     public async Task SendAsync(IPacket packet)
     {
-        if (Interlocked.CompareExchange(ref _connectionState, CONNECTION_STATE_CONNECTED, CONNECTION_STATE_CONNECTED) == CONNECTION_STATE_DISCONNECTED)
+        if (!_isConnected)
         {
             // 이미 연결이 끊긴 경우 접근했으므로 세션 제거
             _logger.LogDebug("Attempted to send packet to disconnected client {ClientId}", Id);
@@ -115,14 +111,14 @@ public class ClientSession : IClientSession
 
     private async Task Disconnect()
     {
-        // 이미 연결 해제된 경우 early return
-        if (Interlocked.CompareExchange(ref _connectionState, CONNECTION_STATE_DISCONNECTED, CONNECTION_STATE_CONNECTED) == CONNECTION_STATE_DISCONNECTED)
+        if (!_isConnected)
         {
             _logger.LogTrace("Disconnect called on already disconnected client {ClientId}", Id);
             return;
         }
 
         _logger.LogDebug("Disconnecting client {ClientId}", Id);
+        _isConnected = false;
 
         try
         {
