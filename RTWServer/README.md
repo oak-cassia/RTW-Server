@@ -13,6 +13,7 @@
 
 ## 실행 흐름
 
+
 `Program.cs`에서는 서버 실행에 필요한 주요 객체들을 초기화합니다.
 
 1. `TcpServerListener` – 지정한 IP와 포트로 TCP 리스너를 생성합니다.
@@ -20,6 +21,18 @@
 3. `PacketSerializer` – 패킷 직렬화와 역직렬화를 담당합니다.
 4. `ClientSessionManager` – 새로운 연결 시 `ClientSession`을 생성하고 관리합니다.
 5. `AsyncAwaitServer` – 위 구성 요소들을 사용해 비동기 서버 루프를 실행합니다.
+
+`Program.cs`에서 서버가 초기화되는 과정의 일부는 다음과 같습니다.
+
+```csharp
+IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
+int port = 5000;
+var server = new AsyncAwaitServer(
+    new TcpServerListener(new IPEndPoint(ipAddress, port), loggerFactory),
+    loggerFactory,
+    clientSessionManager);
+Task serverTask = server.Start(cts.Token);
+```
 
 `AsyncAwaitServer`는 클라이언트 연결을 수락하고 `ClientSessionManager`에 위임합니다.
 
@@ -48,6 +61,7 @@ public void SerializeToBuffer(IPacket packet, Span<byte> buffer)
 }
 ```
 【F:RTWServer/Packet/PacketSerializer.cs†L21-L29】
+
 
 ## 주요 클래스 설명
 
