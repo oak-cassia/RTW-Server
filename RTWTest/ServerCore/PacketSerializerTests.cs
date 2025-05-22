@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using RTWServer.Game;
 using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
