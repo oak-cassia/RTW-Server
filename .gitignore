@@ -79,6 +79,7 @@ rider.project.restore.info
 *.exe
 *.pdb
 *.json
+!RTWServer/appsettings.json
 *.deps.json
 *.runtimeconfig.json
 apphost.exe

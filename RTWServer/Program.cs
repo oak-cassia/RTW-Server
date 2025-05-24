@@ -1,13 +1,18 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using RTWServer.Game;
 using RTWServer.Packet;
 using RTWServer.ServerCore.implementation;
 using RTWServer.ServerCore.Interface;
 
-// TODO : 설정 파일에서 IP 주소와 포트 번호를 읽어와서 사용하도록 수정
-string ipAddress = "127.0.0.1";
-int port = 5000;
+IConfiguration configuration = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: true)
+    .Build();
+
+string ipAddress = configuration.GetValue("ServerSettings:IPAddress", "127.0.0.1");
+int port = configuration.GetValue("ServerSettings:Port", 5000);
 
 // Create logger factory and logger
 ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
