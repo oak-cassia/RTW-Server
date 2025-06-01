@@ -1,4 +1,4 @@
-using RTWServer.Enum;
+using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Packet;
