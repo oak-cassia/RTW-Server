@@ -1,19 +1,14 @@
 using Microsoft.Extensions.Logging;
+using RTW.NetworkDefinition.Proto.Packet;
 using NetworkDefinition.ErrorCode;
-using RTWServer.Enum;
-using RTWServer.Packet.System;
 using RTWServer.ServerCore.Interface;
+using RTWServer.Packet;
 
 namespace RTWServer.Game;
 
-public class GamePacketHandler : IPacketHandler
+public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
 {
-    private readonly ILogger _logger;
-
-    public GamePacketHandler(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<GamePacketHandler>();
-    }
+    private readonly ILogger _logger = loggerFactory.CreateLogger<GamePacketHandler>();
 
     public async Task HandlePacketAsync(IPacket packet, IClientSession clientSession)
     {
@@ -21,12 +16,20 @@ public class GamePacketHandler : IPacketHandler
 
         switch (packet.PacketId)
         {
-            case PacketId.EchoTest:
+            case PacketId.EchoMessage:
                 await clientSession.SendAsync(packet);
                 break;
 
             case PacketId.CAuthToken:
-                await HandleAuthToken((CAuthToken)packet, clientSession);
+                if (packet.GetPayloadMessage() is CAuthToken authTokenProto)
+                {
+                    await HandleAuthToken(authTokenProto, clientSession);
+                }
+                else
+                {
+                    _logger.LogWarning("Could not cast payload to CAuthToken for packet ID: {PacketPacketId}", packet.PacketId);
+                    // Optionally, send an error response or close the session
+                }
                 break;
 
             default:
@@ -35,9 +38,9 @@ public class GamePacketHandler : IPacketHandler
         }
     }
 
-    private async Task HandleAuthToken(CAuthToken authTokenPacket, IClientSession clientSession)
+    private async Task HandleAuthToken(CAuthToken authTokenProtoPacket, IClientSession clientSession)
     {
-        string authToken = authTokenPacket.AuthToken;
+        string authToken = authTokenProtoPacket.AuthToken;
         _logger.LogDebug("Received authentication token: {AuthToken} from client {ClientId}", 
             authToken, clientSession.Id);
 
@@ -49,14 +52,23 @@ public class GamePacketHandler : IPacketHandler
             _logger.LogInformation("Authentication successful for client {ClientId}, PlayerId: {PlayerId}", 
                 clientSession.Id, playerId);
             
-            await clientSession.SendAsync(new SAuthResult(playerId));
+            var sAuthResultProto = new SAuthResult 
+            { 
+                PlayerId = playerId, 
+                ErrorCode = (int)RTWErrorCode.Success // Cast to int for proto
+            };
+            await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
         }
         else
         {
             _logger.LogWarning("Authentication failed for client {ClientId}, ErrorCode: {ErrorCode}", 
                 clientSession.Id, errorCode);
             
-            await clientSession.SendAsync(new SAuthResult(errorCode));
+            var sAuthResultProto = new SAuthResult 
+            { 
+                ErrorCode = (int)errorCode // Cast to int for proto
+            };
+            await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
         }
     }
 }
