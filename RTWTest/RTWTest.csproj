@@ -24,6 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\NetworkDefinition\NetworkDefinition.csproj" />
       <ProjectReference Include="..\RTWServer\RTWServer.csproj" />
       <ProjectReference Include="..\RTWWebServer\RTWWebServer.csproj" />
     </ItemGroup>

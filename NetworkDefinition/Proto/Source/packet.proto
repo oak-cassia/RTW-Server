@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package packet;
+
+option csharp_namespace = "RTW.NetworkDefinition.Proto.Packet"; // 수정됨: C# 네임스페이스 변경
+
+// 패킷 ID Enum (PacketHeader의 id 필드에 사용)
+enum PacketId {
+  PacketIdNone = 0; // 기본값
+
+  // 시스템 및 연결
+  C_AUTH_TOKEN = 1;
+  S_AUTH_RESULT = 2;
+
+  // Echo (Test)
+  ECHO_MESSAGE = 9999; // C_ECHO_PACKET and S_ECHO_PACKET merged
+}
+
+// --- 시스템 및 연결 ---
+// (CAuthToken은 PacketHeader 뒤에 오는 payload가 됩니다)
+message CAuthToken {
+  string authToken = 1;
+}
+
+// (SAuthResult는 PacketHeader 뒤에 오는 payload가 됩니다)
+message SAuthResult {
+  int32 errorCode = 1; // 수정됨: rtw.common.RTWErrorCode
+  int32 playerId = 2; // 인증 성공 시
+}
+
+// --- Echo (Test) ---
+// (EchoMessage는 PacketHeader 뒤에 오는 payload가 됩니다)
+message EchoMessage {
+    string message = 1;
+}
