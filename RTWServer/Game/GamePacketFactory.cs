@@ -1,21 +1,23 @@
-using RTWServer.Enum;
+using System.Diagnostics;
+using Google.Protobuf;
+using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Packet;
-using RTWServer.Packet.System;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game;
 
 public class GamePacketFactory : IPacketFactory
 {
-    public IPacket CreatePacket(int packetId, ReadOnlySpan<byte> payload)
+    public IPacket CreatePacket(int packetIdNum, ReadOnlySpan<byte> payloadBytes)
     {
-        PacketId castedPacketId = (PacketId)packetId;
-        return castedPacketId switch
+        PacketId packetId = (PacketId)packetIdNum;
+
+        return packetId switch
         {
-            PacketId.EchoTest => new EchoPacket(castedPacketId, payload.ToArray()),
-            PacketId.CAuthToken => new CAuthToken(castedPacketId, payload.ToArray()),
-            PacketId.SAuthResult => new SAuthResult(castedPacketId, payload.ToArray()),
-            _ => throw new ArgumentOutOfRangeException()
+            PacketId.EchoMessage => new ProtoPacket(packetId, EchoMessage.Parser.ParseFrom(payloadBytes)),
+            PacketId.CAuthToken => new ProtoPacket(packetId, CAuthToken.Parser.ParseFrom(payloadBytes)),
+            PacketId.SAuthResult => new ProtoPacket(packetId, SAuthResult.Parser.ParseFrom(payloadBytes)),
+            _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId, null)
         };
     }
 }
