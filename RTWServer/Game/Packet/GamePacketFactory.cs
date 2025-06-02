@@ -1,10 +1,8 @@
-using System.Diagnostics;
-using Google.Protobuf;
 using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
 
-namespace RTWServer.Game;
+namespace RTWServer.Game.Packet;
 
 public class GamePacketFactory : IPacketFactory
 {

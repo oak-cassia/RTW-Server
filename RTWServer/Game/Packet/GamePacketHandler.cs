@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
-using RTW.NetworkDefinition.Proto.Packet;
 using NetworkDefinition.ErrorCode;
-using RTWServer.ServerCore.Interface;
+using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Packet;
+using RTWServer.ServerCore.Interface;
 
-namespace RTWServer.Game;
+namespace RTWServer.Game.Packet;
 
 public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
 {
