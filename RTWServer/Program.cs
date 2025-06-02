@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
-using RTWServer.Game;
+using RTWServer.Game.Packet;
 using RTWServer.Packet;
 using RTWServer.ServerCore.implementation;
 using RTWServer.ServerCore.Interface;
