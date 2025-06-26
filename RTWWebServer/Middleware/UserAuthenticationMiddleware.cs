@@ -139,7 +139,7 @@ public class UserAuthenticationMiddleware(
             return false;
         }
 
-        return cachedAuthToken?.AuthToken == requestAuthToken;
+        return cachedAuthToken?.Token == requestAuthToken;
     }
 
     private async Task RespondWithError(HttpContext context, WebServerErrorCode errorCode)
