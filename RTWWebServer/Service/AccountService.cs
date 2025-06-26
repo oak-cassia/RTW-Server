@@ -1,14 +1,10 @@
 using RTWWebServer.Authentication;
-using RTWWebServer.Database;
 using RTWWebServer.Repository;
-using Microsoft.EntityFrameworkCore;
 
 namespace RTWWebServer.Service;
 
 public class AccountService(
-    AccountDbContext dbContext, 
-    IAccountRepository accountRepository,
-    IGuestRepository guestRepository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     IGuidGenerator guidGenerator,
     ILogger<AccountService> logger
@@ -16,55 +12,55 @@ public class AccountService(
 {
     public async Task<bool> CreateAccountAsync(string userName, string email, string password)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
-
         try
         {
+            await unitOfWork.BeginTransactionAsync();
+
             string salt = passwordHasher.GenerateSaltValue();
             string hashedPassword = passwordHasher.CalcHashedPassword(password, salt);
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 Account 테이블에 입력
 
-            bool result = await accountRepository.CreateAccountAsync(userName, email, hashedPassword, salt);
+            bool result = await unitOfWork.Accounts.CreateAccountAsync(userName, email, hashedPassword, salt);
             if (result == false)
             {
-                await transaction.RollbackAsync();
+                await unitOfWork.RollbackTransactionAsync();
                 return false;
             }
 
-            await transaction.CommitAsync();
+            await unitOfWork.CommitTransactionAsync();
             return true;
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync();
+            await unitOfWork.RollbackTransactionAsync();
             throw;
         }
     }
 
     public async Task<string> CreateGuestAccountAsync()
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
-
         try
         {
+            await unitOfWork.BeginTransactionAsync();
+            
             Guid guid = guidGenerator.GenerateGuid(); // 고유 식별자
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 guest 테이블에 입력
 
-            long result = await guestRepository.CreateGuestAsync(guid.ToByteArray());
+            long result = await unitOfWork.Guests.CreateGuestAsync(guid.ToByteArray());
             if (result <= 0)
             {
-                await transaction.RollbackAsync();
+                await unitOfWork.RollbackTransactionAsync();
                 throw new Exception("Failed to create guest account");
             }
 
-            await transaction.CommitAsync();
+            await unitOfWork.CommitTransactionAsync();
             return guid.ToString();
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync();
+            await unitOfWork.RollbackTransactionAsync();
             throw;
         }
     }
