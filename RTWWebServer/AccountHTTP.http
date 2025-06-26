@@ -12,7 +12,7 @@ POST localhost:5000/Login/guestLogin
 Content-Type: application/json
 
 {
-    "GuestGuid": "a057bd2f-6853-4c63-ac3d-abc0507b1a17"
+    "GuestGuid": "79c62a79-8092-4355-94c7-cee5a40d889f"
 }
 
 
