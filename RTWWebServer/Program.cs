@@ -1,10 +1,6 @@
-using RTWWebServer.Authentication;
-using RTWWebServer.Cache;
+using RTWWebServer;
 using RTWWebServer.Configuration;
-using RTWWebServer.Database;
 using RTWWebServer.Middleware;
-using RTWWebServer.Repository;
-using RTWWebServer.Service;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +15,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-InjectDependencies();
+builder.Services.AddCustomServices();
+builder.Services.AddRepositories();
+builder.Services.AddConfigurations();
+// EF Core 설정 추가
+builder.Services.AddEntityFramework(configuration);
+
 
 WebApplication app = builder.Build();
 
@@ -36,24 +37,4 @@ app.UseAuthorization();
 app.MapControllers();
 app.Run();
 
-void InjectDependencies()
-{
-    // TODO: 가독성 올릴 방법 생각
-    builder.Services.AddSingleton<IGuidGenerator, GuidGenerator>();
-    builder.Services.AddSingleton<IAuthTokenGenerator, AuthTokenGenerator>();
-    builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
-
-    builder.Services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // thread safe 함
-    builder.Services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
-
-    builder.Services.AddScoped<IDatabaseContextProvider, MySqlDatabaseContextProvider>();
-
-    builder.Services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>();
-    builder.Services.AddScoped<ICacheManager, CacheManager>();
-
-    builder.Services.AddScoped<IGuestRepository, GuestRepository>();
-    builder.Services.AddScoped<IAccountRepository, AccountRepository>();
-
-    builder.Services.AddTransient<ILoginService, LoginService>();
-    builder.Services.AddTransient<IAccountService, AccountService>();
-}
+// DependencyInjectionExtensions는 별도 파일로 분리되었습니다.
