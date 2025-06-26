@@ -18,6 +18,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCustomServices();
 builder.Services.AddRepositories();
 builder.Services.AddConfigurations();
+// EF Core 설정 추가
+builder.Services.AddEntityFramework(configuration);
 
 
 WebApplication app = builder.Build();

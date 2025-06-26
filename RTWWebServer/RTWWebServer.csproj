@@ -9,14 +9,23 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CloudStructures" Version="3.3.0"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
-        <PackageReference Include="MySqlConnector" Version="2.4.0"/>
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/>
+        <PackageReference Include="CloudStructures" Version="3.3.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.13" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.13">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.13">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="MySqlConnector" Version="2.4.0" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\NetworkDefinition\NetworkDefinition.csproj"/>
+        <ProjectReference Include="..\NetworkDefinition\NetworkDefinition.csproj" />
     </ItemGroup>
 
 </Project>
