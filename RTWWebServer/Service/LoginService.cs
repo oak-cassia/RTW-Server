@@ -7,9 +7,8 @@ using RTWWebServer.Repository;
 namespace RTWWebServer.Service;
 
 public class LoginService(
-    IAccountRepository accountRepository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
-    IGuestRepository guestRepository,
     IRemoteCache remoteCache,
     IAuthTokenGenerator authTokenGenerator,
     ILogger<LoginService> logger
@@ -17,7 +16,7 @@ public class LoginService(
 {
     public async Task<(WebServerErrorCode errorCode, string authToken)> LoginAsync(string email, string password)
     {
-        Account? account = await accountRepository.FindByEmailAsync(email);
+        Account? account = await unitOfWork.Accounts.FindByEmailAsync(email);
         if (account == null)
         {
             logger.LogInformation($"Account with email {email} not found");
@@ -42,7 +41,7 @@ public class LoginService(
 
     public async Task<(WebServerErrorCode errorCode, string authToken)> GuestLoginAsync(string guestGuid)
     {
-        Guest? guest = await guestRepository.FindByGuidAsync(Guid.Parse(guestGuid).ToByteArray());
+        Guest? guest = await unitOfWork.Guests.FindByGuidAsync(Guid.Parse(guestGuid).ToByteArray());
         if (guest == null)
         {
             logger.LogInformation($"Guest with guid {guestGuid} not found");
