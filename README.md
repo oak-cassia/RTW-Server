@@ -58,6 +58,8 @@ RTW-Server/
 - **IDE**: JetBrains Rider
 - **런타임**: .NET 9.0
 - **OS**: macOS
+- **RDB**: MySQL
+- **Cache**: Redis
 
 ## 기능 개요
 
