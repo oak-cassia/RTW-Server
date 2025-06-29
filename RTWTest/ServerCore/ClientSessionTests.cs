@@ -25,7 +25,7 @@ public class ClientSessionTests
         var packetSerializer = new Mock<IPacketSerializer>().Object;
         var sessionManager = new Mock<IClientSessionManager>().Object;
 
-        var session = new ClientSession(client, packetHandler, packetSerializer, sessionManager, loggerFactory, "session1");
+        var session = new ClientSession(client, packetHandler, packetSerializer, loggerFactory, "session1");
 
         var (errorCode, playerId) = await session.ValidateAuthTokenAsync("token");
 
@@ -44,7 +44,7 @@ public class ClientSessionTests
         var packetSerializer = new Mock<IPacketSerializer>().Object;
         var sessionManager = new Mock<IClientSessionManager>().Object;
 
-        var session = new ClientSession(client, packetHandler, packetSerializer, sessionManager, loggerFactory, "session1");
+        var session = new ClientSession(client, packetHandler, packetSerializer, loggerFactory, "session1");
 
         var (errorCode, playerId) = await session.ValidateAuthTokenAsync(string.Empty);
 
