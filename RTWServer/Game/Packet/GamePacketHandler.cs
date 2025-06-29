@@ -1,14 +1,15 @@
 using Microsoft.Extensions.Logging;
-using RTW.NetworkDefinition.Proto.Packet;
 using NetworkDefinition.ErrorCode;
-using RTWServer.ServerCore.Interface;
+using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Packet;
+using RTWServer.ServerCore.Interface;
 
-namespace RTWServer.Game;
+namespace RTWServer.Game.Packet;
 
-public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
+public class GamePacketHandler(ILoggerFactory loggerFactory, IPacketFactory packetFactory) : IPacketHandler
 {
     private readonly ILogger _logger = loggerFactory.CreateLogger<GamePacketHandler>();
+    private readonly IPacketFactory _packetFactory = packetFactory;
 
     public async Task HandlePacketAsync(IPacket packet, IClientSession clientSession)
     {
@@ -57,7 +58,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
                 PlayerId = playerId, 
                 ErrorCode = (int)RTWErrorCode.Success // Cast to int for proto
             };
-            await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
+            await clientSession.SendAsync(_packetFactory.CreatePacket((int)PacketId.SAuthResult, sAuthResultProto));
         }
         else
         {
@@ -68,7 +69,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
             { 
                 ErrorCode = (int)errorCode // Cast to int for proto
             };
-            await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
+            await clientSession.SendAsync(_packetFactory.CreatePacket((int)PacketId.SAuthResult, sAuthResultProto));
         }
     }
 }
