@@ -1,46 +1,23 @@
-using MySqlConnector;
+using Microsoft.EntityFrameworkCore;
 using RTWWebServer.Database;
 using RTWWebServer.Entity;
 
 namespace RTWWebServer.Repository;
 
-public class GuestRepository(IDatabaseContextProvider databaseContextProvider) : IGuestRepository
+public class GuestRepository(AccountDbContext dbContext) : IGuestRepository
 {
-    private readonly IDatabaseContext _databaseContext = databaseContextProvider.GetDatabaseContext("Account");
-
     public async Task<Guest?> FindByGuidAsync(byte[] guestGuid)
     {
-        string query = $"""
-                        SELECT *
-                        FROM Guest 
-                        WHERE guid = @{nameof(guestGuid)} 
-                        """;
-
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
-
-        command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
-
-        await using MySqlDataReader reader = await command.ExecuteReaderAsync();
-
-        if (await reader.ReadAsync())
-        {
-            return new Guest(reader.GetInt64("id"), reader.GetGuid("guid"));
-        }
-
-        return null;
+        return await dbContext.Guests
+            .FirstOrDefaultAsync(g => g.Guid == new Guid(guestGuid));
     }
 
     public async Task<long> CreateGuestAsync(byte[] guestGuid)
     {
-        string query = $"""
-                        INSERT INTO Guest (guid)
-                        VALUES (@{nameof(guestGuid)})
-                        """;
+        var guest = new Guest(new Guid(guestGuid));
 
-        await using MySqlCommand command = await _databaseContext.CreateCommandAsync(query);
-
-        command.Parameters.AddWithValue($"@{nameof(guestGuid)}", guestGuid);
-
-        return await command.ExecuteNonQueryAsync();
+        dbContext.Guests.Add(guest);
+        await dbContext.SaveChangesAsync();
+        return guest.Id;
     }
 }
