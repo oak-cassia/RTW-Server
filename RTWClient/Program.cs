@@ -1,11 +1,7 @@
 ﻿using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-using Google.Protobuf;
 using RTW.NetworkDefinition.Proto.Packet;
-using RTWServer.Game;
+using RTWServer.Game.Packet;
 using RTWServer.Packet;
-using RTWServer.ServerCore;
 
 namespace RTWClient
 {

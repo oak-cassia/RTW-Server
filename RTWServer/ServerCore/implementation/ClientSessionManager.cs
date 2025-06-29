@@ -56,13 +56,12 @@ public class ClientSessionManager : IClientSessionManager
                 RemoveClientSession(session.Id); 
             }
         }
-        catch (Exception ex) // Catch all other exceptions during session creation or initial handling
+        catch (Exception ex)
         {
             string sessionId = session?.Id ?? client.ToString() ?? "unknown";
             _logger.LogError(ex, "Unexpected error while handling new client {SessionId}", sessionId);
             if (session != null && _clientSessions.ContainsKey(session.Id))
             {
-                // Fallback removal
                 RemoveClientSession(session.Id);
             }
         }

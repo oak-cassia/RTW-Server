@@ -13,10 +13,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Game\PacketHandlers\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\NetworkDefinition\NetworkDefinition.csproj" />
     </ItemGroup>
 

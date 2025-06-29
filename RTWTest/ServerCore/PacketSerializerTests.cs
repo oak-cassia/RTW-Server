@@ -1,7 +1,7 @@
-using RTWServer.Game;
 using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
 using RTW.NetworkDefinition.Proto.Packet;
+using RTWServer.Game.Packet;
 
 namespace RTWTest.ServerCore;
 
