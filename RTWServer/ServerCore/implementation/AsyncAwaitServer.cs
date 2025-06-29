@@ -70,11 +70,9 @@ class AsyncAwaitServer
 
         try
         {
-            // ClientSessionManager의 HandleNewClientAsync를 호출하여 클라이언트 처리 위임
-            // ClientSessionManager와 ClientSession이 연결 종료 및 정리를 담당합니다.
             await _clientSessionManager.HandleNewClientAsync(client, token);
         }
-        catch (Exception ex) // ClientSessionManager.HandleNewClientAsync에서 처리되지 않은 최상위 예외
+        catch (Exception ex)
         {
             // HandleNewClientAsync 또는 그 내부에서 발생한 예외는 해당 위치에서 로깅 및 처리가 우선되어야 합니다.
             // 이 catch 블록은 정말 예외적인 상황(예: HandleNewClientAsync 자체가 throw)을 위한 것입니다.
