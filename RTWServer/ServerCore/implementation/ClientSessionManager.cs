@@ -23,7 +23,7 @@ public class ClientSessionManager : IClientSessionManager
     private IClientSession CreateClientSession(IClient client, ILoggerFactory loggerFactoryForSession)
     {
         string sessionId = Guid.NewGuid().ToString();
-        var session = new ClientSession(client, _packetHandler, _packetSerializer, this, loggerFactoryForSession, sessionId);
+        var session = new ClientSession(client, _packetHandler, _packetSerializer, loggerFactoryForSession, sessionId);
         _clientSessions[session.Id] = session;
         return session;
     }
@@ -38,31 +38,35 @@ public class ClientSessionManager : IClientSessionManager
             session = CreateClientSession(client, _loggerFactory);
             _logger.LogDebug("Session {SessionId} created and added to session manager", session.Id);
 
-            // StartSessionAsync will now handle its own lifecycle, including removal on completion/error.
-            await session.StartSessionAsync(token); 
+            await session.StartSessionAsync(token);
         }
         catch (OperationCanceledException)
         {
-            // This catch block might only be hit if CreateClientSession itself is cancelled 
-            // or if StartSessionAsync rethrows OperationCanceledException before its own finally block runs.
-            // ClientSession.StartSessionAsync should handle its own cancellation logging and cleanup.
-            string sessionId = session?.Id ?? client.ToString() ?? "unknown"; // Use client.ToString() as a fallback if session is null
-            _logger.LogInformation("Handling of new client {SessionId} was cancelled.", sessionId);
-            // If session was created but StartSessionAsync didn't run or complete its finally block, 
-            // ensure it's removed. However, primary removal responsibility is now with ClientSession.
-            if (session != null && _clientSessions.ContainsKey(session.Id)) 
+            string sessionId = session?.Id ?? client.ToString() ?? "unknown";
+            if (token.IsCancellationRequested)
             {
-                // This is a fallback, ideally ClientSession.StartSessionAsync().finally handles this.
-                RemoveClientSession(session.Id); 
+                _logger.LogInformation("Handling of new client {SessionId} was cancelled due to server shutdown.", sessionId);
+            }
+            else
+            {
+                _logger.LogInformation("Handling of new client {SessionId} was cancelled.", sessionId);
             }
         }
-        catch (Exception ex) // Catch all other exceptions during session creation or initial handling
+        catch (IOException ex)
+        {
+            string sessionId = session?.Id ?? client.ToString() ?? "unknown";
+            _logger.LogWarning(ex, "Network error while handling client {SessionId}", sessionId);
+        }
+        catch (Exception ex)
         {
             string sessionId = session?.Id ?? client.ToString() ?? "unknown";
             _logger.LogError(ex, "Unexpected error while handling new client {SessionId}", sessionId);
-            if (session != null && _clientSessions.ContainsKey(session.Id))
+        }
+        finally
+        {
+            // 세션 정리는 항상 Manager에서 담당
+            if (session != null)
             {
-                // Fallback removal
                 RemoveClientSession(session.Id);
             }
         }
@@ -100,19 +104,8 @@ public class ClientSessionManager : IClientSessionManager
 
         if (_clientSessions.TryGetValue(sessionId, out IClientSession? session))
         {
-            if (session != null)
-            {
-                _logger.LogInformation("Initiating disconnect for session {SessionId} due to: {Reason}", sessionId, reason);
-                await session.RequestShutdownAsync(reason); // Changed to await session.RequestShutdownAsync
-            }
-            else
-            {
-                // This case should ideally not happen if TryGetValue returns true and session is null.
-                // Logging it defensively.
-                _logger.LogWarning("Found a null session entry for ID {SessionId} while trying to disconnect.", sessionId);
-                // Attempt to remove it anyway, as it's an invalid state.
-                RemoveClientSession(sessionId);
-            }
+            _logger.LogInformation("Initiating disconnect for session {SessionId} due to: {Reason}", sessionId, reason);
+            await session.RequestShutdownAsync(reason);
         }
         else
         {

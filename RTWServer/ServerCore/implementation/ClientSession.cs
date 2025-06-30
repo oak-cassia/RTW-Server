@@ -9,10 +9,8 @@ namespace RTWServer.ServerCore.implementation;
 
 public class ClientSession : IClientSession
 {
-    // Network buffer size for packet reading
     private const int NETWORK_BUFFER_SIZE = 4096;
     
-    // Connection state constants
     private const int CONNECTION_STATE_DISCONNECTED = 0;
     private const int CONNECTION_STATE_CONNECTED = 1;
 
@@ -20,7 +18,6 @@ public class ClientSession : IClientSession
     private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
-    private readonly IClientSessionManager _clientSessionManager;
     private readonly ILogger _logger;
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
@@ -30,15 +27,14 @@ public class ClientSession : IClientSession
     private bool _isSending;
     private int _connectionState; // CONNECTION_STATE_CONNECTED or CONNECTION_STATE_DISCONNECTED
 
-    public string Id { get; private init; } // Session ID, will also serve as Player ID
+    public string Id { get; private init; }
     public string? AuthToken { get; private set; }
     public bool IsAuthenticated { get; private set; }
 
     public ClientSession(
         IClient client, 
         IPacketHandler packetHandler, 
-        IPacketSerializer packetSerializer,
-        IClientSessionManager clientSessionManager, 
+        IPacketSerializer packetSerializer, 
         ILoggerFactory loggerFactory,
         string id)
     {
@@ -49,13 +45,12 @@ public class ClientSession : IClientSession
 
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
-        _clientSessionManager = clientSessionManager;
         _logger = loggerFactory.CreateLogger<ClientSession>();
 
         Id = id;
         _isSending = false;
         Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
-        IsAuthenticated = false; // Initialize as not authenticated
+        IsAuthenticated = false;
     }
 
     public async Task StartSessionAsync(CancellationToken token)
@@ -80,40 +75,13 @@ public class ClientSession : IClientSession
                 await _packetHandler.HandlePacketAsync(packet, this);
             }
         }
-        catch (OperationCanceledException)
-        {
-            // Log if cancellation was due to external token or session's own RequestShutdown
-            if (token.IsCancellationRequested)
-            {
-                _logger.LogInformation("Session cancelled for client {ClientId} due to server shutdown.", Id);
-            }
-            else if (_sessionCts.IsCancellationRequested)
-            {
-                _logger.LogInformation("Session {ClientId} shut down as per request.", Id);
-            }
-            else
-            {
-                _logger.LogInformation("Session cancelled for client {ClientId}.", Id); // General cancellation
-            }
-        }
-        catch (IOException ex)
-        {
-            _logger.LogWarning(ex, "Network error for client {ClientId}", Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error in session for client {ClientId}", Id);
-            throw;
-        }
         finally
         {
             _logger.LogDebug("Cleaning up session for client {ClientId}", Id);
-            // Ensure Disconnect is called before removing from manager to avoid race conditions on _connectionState
+            // 세션 정리만 수행, 예외 처리는 Manager에서 담당
             await DisconnectAsync(); 
-
-            _clientSessionManager.RemoveClientSession(Id);
             ArrayPool<byte>.Shared.Return(buffer);
-            _sessionCts.Dispose(); // Dispose the CancellationTokenSource
+            _sessionCts.Dispose();
         }
     }
 
@@ -317,7 +285,7 @@ public class ClientSession : IClientSession
         }
 
         _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
-        this.IsAuthenticated = false;
+        IsAuthenticated = false;
         return (RTWErrorCode.AuthenticationFailed, 0);
     }
 }

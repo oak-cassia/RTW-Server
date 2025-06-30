@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
-using RTWServer.Game;
+using RTWServer.Game.Packet;
 using RTWServer.Packet;
 using RTWServer.ServerCore.implementation;
 using RTWServer.ServerCore.Interface;
@@ -23,7 +23,7 @@ try
 
     GamePacketFactory packetFactory = new GamePacketFactory();
     // IPacketHandler와 IPacketSerializer 인스턴스 생성
-    IPacketHandler packetHandler = new GamePacketHandler(loggerFactory);
+    IPacketHandler packetHandler = new GamePacketHandler(loggerFactory, packetFactory);
     IPacketSerializer packetSerializer = new PacketSerializer(packetFactory);
 
     // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
