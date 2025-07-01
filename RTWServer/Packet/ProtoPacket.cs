@@ -6,8 +6,8 @@ namespace RTWServer.Packet;
 
 public class ProtoPacket(PacketId packetId, IMessage payloadMessage) : IPacket
 {
-    public PacketId PacketId { get; } = packetId;
     private IMessage PayloadMessage { get; } = payloadMessage;
+    public PacketId PacketId { get; } = packetId;
 
     // 생성자에서 IMessage를 받도록 변경
 
