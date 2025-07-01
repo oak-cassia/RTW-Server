@@ -2,39 +2,31 @@ using RTWWebServer.Database;
 
 namespace RTWWebServer.Repository;
 
-public class UnitOfWork : IUnitOfWork
+public class UnitOfWork(AccountDbContext dbContext, IAccountRepository accountRepository, IGuestRepository guestRepository) : IUnitOfWork
 {
-    private readonly AccountDbContext _dbContext;
-    private bool _disposed = false;
+    private bool _disposed;
 
-    public IAccountRepository Accounts { get; }
-    public IGuestRepository Guests { get; }
-
-    public UnitOfWork(AccountDbContext dbContext, IAccountRepository accountRepository, IGuestRepository guestRepository)
-    {
-        _dbContext = dbContext;
-        Accounts = accountRepository;
-        Guests = guestRepository;
-    }
+    public IAccountRepository Accounts { get; } = accountRepository;
+    public IGuestRepository Guests { get; } = guestRepository;
 
     public async Task<int> CommitAsync()
     {
-        return await _dbContext.SaveChangesAsync();
+        return await dbContext.SaveChangesAsync();
     }
 
     public async Task BeginTransactionAsync()
     {
-        await _dbContext.Database.BeginTransactionAsync();
+        await dbContext.Database.BeginTransactionAsync();
     }
 
     public async Task CommitTransactionAsync()
     {
-        await _dbContext.Database.CommitTransactionAsync();
+        await dbContext.Database.CommitTransactionAsync();
     }
 
     public async Task RollbackTransactionAsync()
     {
-        await _dbContext.Database.RollbackTransactionAsync();
+        await dbContext.Database.RollbackTransactionAsync();
     }
 
     public void Dispose()
@@ -47,7 +39,7 @@ public class UnitOfWork : IUnitOfWork
     {
         if (!_disposed && disposing)
         {
-            _dbContext.Dispose();
+            dbContext.Dispose();
             _disposed = true;
         }
     }

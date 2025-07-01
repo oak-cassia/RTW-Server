@@ -12,13 +12,13 @@ public class RedisRemoteCache : IRemoteCache
     private const int MIN_BASE_LOCK_DELAY = 50;
     private const int MAX_BASE_LOCK_DELAY = 101;
     private const int MULTIPLIER_LOCK_DELAY = 4;
+    private readonly TimeSpan _authTokenExpirationTime = TimeSpan.FromHours(24);
+    private readonly TimeSpan _lockExpirationTime = TimeSpan.FromSeconds(3);
 
-    private readonly RedisConnection _redisConnection;
     private readonly IRemoteCacheKeyGenerator _keyGenerator;
     private readonly ILogger<RedisRemoteCache> _logger;
 
-    private readonly TimeSpan _lockExpirationTime = TimeSpan.FromSeconds(3);
-    private readonly TimeSpan _authTokenExpirationTime = TimeSpan.FromHours(24);
+    private readonly RedisConnection _redisConnection;
 
     public RedisRemoteCache(IOptions<DatabaseConfiguration> configuration, IRemoteCacheKeyGenerator keyGenerator, ILogger<RedisRemoteCache> logger)
     {
@@ -74,7 +74,7 @@ public class RedisRemoteCache : IRemoteCache
         string key = _keyGenerator.GenerateUserLockKey(userId);
         RedisLock<string> redisLock = new RedisLock<string>(_redisConnection, key);
 
-        int retryCount = 0;
+        var retryCount = 0;
         int baseDelay = Random.Shared.Next(MIN_BASE_LOCK_DELAY, MAX_BASE_LOCK_DELAY);
 
         // 총 대기 시간 범위: 0ms ~ 1720ms

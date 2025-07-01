@@ -19,7 +19,7 @@ public class AccountRepository(AccountDbContext dbContext) : IAccountRepository
 
     public async Task<bool> CreateAccountAsync(string username, string email, string password, string salt)
     {
-        var account = new Account(username, email, password, salt);
+        Account account = new Account(username, email, password, salt);
 
         dbContext.Accounts.Add(account);
         int rowsAffected = await dbContext.SaveChangesAsync();

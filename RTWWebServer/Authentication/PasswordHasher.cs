@@ -12,7 +12,7 @@ public class PasswordHasher : IPasswordHasher
     {
         using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
 
-        byte[] saltValue = new byte[SALT_BYTE_SIZE];
+        var saltValue = new byte[SALT_BYTE_SIZE];
         randomNumberGenerator.GetBytes(saltValue);
 
         return Convert.ToBase64String(saltValue);
@@ -23,7 +23,7 @@ public class PasswordHasher : IPasswordHasher
         byte[] passwordBytes = Encoding.UTF8.GetBytes(password + salt);
         using SHA256 sha256Hash = SHA256.Create();
 
-        for (int i = 0; i < STRETCH_COUNT; i++)
+        for (var i = 0; i < STRETCH_COUNT; i++)
         {
             passwordBytes = sha256Hash.ComputeHash(passwordBytes);
         }

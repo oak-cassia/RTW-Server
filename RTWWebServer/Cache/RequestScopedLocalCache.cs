@@ -4,7 +4,7 @@ namespace RTWWebServer.Cache;
 
 public class RequestScopedLocalCache : IRequestScopedLocalCache
 {
-    private readonly ConcurrentDictionary<string, object> _cache = new();
+    private readonly ConcurrentDictionary<string, object> _cache = new ConcurrentDictionary<string, object>();
 
     public T? Get<T>(string key)
     {

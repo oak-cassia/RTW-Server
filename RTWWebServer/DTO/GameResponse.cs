@@ -7,15 +7,21 @@ public class GameResponse<T>
     public WebServerErrorCode ErrorCode { get; set; }
     public T? Data { get; set; }
 
-    public static GameResponse<T> Ok(T data) => new()
+    public static GameResponse<T> Ok(T data)
     {
-        ErrorCode = WebServerErrorCode.Success,
-        Data = data
-    };
+        return new GameResponse<T>
+        {
+            ErrorCode = WebServerErrorCode.Success,
+            Data = data
+        };
+    }
 
-    public static GameResponse<T> Fail(WebServerErrorCode errorCode) => new()
+    public static GameResponse<T> Fail(WebServerErrorCode errorCode)
     {
-        ErrorCode = errorCode,
-        Data = default
-    };
+        return new GameResponse<T>
+        {
+            ErrorCode = errorCode,
+            Data = default
+        };
+    }
 }
