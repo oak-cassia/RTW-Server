@@ -8,7 +8,7 @@ public class CacheManager(
     IRemoteCache remoteCache
 ) : ICacheManager
 {
-    private ConcurrentQueue<string> _dirtyKey = new();
+    private readonly ConcurrentQueue<string> _dirtyKey = new ConcurrentQueue<string>();
 
     public async Task<T?> GetAsync<T>(string key)
     {
@@ -50,7 +50,7 @@ public class CacheManager(
     {
         while (_dirtyKey.TryDequeue(out string? key))
         {
-            object? value = localCache.Get<object>(key);
+            var value = localCache.Get<object>(key);
             if (value == null)
             {
                 await remoteCache.DeleteAsync(key);

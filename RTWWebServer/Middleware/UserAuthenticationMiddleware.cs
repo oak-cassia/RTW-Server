@@ -14,7 +14,7 @@ public class UserAuthenticationMiddleware(
     ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
-    const string RESPONSE_CONTENT_TYPE = "application/json";
+    private const string RESPONSE_CONTENT_TYPE = "application/json";
 
     private static readonly HashSet<string> EXCLUDED_PATHS =
     [
@@ -101,7 +101,7 @@ public class UserAuthenticationMiddleware(
 
     private async Task HandleRequest(HttpContext context, int userId, string authToken, RequestDelegate nextMiddleware)
     {
-        string lockValue = guidGenerator.GenerateGuid().ToString();
+        var lockValue = guidGenerator.GenerateGuid().ToString();
 
         try
         {

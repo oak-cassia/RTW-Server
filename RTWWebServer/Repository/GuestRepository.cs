@@ -14,7 +14,7 @@ public class GuestRepository(AccountDbContext dbContext) : IGuestRepository
 
     public async Task<long> CreateGuestAsync(byte[] guestGuid)
     {
-        var guest = new Guest(new Guid(guestGuid));
+        Guest guest = new Guest(new Guid(guestGuid));
 
         dbContext.Guests.Add(guest);
         await dbContext.SaveChangesAsync();
