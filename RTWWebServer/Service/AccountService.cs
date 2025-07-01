@@ -1,49 +1,59 @@
 using RTWWebServer.Authentication;
 using RTWWebServer.Repository;
+using RTWWebServer.Exceptions;
+using NetworkDefinition.ErrorCode;
 
 namespace RTWWebServer.Service;
 
 public class AccountService(
     IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
-    IGuidGenerator guidGenerator,
-    ILogger<AccountService> logger
+    IGuidGenerator guidGenerator
 ) : IAccountService
 {
-    public async Task<bool> CreateAccountAsync(string userName, string email, string password)
+    public async Task CreateAccountAsync(string userName, string email, string password)
     {
+        // 입력 데이터 검증
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            throw new GameException("Email and password are required", WebServerErrorCode.InvalidRequestHttpBody);
+        }
+
+        await unitOfWork.BeginTransactionAsync();
+
         try
         {
-            await unitOfWork.BeginTransactionAsync();
-
             string salt = passwordHasher.GenerateSaltValue();
             string hashedPassword = passwordHasher.CalcHashedPassword(password, salt);
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 Account 테이블에 입력
 
             bool result = await unitOfWork.Accounts.CreateAccountAsync(userName, email, hashedPassword, salt);
-            if (result == false)
+            if (!result)
             {
-                await unitOfWork.RollbackTransactionAsync();
-                return false;
+                throw new GameException("Failed to create account", WebServerErrorCode.DatabaseError);
             }
 
             await unitOfWork.CommitTransactionAsync();
-            return true;
         }
-        catch (Exception)
+        catch (GameException)
         {
             await unitOfWork.RollbackTransactionAsync();
-            throw;
+            throw; // 게임 예외는 그대로 전파
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync();
+            throw new GameException($"Unexpected error during account creation: {ex.Message}", WebServerErrorCode.InternalServerError);
         }
     }
 
     public async Task<string> CreateGuestAccountAsync()
     {
+        await unitOfWork.BeginTransactionAsync();
+
         try
         {
-            await unitOfWork.BeginTransactionAsync();
-            
             Guid guid = guidGenerator.GenerateGuid(); // 고유 식별자
 
             // TODO: 기본 데이터 생성, 유저 id 가져와서 guest 테이블에 입력
@@ -51,17 +61,21 @@ public class AccountService(
             long result = await unitOfWork.Guests.CreateGuestAsync(guid.ToByteArray());
             if (result <= 0)
             {
-                await unitOfWork.RollbackTransactionAsync();
-                throw new Exception("Failed to create guest account");
+                throw new GameException("Failed to create guest account", WebServerErrorCode.DatabaseError);
             }
 
             await unitOfWork.CommitTransactionAsync();
             return guid.ToString();
         }
-        catch (Exception)
+        catch (GameException)
         {
             await unitOfWork.RollbackTransactionAsync();
-            throw;
+            throw; // 게임 예외는 그대로 전파
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackTransactionAsync();
+            throw new GameException($"Unexpected error during guest account creation: {ex.Message}", WebServerErrorCode.InternalServerError);
         }
     }
 }
