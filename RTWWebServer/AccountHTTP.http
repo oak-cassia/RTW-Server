@@ -5,8 +5,6 @@ Content-Type: application/json
 {
 }
 
-
-
 ### Login Guest
 POST localhost:5000/Login/guestLogin
 Content-Type: application/json
@@ -15,4 +13,20 @@ Content-Type: application/json
     "GuestGuid": "79c62a79-8092-4355-94c7-cee5a40d889f"
 }
 
+### create Account
+POST localhost:5000/Account/createAccount
+Content-Type: application/json
 
+{
+    "email": "123@123.com",
+    "password": "123"
+}
+
+### Login
+POST localhost:5000/Login/login/
+Content-Type: application/json
+
+{
+    "email": "123@123.com",
+    "password": "123"
+}

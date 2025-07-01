@@ -37,17 +37,7 @@ public class LoginService(
             throw new GameException("Invalid password", WebServerErrorCode.InvalidPassword);
         }
 
-        // Todo: AuthToken 반환, Redis 저장, UserId 반환
-        string authToken = authTokenGenerator.GenerateToken();
-        int userId = 1;
-
-        WebServerErrorCode errorCode = await remoteCache.SetAsync(authToken, userId);
-        if (errorCode != WebServerErrorCode.Success)
-        {
-            throw new GameException("Failed to store auth token", WebServerErrorCode.RemoteCacheError);
-        }
-
-        return authToken;
+        return authTokenGenerator.GenerateJwt(account.Id);
     }
 
     public async Task<string> GuestLoginAsync(string guestGuid)
