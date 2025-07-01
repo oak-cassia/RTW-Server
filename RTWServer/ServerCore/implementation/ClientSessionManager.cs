@@ -6,11 +6,11 @@ namespace RTWServer.ServerCore.implementation;
 
 public class ClientSessionManager : IClientSessionManager
 {
-    private ConcurrentDictionary<string, IClientSession> _clientSessions = new();
+    private readonly ILogger<ClientSessionManager> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
-    private readonly ILogger<ClientSessionManager> _logger;
+    private readonly ConcurrentDictionary<string, IClientSession> _clientSessions = new ConcurrentDictionary<string, IClientSession>();
 
     public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer)
     {
@@ -18,14 +18,6 @@ public class ClientSessionManager : IClientSessionManager
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
         _logger = _loggerFactory.CreateLogger<ClientSessionManager>();
-    }
-
-    private IClientSession CreateClientSession(IClient client, ILoggerFactory loggerFactoryForSession)
-    {
-        string sessionId = Guid.NewGuid().ToString();
-        var session = new ClientSession(client, _packetHandler, _packetSerializer, loggerFactoryForSession, sessionId);
-        _clientSessions[session.Id] = session;
-        return session;
     }
 
     public async Task HandleNewClientAsync(IClient client, CancellationToken token)
@@ -111,5 +103,13 @@ public class ClientSessionManager : IClientSessionManager
         {
             _logger.LogWarning("Attempted to disconnect non-existent session {SessionId}.", sessionId);
         }
+    }
+
+    private IClientSession CreateClientSession(IClient client, ILoggerFactory loggerFactoryForSession)
+    {
+        var sessionId = Guid.NewGuid().ToString();
+        ClientSession session = new ClientSession(client, _packetHandler, _packetSerializer, loggerFactoryForSession, sessionId);
+        _clientSessions[session.Id] = session;
+        return session;
     }
 }

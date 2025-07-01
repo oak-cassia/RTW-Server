@@ -4,40 +4,29 @@ using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
 
-class AsyncAwaitServer
+class AsyncAwaitServer(
+    IServerListener serverListener,
+    ILoggerFactory loggerFactory,
+    IClientSessionManager clientSessionManager)
 {
     // Maximum number of pending connection requests
     private const int MAX_PENDING_CONNECTIONS = 100;
 
+    private readonly ILogger<AsyncAwaitServer> _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
+
     // 서버 상태를 기록하는 필드
     private int _acceptCount; // 수락된 연결 수
 
-    private readonly IServerListener _serverListener;
-    private readonly ILogger<AsyncAwaitServer> _logger;
-
-    private readonly IClientSessionManager _clientSessionManager;
-
-    public AsyncAwaitServer(
-        IServerListener serverListener,
-        ILoggerFactory loggerFactory,
-        IClientSessionManager clientSessionManager
-    )
-    {
-        _serverListener = serverListener;
-        _logger = loggerFactory.CreateLogger<AsyncAwaitServer>();
-        _clientSessionManager = clientSessionManager;
-    }
-
     public async Task Start(CancellationToken token)
     {
-        _serverListener.Start(MAX_PENDING_CONNECTIONS);
+        serverListener.Start(MAX_PENDING_CONNECTIONS);
         _logger.LogInformation("Server started with max {MaxConnections} pending connections", MAX_PENDING_CONNECTIONS);
 
         try
         {
             while (!token.IsCancellationRequested)
             {
-                IClient client = await _serverListener.AcceptClientAsync(token);
+                IClient client = await serverListener.AcceptClientAsync(token);
 
                 int currentCount = Interlocked.Increment(ref _acceptCount);
                 _logger.LogDebug("Client connection accepted. Total accepted: {AcceptCount}", currentCount);
@@ -59,7 +48,7 @@ class AsyncAwaitServer
         }
         finally
         {
-            _serverListener.Stop();
+            serverListener.Stop();
             _logger.LogInformation("Server stopped. Total connections accepted: {AcceptCount}", _acceptCount);
         }
     }
@@ -70,7 +59,7 @@ class AsyncAwaitServer
 
         try
         {
-            await _clientSessionManager.HandleNewClientAsync(client, token);
+            await clientSessionManager.HandleNewClientAsync(client, token);
         }
         catch (Exception ex)
         {
