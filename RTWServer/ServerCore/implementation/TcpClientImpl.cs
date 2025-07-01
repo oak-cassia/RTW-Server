@@ -7,11 +7,8 @@ namespace RTWServer.ServerCore.implementation;
 public class TcpClientImpl : IClient
 {
     private readonly TcpClient _client;
-    private readonly ILogger _logger;
     private readonly string _clientId;
-
-    public Stream Stream { get; }
-    public bool IsConnected => _client.Connected;
+    private readonly ILogger _logger;
 
     public TcpClientImpl(TcpClient client, ILoggerFactory loggerFactory)
     {
@@ -23,24 +20,8 @@ public class TcpClientImpl : IClient
         _logger.LogDebug("TCP client created for {ClientEndPoint}", _clientId);
     }
 
-    public async Task SendAsync(byte[] buffer, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            _logger.LogTrace("Sending {ByteCount} bytes to client {ClientEndPoint}", buffer.Length, _clientId);
-            await _client.GetStream().WriteAsync(buffer, 0, buffer.Length, cancellationToken);;
-        }
-        catch (IOException ex)
-        {
-            _logger.LogWarning(ex, "Network error while sending data to client {ClientEndPoint}", _clientId);
-            throw;
-        }
-        catch (ObjectDisposedException ex)
-        {
-            _logger.LogWarning(ex, "Connection already closed for client {ClientEndPoint}", _clientId);
-            throw;
-        }
-    }
+    public Stream Stream { get; }
+    public bool IsConnected => _client.Connected;
 
     public async ValueTask<int> ReceiveAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken = default)
     {
@@ -74,6 +55,25 @@ public class TcpClientImpl : IClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error while closing connection to client {ClientEndPoint}", _clientId);
+        }
+    }
+
+    public async Task SendAsync(byte[] buffer, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogTrace("Sending {ByteCount} bytes to client {ClientEndPoint}", buffer.Length, _clientId);
+            await _client.GetStream().WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Network error while sending data to client {ClientEndPoint}", _clientId);
+            throw;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.LogWarning(ex, "Connection already closed for client {ClientEndPoint}", _clientId);
+            throw;
         }
     }
 }

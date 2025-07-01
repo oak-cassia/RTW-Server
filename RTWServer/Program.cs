@@ -6,8 +6,8 @@ using RTWServer.ServerCore.implementation;
 using RTWServer.ServerCore.Interface;
 
 // TODO : 설정 파일에서 IP 주소와 포트 번호를 읽어와서 사용하도록 수정
-string ipAddress = "127.0.0.1";
-int port = 5000;
+var ipAddress = "127.0.0.1";
+var port = 5000;
 
 // Create logger factory and logger
 ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
@@ -27,7 +27,7 @@ try
     IPacketSerializer packetSerializer = new PacketSerializer(packetFactory);
 
     // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
-    IClientSessionManager clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer); 
+    IClientSessionManager clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
