@@ -13,8 +13,8 @@ public class LoginController(ILoginService loginService) : ControllerBase
     [HttpPost("login")]
     public async Task<LoginResponse> Login([FromBody] LoginRequest request)
     {
-        string authToken = await loginService.LoginAsync(request.Email, request.Password);
-        return new LoginResponse(WebServerErrorCode.Success, authToken);
+        string jwt = await loginService.LoginAsync(request.Email, request.Password);
+        return new LoginResponse(WebServerErrorCode.Success, jwt);
     }
 
     [HttpPost("guestLogin")]

@@ -14,10 +14,10 @@ public class AccountDbContext(DbContextOptions<AccountDbContext> options) : DbCo
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.Property(e => e.UserName).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Password).IsRequired();
-            entity.Property(e => e.Salt).IsRequired();
+            entity.Property(e => e.UserName).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.Password).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Salt).IsRequired().HasMaxLength(64);
         });
 
         modelBuilder.Entity<Guest>(entity =>
