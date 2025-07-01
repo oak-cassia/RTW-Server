@@ -10,37 +10,33 @@ namespace RTWServer.ServerCore.implementation;
 public class ClientSession : IClientSession
 {
     private const int NETWORK_BUFFER_SIZE = 4096;
-    
+
     private const int CONNECTION_STATE_DISCONNECTED = 0;
     private const int CONNECTION_STATE_CONNECTED = 1;
 
     private readonly IClient _client;
-    private readonly PipeWriter _writer;
+    private readonly ILogger _logger;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
-    private readonly ILogger _logger;
+    private readonly Lock _sendLock = new Lock();
 
-    private readonly ConcurrentQueue<IPacket> _sendQueue = new();
-    private readonly Lock _sendLock = new();
-    private readonly CancellationTokenSource _sessionCts = new(); // CancellationTokenSource for session-specific cancellation
-
-    private bool _isSending;
+    private readonly ConcurrentQueue<IPacket> _sendQueue = new ConcurrentQueue<IPacket>();
+    private readonly CancellationTokenSource _sessionCts = new CancellationTokenSource(); // CancellationTokenSource for session-specific cancellation
+    private readonly PipeWriter _writer;
     private int _connectionState; // CONNECTION_STATE_CONNECTED or CONNECTION_STATE_DISCONNECTED
 
-    public string Id { get; private init; }
-    public string? AuthToken { get; private set; }
-    public bool IsAuthenticated { get; private set; }
+    private bool _isSending;
 
     public ClientSession(
-        IClient client, 
-        IPacketHandler packetHandler, 
-        IPacketSerializer packetSerializer, 
+        IClient client,
+        IPacketHandler packetHandler,
+        IPacketSerializer packetSerializer,
         ILoggerFactory loggerFactory,
         string id)
     {
         _client = client;
 
-        StreamPipeWriterOptions options = new(leaveOpen: true);
+        StreamPipeWriterOptions options = new StreamPipeWriterOptions(leaveOpen: true);
         _writer = PipeWriter.Create(client.Stream, options);
 
         _packetHandler = packetHandler;
@@ -53,12 +49,16 @@ public class ClientSession : IClientSession
         IsAuthenticated = false;
     }
 
+    public string Id { get; }
+    public string? AuthToken { get; private set; }
+    public bool IsAuthenticated { get; private set; }
+
     public async Task StartSessionAsync(CancellationToken token)
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(NETWORK_BUFFER_SIZE);
         _logger.LogDebug("Session started for client {ClientId}", Id);
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, _sessionCts.Token);
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, _sessionCts.Token);
 
         try
         {
@@ -79,7 +79,7 @@ public class ClientSession : IClientSession
         {
             _logger.LogDebug("Cleaning up session for client {ClientId}", Id);
             // 세션 정리만 수행, 예외 처리는 Manager에서 담당
-            await DisconnectAsync(); 
+            await DisconnectAsync();
             ArrayPool<byte>.Shared.Return(buffer);
             _sessionCts.Dispose();
         }
@@ -98,6 +98,46 @@ public class ClientSession : IClientSession
         _sendQueue.Enqueue(packet);
 
         await FlushSendQueueAsync();
+    }
+
+    public async Task RequestShutdownAsync(string reason)
+    {
+        _logger.LogInformation("Shutdown requested for session {SessionId}. Reason: {Reason}", Id, reason);
+        try
+        {
+            if (!_sessionCts.IsCancellationRequested)
+            {
+                await _sessionCts.CancelAsync();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            _logger.LogWarning("RequestShutdownAsync called on a disposed CancellationTokenSource for session {SessionId}. Session already shutting down.", Id);
+        }
+    }
+
+    public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken)
+    {
+        _logger.LogDebug("Validating auth token {AuthToken} for session {SessionId}", authToken, Id);
+
+        // 1. Check the authToken against a persistent store (e.g., Redis cache, database)
+        // 2. If valid, the Session ID (this.Id) can be used as the PlayerId or mapped to one.
+        // 3. Store relevant user/player data in the session.
+
+        if (!string.IsNullOrEmpty(authToken))
+        {
+            int playerIdForPacket = Id.GetHashCode();
+
+            AuthToken = authToken;
+            IsAuthenticated = true;
+
+            _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, playerIdForPacket);
+            return (RTWErrorCode.Success, playerIdForPacket);
+        }
+
+        _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
+        IsAuthenticated = false;
+        return (RTWErrorCode.AuthenticationFailed, 0);
     }
 
     private async Task DisconnectAsync()
@@ -166,7 +206,7 @@ public class ClientSession : IClientSession
         // 남은 데이터를 모두 읽을 때까지 반복
         while (sizeToRead > 0)
         {
-            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead, cancellationToken); 
+            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead, cancellationToken);
             if (sizeReceived == 0)
             {
                 return false;
@@ -177,22 +217,6 @@ public class ClientSession : IClientSession
         }
 
         return true;
-    }
-
-    public async Task RequestShutdownAsync(string reason)
-    {
-        _logger.LogInformation("Shutdown requested for session {SessionId}. Reason: {Reason}", Id, reason);
-        try
-        {
-            if (!_sessionCts.IsCancellationRequested)
-            {
-                await _sessionCts.CancelAsync();
-            }
-        }
-        catch (ObjectDisposedException)
-        {
-            _logger.LogWarning("RequestShutdownAsync called on a disposed CancellationTokenSource for session {SessionId}. Session already shutting down.", Id);
-        }
     }
 
     private async Task FlushSendQueueAsync()
@@ -246,7 +270,7 @@ public class ClientSession : IClientSession
                 await RequestShutdownAsync($"Unexpected error during send: {ex.GetType().Name}");
                 return;
             }
-            
+
             // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
         }
     }
@@ -263,29 +287,5 @@ public class ClientSession : IClientSession
         _writer.Advance(headerSize + payloadSize);
 
         await _writer.FlushAsync();
-    }
-
-    public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken)
-    {
-        _logger.LogDebug("Validating auth token {AuthToken} for session {SessionId}", authToken, Id);
-
-        // 1. Check the authToken against a persistent store (e.g., Redis cache, database)
-        // 2. If valid, the Session ID (this.Id) can be used as the PlayerId or mapped to one.
-        // 3. Store relevant user/player data in the session.
-
-        if (!string.IsNullOrEmpty(authToken))
-        {
-            int playerIdForPacket = Id.GetHashCode();
-
-            AuthToken = authToken;
-            IsAuthenticated = true;
-            
-            _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, playerIdForPacket);
-            return (RTWErrorCode.Success, playerIdForPacket);
-        }
-
-        _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
-        IsAuthenticated = false;
-        return (RTWErrorCode.AuthenticationFailed, 0);
     }
 }

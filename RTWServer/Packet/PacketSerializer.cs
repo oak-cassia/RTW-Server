@@ -5,8 +5,8 @@ namespace RTWServer.Packet;
 
 public class PacketSerializer(IPacketFactory packetFactory) : IPacketSerializer
 {
-    const int HEADER_SIZE = 8;
-    const int PAYLOAD_SIZE_OFFSET = 4;
+    private const int HEADER_SIZE = 8;
+    private const int PAYLOAD_SIZE_OFFSET = 4;
 
     public int GetHeaderSize()
     {
@@ -21,7 +21,7 @@ public class PacketSerializer(IPacketFactory packetFactory) : IPacketSerializer
     public void SerializeToBuffer(IPacket packet, Span<byte> buffer)
     {
         int payloadSize = packet.GetPayloadSize();
-        
+
         BitConverter.TryWriteBytes(buffer, (int)packet.PacketId);
         BitConverter.TryWriteBytes(buffer.Slice(PAYLOAD_SIZE_OFFSET), payloadSize);
 
