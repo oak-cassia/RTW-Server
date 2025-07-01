@@ -1,5 +1,6 @@
 using RTWWebServer;
 using RTWWebServer.Configuration;
+using RTWWebServer.Exceptions;
 using RTWWebServer.Middleware;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -7,20 +8,16 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 IConfiguration configuration = builder.Configuration;
 builder.Services.Configure<DatabaseConfiguration>(configuration.GetSection(nameof(DatabaseConfiguration)));
 
-// Add services to the container.
-
 builder.Services.AddControllers();
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddExceptionHandler<GlobalGameExceptionHandler>();
 builder.Services.AddCustomServices();
 builder.Services.AddRepositories();
 builder.Services.AddConfigurations();
-// EF Core 설정 추가
 builder.Services.AddEntityFramework(configuration);
-
 
 WebApplication app = builder.Build();
 
@@ -31,10 +28,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseExceptionHandler();
 app.UseMiddleware<UserAuthenticationMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
-
-// DependencyInjectionExtensions는 별도 파일로 분리되었습니다.

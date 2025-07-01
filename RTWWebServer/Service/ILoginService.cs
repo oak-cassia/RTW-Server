@@ -1,9 +1,7 @@
-using NetworkDefinition.ErrorCode;
-
 namespace RTWWebServer.Service;
 
 public interface ILoginService
 {
-    Task<(WebServerErrorCode errorCode, string authToken)> LoginAsync(string email, string password);
-    Task<(WebServerErrorCode errorCode, string authToken)> GuestLoginAsync(string guestGuid);
+    Task<string> LoginAsync(string email, string password);
+    Task<string> GuestLoginAsync(string guestGuid);
 }
