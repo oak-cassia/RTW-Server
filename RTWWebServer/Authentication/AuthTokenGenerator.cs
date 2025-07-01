@@ -1,8 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using System.Security.Cryptography;
 
 namespace RTWWebServer.Authentication;
 
@@ -15,7 +15,7 @@ public class AuthTokenGenerator(IConfiguration configuration) : IAuthTokenGenera
     public string GenerateToken()
     {
         using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
-        byte[] token = new byte[32];
+        var token = new byte[32];
         randomNumberGenerator.GetBytes(token);
 
         return Convert.ToBase64String(token);
@@ -23,17 +23,17 @@ public class AuthTokenGenerator(IConfiguration configuration) : IAuthTokenGenera
 
     public string GenerateJwt(long userId)
     {
-        var secretKey = configuration["Jwt:Secret"];
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        string? secretKey = configuration["Jwt:Secret"];
+        SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
 
-        var claims = new[]
+        Claim[] claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(ROLE_CLAIM_TYPE, DEFAULT_USER_ROLE),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var tokenDescriptor = new SecurityTokenDescriptor
+        SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddMinutes(TOKEN_EXPIRATION_MINUTES),
@@ -42,8 +42,8 @@ public class AuthTokenGenerator(IConfiguration configuration) : IAuthTokenGenera
             SigningCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature)
         };
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+        JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+        SecurityToken? token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
 }

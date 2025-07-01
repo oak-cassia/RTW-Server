@@ -32,7 +32,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IGuestRepository, GuestRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-        
+
         return services;
     }
 
@@ -40,7 +40,7 @@ public static class DependencyInjectionExtensions
     {
         return services;
     }
-    
+
     // EF Core를 위한 확장 메서드
     public static IServiceCollection AddEntityFramework(this IServiceCollection services, IConfiguration configuration)
     {
@@ -50,7 +50,7 @@ public static class DependencyInjectionExtensions
                 configuration["DatabaseConfiguration:AccountDatabase"],
                 ServerVersion.AutoDetect(configuration["DatabaseConfiguration:AccountDatabase"])
             ));
-            
+
         return services;
     }
 }

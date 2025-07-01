@@ -2,8 +2,8 @@ using NetworkDefinition.ErrorCode;
 using RTWWebServer.Authentication;
 using RTWWebServer.Cache;
 using RTWWebServer.Entity;
-using RTWWebServer.Repository;
 using RTWWebServer.Exceptions;
+using RTWWebServer.Repository;
 
 namespace RTWWebServer.Service;
 
@@ -62,7 +62,7 @@ public class LoginService(
 
         // Todo: AuthToken 반환, Redis 저장, UserId 반환
         string authToken = authTokenGenerator.GenerateToken();
-        int userId = 1;
+        var userId = 1;
 
         WebServerErrorCode errorCode = await remoteCache.SetAsync(authToken, userId);
         if (errorCode != WebServerErrorCode.Success)
