@@ -1,9 +1,17 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 
 namespace RTWWebServer.Authentication;
 
-public class AuthTokenGenerator : IAuthTokenGenerator
+public class AuthTokenGenerator(IConfiguration configuration) : IAuthTokenGenerator
 {
+    private const string ROLE_CLAIM_TYPE = "role";
+    private const string DEFAULT_USER_ROLE = "user";
+    private const int TOKEN_EXPIRATION_MINUTES = 30;
+
     public string GenerateToken()
     {
         using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
@@ -11,5 +19,31 @@ public class AuthTokenGenerator : IAuthTokenGenerator
         randomNumberGenerator.GetBytes(token);
 
         return Convert.ToBase64String(token);
+    }
+
+    public string GenerateJwt(long userId)
+    {
+        var secretKey = configuration["Jwt:Secret"];
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(ROLE_CLAIM_TYPE, DEFAULT_USER_ROLE),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(TOKEN_EXPIRATION_MINUTES),
+            Issuer = configuration["Jwt:Issuer"],
+            Audience = configuration["Jwt:Audience"],
+            SigningCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature)
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
     }
 }
