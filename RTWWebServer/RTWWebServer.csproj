@@ -29,4 +29,8 @@
         <ProjectReference Include="..\NetworkDefinition\NetworkDefinition.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Authentication\" />
+    </ItemGroup>
+
 </Project>

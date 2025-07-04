@@ -1,4 +1,4 @@
-namespace RTWWebServer.Authentication;
+namespace RTWWebServer.Provider.Authentication;
 
 public interface IGuidGenerator
 {

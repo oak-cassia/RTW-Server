@@ -4,9 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-namespace RTWWebServer.Authentication;
+namespace RTWWebServer.Provider.Authentication;
 
-public class AuthTokenGenerator : IAuthTokenGenerator
+public class JwtTokenProvider : IJwtTokenProvider
 {
     private const string ROLE_CLAIM_TYPE = "role";
     private const string DEFAULT_USER_ROLE = "user";
@@ -21,7 +21,7 @@ public class AuthTokenGenerator : IAuthTokenGenerator
     private readonly string _issuer;
     private readonly string _audience;
 
-    public AuthTokenGenerator(IConfiguration configuration)
+    public JwtTokenProvider(IConfiguration configuration)
     {
         _issuer = configuration[JWT_ISSUER_KEY]!;
         _audience = configuration[JWT_AUDIENCE_KEY]!;
