@@ -1,6 +1,6 @@
-using RTWWebServer.Entities;
+using RTWWebServer.Data.Entities;
 
-namespace RTWWebServer.Repositories;
+namespace RTWWebServer.Data.Repositories;
 
 public interface IAccountRepository
 {

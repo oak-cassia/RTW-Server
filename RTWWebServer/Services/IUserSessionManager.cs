@@ -1,4 +1,4 @@
-using RTWWebServer.Entities;
+using RTWWebServer.Data.Entities;
 
 namespace RTWWebServer.Services;
 

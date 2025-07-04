@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using RTWWebServer.Entities;
+using RTWWebServer.Data.Entities;
 
-namespace RTWWebServer.Database;
+namespace RTWWebServer.Data;
 
 public class AccountDbContext(DbContextOptions<AccountDbContext> options) : DbContext(options)
 {

@@ -1,6 +1,6 @@
 using NetworkDefinition.ErrorCode;
 
-namespace RTWWebServer.DTO.response;
+namespace RTWWebServer.DTOs.Response;
 
 public class CreateAccountResponse(WebServerErrorCode errorCode) : IResponse
 {
