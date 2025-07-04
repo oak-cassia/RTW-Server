@@ -1,6 +1,6 @@
 using NetworkDefinition.ErrorCode;
 
-namespace RTWWebServer.DTO;
+namespace RTWWebServer.DTOs;
 
 public class GameResponse<T>
 {

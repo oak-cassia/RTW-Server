@@ -2,8 +2,8 @@ using System.Text.Json;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
 using RTWWebServer.DTO.response;
-using RTWWebServer.Entity;
-using RTWWebServer.Provider.Authentication;
+using RTWWebServer.Entities;
+using RTWWebServer.Providers.Authentication;
 
 namespace RTWWebServer.Middleware;
 

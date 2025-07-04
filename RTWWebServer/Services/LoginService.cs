@@ -1,11 +1,11 @@
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
-using RTWWebServer.Entity;
+using RTWWebServer.Entities;
 using RTWWebServer.Exceptions;
-using RTWWebServer.Provider.Authentication;
-using RTWWebServer.Repository;
+using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Repositories;
 
-namespace RTWWebServer.Service;
+namespace RTWWebServer.Services;
 
 public class LoginService(
     IUnitOfWork unitOfWork,

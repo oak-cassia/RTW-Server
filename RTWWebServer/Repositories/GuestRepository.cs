@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using RTWWebServer.Database;
-using RTWWebServer.Entity;
+using RTWWebServer.Entities;
 
-namespace RTWWebServer.Repository;
+namespace RTWWebServer.Repositories;
 
 public class GuestRepository(AccountDbContext dbContext) : IGuestRepository
 {

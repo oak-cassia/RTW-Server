@@ -1,6 +1,6 @@
-using RTWWebServer.Entity;
+using RTWWebServer.Entities;
 
-namespace RTWWebServer.Service;
+namespace RTWWebServer.Services;
 
 public interface IUserSessionManager
 {

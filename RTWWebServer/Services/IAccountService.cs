@@ -1,4 +1,4 @@
-namespace RTWWebServer.Service;
+namespace RTWWebServer.Services;
 
 public interface IAccountService
 {

@@ -1,6 +1,6 @@
-using RTWWebServer.Entity;
+using RTWWebServer.Entities;
 
-namespace RTWWebServer.Repository;
+namespace RTWWebServer.Repositories;
 
 public interface IGuestRepository
 {

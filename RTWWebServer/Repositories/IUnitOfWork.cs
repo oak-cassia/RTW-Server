@@ -1,4 +1,4 @@
-namespace RTWWebServer.Repository;
+namespace RTWWebServer.Repositories;
 
 public interface IUnitOfWork : IDisposable
 {
