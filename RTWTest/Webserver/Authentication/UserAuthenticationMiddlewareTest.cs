@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
-using RTWWebServer.Data.Entities;
+using RTWWebServer.DTOs;
 using RTWWebServer.Middlewares;
 using RTWWebServer.Providers.Authentication;
 
