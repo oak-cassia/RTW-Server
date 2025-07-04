@@ -1,9 +1,9 @@
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
-using RTWWebServer.Entities;
+using RTWWebServer.Data.Entities;
+using RTWWebServer.Data.Repositories;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Providers.Authentication;
-using RTWWebServer.Repositories;
 
 namespace RTWWebServer.Services;
 

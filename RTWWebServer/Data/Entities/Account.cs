@@ -1,4 +1,4 @@
-namespace RTWWebServer.Entities;
+namespace RTWWebServer.Data.Entities;
 
 public class Account(long id, string userName, string email, string password, string salt)
 {

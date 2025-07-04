@@ -1,11 +1,11 @@
 using System.Text.Json;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
-using RTWWebServer.DTO.response;
-using RTWWebServer.Entities;
+using RTWWebServer.Data.Entities;
+using RTWWebServer.DTOs.Response;
 using RTWWebServer.Providers.Authentication;
 
-namespace RTWWebServer.Middleware;
+namespace RTWWebServer.Middlewares;
 
 public class UserAuthenticationMiddleware(
     IRemoteCache remoteCache,

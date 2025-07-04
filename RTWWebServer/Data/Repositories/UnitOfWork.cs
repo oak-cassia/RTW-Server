@@ -1,6 +1,4 @@
-using RTWWebServer.Database;
-
-namespace RTWWebServer.Repositories;
+namespace RTWWebServer.Data.Repositories;
 
 public class UnitOfWork(AccountDbContext dbContext, IAccountRepository accountRepository, IGuestRepository guestRepository) : IUnitOfWork
 {

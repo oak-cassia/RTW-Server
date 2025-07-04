@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.DTOs;
+using RTWWebServer.DTOs.Response;
 
 namespace RTWWebServer.Exceptions;
 

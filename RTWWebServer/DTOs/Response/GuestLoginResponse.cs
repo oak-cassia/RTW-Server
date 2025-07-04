@@ -1,6 +1,6 @@
 using NetworkDefinition.ErrorCode;
 
-namespace RTWWebServer.DTO.response;
+namespace RTWWebServer.DTOs.Response;
 
 public class GuestLoginResponse(WebServerErrorCode errorCode, string authToken) : IResponse
 {

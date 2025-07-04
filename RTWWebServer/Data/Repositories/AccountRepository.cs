@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using RTWWebServer.Database;
-using RTWWebServer.Entities;
+using RTWWebServer.Data.Entities;
 
-namespace RTWWebServer.Repositories;
+namespace RTWWebServer.Data.Repositories;
 
 public class AccountRepository(AccountDbContext dbContext) : IAccountRepository
 {
