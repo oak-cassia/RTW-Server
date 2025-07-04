@@ -15,11 +15,11 @@ public class JwtTokenProvider : IJwtTokenProvider
     private const string JWT_SECRET_KEY = "Jwt:Secret";
     private const string JWT_ISSUER_KEY = "Jwt:Issuer";
     private const string JWT_AUDIENCE_KEY = "Jwt:Audience";
+    private readonly string _audience;
+    private readonly string _issuer;
 
     private readonly SymmetricSecurityKey _securityKey;
     private readonly TokenValidationParameters _tokenValidationParameters;
-    private readonly string _issuer;
-    private readonly string _audience;
 
     public JwtTokenProvider(IConfiguration configuration)
     {

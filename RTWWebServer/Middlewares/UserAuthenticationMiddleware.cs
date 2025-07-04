@@ -1,7 +1,7 @@
 using System.Text.Json;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
-using RTWWebServer.Data.Entities;
+using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Response;
 using RTWWebServer.Providers.Authentication;
 
