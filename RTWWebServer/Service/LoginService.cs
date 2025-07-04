@@ -1,8 +1,8 @@
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.Authentication;
 using RTWWebServer.Cache;
 using RTWWebServer.Entity;
 using RTWWebServer.Exceptions;
+using RTWWebServer.Provider.Authentication;
 using RTWWebServer.Repository;
 
 namespace RTWWebServer.Service;
@@ -11,7 +11,7 @@ public class LoginService(
     IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     IRemoteCache remoteCache,
-    IAuthTokenGenerator authTokenGenerator,
+    IJwtTokenProvider jwtTokenProvider,
     ILogger<LoginService> logger
 ) : ILoginService
 {
@@ -37,12 +37,12 @@ public class LoginService(
             throw new GameException("Invalid password", WebServerErrorCode.InvalidPassword);
         }
 
-        return authTokenGenerator.GenerateJwt(account.Id);
+        return jwtTokenProvider.GenerateJwt(account.Id);
     }
 
     public async Task<string> GuestLoginAsync(string guestGuid)
     {
-        // 입력 데이터 검증
+        // 입력 데��터 검증
         if (string.IsNullOrWhiteSpace(guestGuid))
         {
             throw new GameException("Guest GUID is required", WebServerErrorCode.InvalidRequestHttpBody);
@@ -61,7 +61,7 @@ public class LoginService(
         }
 
         // Todo: AuthToken 반환, Redis 저장, UserId 반환
-        string authToken = authTokenGenerator.GenerateToken();
+        string authToken = jwtTokenProvider.GenerateToken();
         var userId = 1;
 
         WebServerErrorCode errorCode = await remoteCache.SetAsync(authToken, userId);

@@ -1,6 +1,6 @@
-namespace RTWWebServer.Authentication;
+namespace RTWWebServer.Provider.Authentication;
 
-public interface IAuthTokenGenerator
+public interface IJwtTokenProvider
 {
     string GenerateToken();
     string GenerateJwt(long userId);

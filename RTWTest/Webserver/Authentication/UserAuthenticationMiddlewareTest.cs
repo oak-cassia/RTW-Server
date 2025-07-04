@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.Authentication;
 using RTWWebServer.Cache;
 using RTWWebServer.Entity;
 using RTWWebServer.Middleware;
+using RTWWebServer.Provider.Authentication;
 
 namespace RTWTest.Webserver.Authentication;
 

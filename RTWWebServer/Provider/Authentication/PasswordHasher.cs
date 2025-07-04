@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace RTWWebServer.Authentication;
+namespace RTWWebServer.Provider.Authentication;
 
 public class PasswordHasher : IPasswordHasher
 {
