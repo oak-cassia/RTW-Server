@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RTWWebServer.Entity;
+using RTWWebServer.Entities;
 
 namespace RTWWebServer.Database;
 

@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using RTWWebServer.Cache;
 using RTWWebServer.Database;
-using RTWWebServer.Provider.Authentication;
-using RTWWebServer.Repository;
-using RTWWebServer.Service;
+using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Repositories;
+using RTWWebServer.Services;
 
 namespace RTWWebServer;
 

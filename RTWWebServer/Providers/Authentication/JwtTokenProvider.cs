@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-namespace RTWWebServer.Provider.Authentication;
+namespace RTWWebServer.Providers.Authentication;
 
 public class JwtTokenProvider : IJwtTokenProvider
 {
