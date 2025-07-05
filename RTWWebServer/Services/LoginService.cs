@@ -42,7 +42,7 @@ public class LoginService(
 
     public async Task<string> GuestLoginAsync(string guestGuid)
     {
-        // 입력 데��터 검증
+        // 입력 데이터 검증
         if (string.IsNullOrWhiteSpace(guestGuid))
         {
             throw new GameException("Guest GUID is required", WebServerErrorCode.InvalidRequestHttpBody);
