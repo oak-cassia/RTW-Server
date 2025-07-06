@@ -24,7 +24,6 @@ public class UserSessionProvider(
 
         if (result != WebServerErrorCode.Success)
         {
-            logger.LogError($"Failed to store user session for userId: {userId}, error: {result}");
             throw new GameException("Failed to create user session", WebServerErrorCode.RemoteCacheError);
         }
 
@@ -46,7 +45,6 @@ public class UserSessionProvider(
 
         if (sessionResult.errorCode != WebServerErrorCode.Success)
         {
-            logger.LogWarning($"Failed to get user session for userId: {userId}, error: {sessionResult.errorCode}");
             throw new GameException("Failed to retrieve user session", WebServerErrorCode.RemoteCacheError);
         }
 
@@ -60,7 +58,6 @@ public class UserSessionProvider(
 
         if (deleteResult != WebServerErrorCode.Success)
         {
-            logger.LogWarning($"Failed to remove session for userId: {userId}, error: {deleteResult}");
             throw new GameException("Failed to remove user session", WebServerErrorCode.RemoteCacheError);
         }
 

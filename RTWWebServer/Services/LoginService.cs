@@ -26,14 +26,12 @@ public class LoginService(
         Account? account = await unitOfWork.Accounts.FindByEmailAsync(email);
         if (account == null)
         {
-            logger.LogInformation($"Account with email {email} not found");
             throw new GameException("Invalid email", WebServerErrorCode.InvalidEmail);
         }
 
         string hashedPassword = passwordHasher.CalcHashedPassword(password, account.Salt);
         if (hashedPassword != account.Password)
         {
-            logger.LogInformation($"Password for account with email {email} is incorrect");
             throw new GameException("Invalid password", WebServerErrorCode.InvalidPassword);
         }
 
@@ -56,7 +54,6 @@ public class LoginService(
         Guest? guest = await unitOfWork.Guests.FindByGuidAsync(parsedGuid.ToByteArray());
         if (guest == null)
         {
-            logger.LogInformation($"Guest with guid {guestGuid} not found");
             throw new GameException("Guest not found", WebServerErrorCode.GuestNotFound);
         }
 
