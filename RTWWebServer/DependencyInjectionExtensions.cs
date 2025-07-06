@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using RTWWebServer.Authentication;
 using RTWWebServer.Cache;
-using RTWWebServer.Database;
-using RTWWebServer.Repository;
-using RTWWebServer.Service;
+using RTWWebServer.Data;
+using RTWWebServer.Data.Repositories;
+using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Services;
 
 namespace RTWWebServer;
 
@@ -12,7 +12,7 @@ public static class DependencyInjectionExtensions
     public static IServiceCollection AddCustomServices(this IServiceCollection services)
     {
         services.AddSingleton<IGuidGenerator, GuidGenerator>();
-        services.AddSingleton<IAuthTokenGenerator, AuthTokenGenerator>();
+        services.AddSingleton<IJwtTokenProvider, JwtTokenProvider>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // Redis 클라이언트는 스레드 안전
         services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
@@ -23,6 +23,8 @@ public static class DependencyInjectionExtensions
 
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILoginService, LoginService>();
+        services.AddScoped<IUserSessionProvider, UserSessionProvider>();
+        services.AddScoped<IGameEntryService, GameEntryService>();
 
         return services;
     }

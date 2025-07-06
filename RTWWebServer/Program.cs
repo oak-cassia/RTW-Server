@@ -1,7 +1,7 @@
 using RTWWebServer;
 using RTWWebServer.Configuration;
 using RTWWebServer.Exceptions;
-using RTWWebServer.Middleware;
+using RTWWebServer.Middlewares;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
