@@ -2,26 +2,23 @@ using NetworkDefinition.ErrorCode;
 
 namespace RTWWebServer.DTOs.Response;
 
-public class GameResponse<T>
+public class GameResponse
 {
     public WebServerErrorCode ErrorCode { get; set; }
-    public T? Data { get; set; }
 
-    public static GameResponse<T> Ok(T data)
+    public static GameResponse Ok()
     {
-        return new GameResponse<T>
+        return new GameResponse
         {
             ErrorCode = WebServerErrorCode.Success,
-            Data = data
         };
     }
 
-    public static GameResponse<T> Fail(WebServerErrorCode errorCode)
+    public static GameResponse Fail(WebServerErrorCode errorCode)
     {
-        return new GameResponse<T>
+        return new GameResponse
         {
             ErrorCode = errorCode,
-            Data = default
         };
     }
 }

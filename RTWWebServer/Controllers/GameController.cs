@@ -10,14 +10,9 @@ namespace RTWWebServer.Controllers;
 public class GameController(IGameEntryService gameEntryService) : ControllerBase
 {
     [HttpPost("enter")]
-    public async Task<ActionResult<GameEntryResponse>> EnterGame([FromBody] GameEntryRequest request)
+    public async Task<GameResponse> EnterGame([FromBody] GameEntryRequest request)
     {
-        var response = await gameEntryService.EnterGameAsync(request);
-        if (response.ErrorCode == NetworkDefinition.ErrorCode.WebServerErrorCode.Success)
-        {
-            return Ok(response);
-        }
-
-        return BadRequest(response);
+        var sessionKey = await gameEntryService.EnterGameAsync(request.JwtToken);
+        return GameResponse.Ok();
     }
 }
