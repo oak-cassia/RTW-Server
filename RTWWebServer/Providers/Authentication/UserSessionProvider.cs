@@ -20,9 +20,9 @@ public class UserSessionProvider(
         var userSession = new UserSession(userId, authToken);
 
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
-        WebServerErrorCode result = await remoteCache.SetAsync(sessionKey, userSession, SessionExpiration);
+        bool success = await remoteCache.SetAsync(sessionKey, userSession, SessionExpiration);
 
-        if (result != WebServerErrorCode.Success)
+        if (!success)
         {
             throw new GameException("Failed to create user session", WebServerErrorCode.RemoteCacheError);
         }
@@ -34,31 +34,27 @@ public class UserSessionProvider(
     public async Task<UserSession?> GetSessionAsync(int userId)
     {
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
-        var sessionResult = await remoteCache.GetAsync<UserSession>(sessionKey);
+        var session = await remoteCache.GetAsync<UserSession>(sessionKey);
 
-        // Redis에서 키가 없거나 만료된 경우 null 반환 (정상적인 케이스)
-        if (sessionResult.errorCode == WebServerErrorCode.RemoteCacheError && sessionResult.value == null)
+        if (session == null)
         {
             logger.LogDebug($"User session not found or expired for userId: {userId}");
             return null;
         }
 
-        if (sessionResult.errorCode != WebServerErrorCode.Success)
-        {
-            throw new GameException("Failed to retrieve user session", WebServerErrorCode.RemoteCacheError);
-        }
-
-        return sessionResult.value;
+        return session;
     }
 
     public async Task<bool> RemoveSessionAsync(int userId)
     {
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
-        var deleteResult = await remoteCache.DeleteAsync(sessionKey);
+        bool success = await remoteCache.DeleteAsync(sessionKey);
 
-        if (deleteResult != WebServerErrorCode.Success)
+        if (!success)
         {
-            throw new GameException("Failed to remove user session", WebServerErrorCode.RemoteCacheError);
+            // 실패 시에도 false를 반환하기 전에 로깅 가능
+            logger.LogError($"Failed to remove user session for userId: {userId}");
+            return false;
         }
 
         logger.LogInformation($"Session removed for userId: {userId}");

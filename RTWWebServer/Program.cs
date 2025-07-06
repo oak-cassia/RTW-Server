@@ -30,6 +30,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler(opt => { });
 app.UseMiddleware<UserAuthenticationMiddleware>();
+app.UseMiddleware<RequestLockingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

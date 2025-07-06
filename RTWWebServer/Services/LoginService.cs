@@ -59,10 +59,10 @@ public class LoginService(
 
         // Todo: AuthToken 반환, Redis 저장, UserId 반환
         string authToken = jwtTokenProvider.GenerateToken();
-        var userId = 1;
+        var userId = guest.Id;
 
-        WebServerErrorCode errorCode = await remoteCache.SetAsync(authToken, userId);
-        if (errorCode != WebServerErrorCode.Success)
+        bool success = await remoteCache.SetAsync(authToken, userId);
+        if (success == false)
         {
             throw new GameException("Failed to store auth token", WebServerErrorCode.RemoteCacheError);
         }
