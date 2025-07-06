@@ -1,7 +1,7 @@
-using System.Text.Json;
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.DTOs.Response;
 using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Exceptions;
+using System.Text.Json;
 
 namespace RTWWebServer.Middlewares;
 
@@ -10,8 +10,6 @@ public class UserAuthenticationMiddleware(
     ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
-    private const string RESPONSE_CONTENT_TYPE = "application/json";
-
     private static readonly HashSet<string> EXCLUDED_PATHS =
     [
         "/Login",
@@ -33,24 +31,18 @@ public class UserAuthenticationMiddleware(
         string requestBody = await ReadRequestBodyAsync(context);
         if (string.IsNullOrEmpty(requestBody))
         {
-            logger.LogError("Failed to read request body");
-            await RespondWithError(context, WebServerErrorCode.InvalidRequestHttpBody);
-            return;
+            throw new GameException("Failed to read request body", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
         (int userId, string authToken) = ExtractUserIdAndAuthToken(requestBody);
         if (userId == default || string.IsNullOrEmpty(authToken))
         {
-            logger.LogError("Failed to extract user id and auth token from request body");
-            await RespondWithError(context, WebServerErrorCode.InvalidRequestHttpBody);
-            return;
+            throw new GameException("Failed to extract user id and auth token from request body", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
         if (!await userSessionProvider.IsValidSessionAsync(userId, authToken))
         {
-            logger.LogError($"Invalid or expired auth token for userId: {userId}");
-            await RespondWithError(context, WebServerErrorCode.InvalidAuthToken);
-            return;
+            throw new GameException($"Invalid or expired auth token for userId: {userId}", WebServerErrorCode.InvalidAuthToken);
         }
 
         // 세션 정보를 HttpContext에 추가하여 컨트롤러에서 사용할 수 있도록 함
@@ -103,14 +95,5 @@ public class UserAuthenticationMiddleware(
         {
             return (default, string.Empty);
         }
-    }
-
-    private async Task RespondWithError(HttpContext context, WebServerErrorCode errorCode)
-    {
-        context.Response.ContentType = RESPONSE_CONTENT_TYPE;
-        context.Response.StatusCode = 401; // Unauthorized
-
-        string errorJson = JsonSerializer.Serialize(new UserAuthenticationResponse(errorCode));
-        await context.Response.WriteAsync(errorJson);
     }
 }

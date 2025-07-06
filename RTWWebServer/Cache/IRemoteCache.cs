@@ -4,9 +4,9 @@ namespace RTWWebServer.Cache;
 
 public interface IRemoteCache
 {
-    Task<(T? value, WebServerErrorCode errorCode)> GetAsync<T>(string key);
-    Task<WebServerErrorCode> SetAsync<T>(string key, T value, TimeSpan? expiration = null);
-    Task<WebServerErrorCode> DeleteAsync(string key);
-    Task<WebServerErrorCode> LockAsync(int userId, string lockValue);
-    Task<WebServerErrorCode> UnlockAsync(int userId, string lockValue);
+    Task<T?> GetAsync<T>(string key);
+    Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null);
+    Task<bool> DeleteAsync(string key);
+    Task<bool> LockAsync(int userId, string lockValue);
+    Task<bool> UnlockAsync(int userId, string lockValue);
 }

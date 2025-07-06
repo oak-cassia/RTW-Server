@@ -1,6 +1,5 @@
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.DTOs.Request;
-using RTWWebServer.DTOs.Response;
+using RTWWebServer.DTOs;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Providers.Authentication;
 
@@ -12,19 +11,19 @@ public class GameEntryService(
     ILogger<GameEntryService> logger
 ) : IGameEntryService
 {
-    public async Task<GameEntryResponse> EnterGameAsync(GameEntryRequest request)
+    public async Task<UserSession> EnterGameAsync(string jwtToken)
     {
-        if (string.IsNullOrWhiteSpace(request.JwtToken))
+        if (string.IsNullOrWhiteSpace(jwtToken))
         {
             throw new GameException("JWT token is required", WebServerErrorCode.InvalidAuthToken);
         }
 
-        if (!jwtTokenProvider.ValidateJwt(request.JwtToken))
+        if (!jwtTokenProvider.ValidateJwt(jwtToken))
         {
             throw new GameException("Invalid JWT token", WebServerErrorCode.InvalidAuthToken);
         }
 
-        long? userIdLong = jwtTokenProvider.GetUserIdFromJwt(request.JwtToken);
+        long? userIdLong = jwtTokenProvider.GetUserIdFromJwt(jwtToken);
         if (!userIdLong.HasValue)
         {
             throw new GameException("Failed to extract user ID from JWT token", WebServerErrorCode.InvalidAuthToken);
@@ -32,14 +31,10 @@ public class GameEntryService(
 
         int userId = (int)userIdLong.Value;
 
-        var userSession = await userSessionProvider.CreateSessionAsync(userId, request.JwtToken);
+        var userSession = await userSessionProvider.CreateSessionAsync(userId, jwtToken);
 
         logger.LogInformation($"User {userId} successfully entered the game with auth token: {userSession.Token}");
 
-        return new GameEntryResponse(
-            WebServerErrorCode.Success,
-            userSession.Token,
-            userId
-        );
+        return userSession;
     }
 }
