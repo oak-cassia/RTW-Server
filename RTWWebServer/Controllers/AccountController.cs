@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
-using NetworkDefinition.ErrorCode;
 using RTWWebServer.DTOs.Response;
 using RTWWebServer.Services;
 
@@ -11,16 +10,16 @@ namespace RTWWebServer.Controllers;
 public class AccountController(IAccountService accountService) : ControllerBase
 {
     [HttpPost("createGuestAccount")]
-    public async Task<CreateGuestAccountResponse> CreateGuestAccount()
+    public async Task<GameResponse<string>> CreateGuestAccount()
     {
         string guestGuid = await accountService.CreateGuestAccountAsync();
-        return new CreateGuestAccountResponse(WebServerErrorCode.Success, guestGuid);
+        return GameResponse<string>.Ok(guestGuid);
     }
 
     [HttpPost("createAccount")]
-    public async Task<CreateAccountResponse> CreateAccount([FromBody] RegisterRequest request)
+    public async Task<GameResponse> CreateAccount([FromBody] RegisterRequest request)
     {
         await accountService.CreateAccountAsync("", request.Email, request.Password);
-        return new CreateAccountResponse(WebServerErrorCode.Success);
+        return GameResponse.Ok();
     }
 }
