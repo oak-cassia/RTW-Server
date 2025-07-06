@@ -1,7 +1,6 @@
 using CloudStructures;
 using CloudStructures.Structures;
 using Microsoft.Extensions.Options;
-using NetworkDefinition.ErrorCode;
 using RTWWebServer.Configuration;
 
 namespace RTWWebServer.Cache;
@@ -33,12 +32,9 @@ public class RedisRemoteCache : IRemoteCache
         RedisString<T> redisString = new RedisString<T>(_redisConnection, key, null);
 
         RedisResult<T> value = await redisString.GetAsync();
-        if (value.HasValue == false)
-        {
-            return default;
-        }
-
-        return value.Value;
+        return value.HasValue
+            ? value.Value
+            : default;
     }
 
 
