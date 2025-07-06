@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.DTO.response;
-using RTWWebServer.Service;
+using RTWWebServer.DTOs.Response;
+using RTWWebServer.Services;
 
 namespace RTWWebServer.Controllers;
 

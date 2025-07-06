@@ -43,13 +43,14 @@ public class RedisRemoteCache : IRemoteCache
     }
 
 
-    public async Task<WebServerErrorCode> SetAsync<T>(string key, T value)
+    public async Task<WebServerErrorCode> SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
-        RedisString<T> redisString = new RedisString<T>(_redisConnection, key, _authTokenExpirationTime);
+        TimeSpan actualExpiration = expiration ?? _authTokenExpirationTime;
+        RedisString<T> redisString = new RedisString<T>(_redisConnection, key, actualExpiration);
 
         if (await redisString.SetAsync(value) == false)
         {
-            _logger.LogError($"Failed to set value to Redis with key {key}");
+            _logger.LogError($"Failed to set value to Redis with key {key} with expiration {actualExpiration}");
             return WebServerErrorCode.RemoteCacheError;
         }
 

@@ -1,4 +1,4 @@
-using RTWWebServer.Authentication;
+using RTWWebServer.Providers.Authentication;
 
 namespace RTWTest.Webserver.Authentication;
 
