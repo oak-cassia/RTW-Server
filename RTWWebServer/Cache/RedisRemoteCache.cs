@@ -28,49 +28,48 @@ public class RedisRemoteCache : IRemoteCache
         _logger = logger;
     }
 
-    public async Task<(T? value, WebServerErrorCode errorCode)> GetAsync<T>(string key)
+    public async Task<T?> GetAsync<T>(string key)
     {
         RedisString<T> redisString = new RedisString<T>(_redisConnection, key, null);
 
         RedisResult<T> value = await redisString.GetAsync();
         if (value.HasValue == false)
         {
-            _logger.LogError($"Failed to get value from Redis with key {key}");
-            return (default, WebServerErrorCode.RemoteCacheError);
+            return default;
         }
 
-        return (value.Value, WebServerErrorCode.Success);
+        return value.Value;
     }
 
 
-    public async Task<WebServerErrorCode> SetAsync<T>(string key, T value, TimeSpan? expiration = null)
+    public async Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         TimeSpan actualExpiration = expiration ?? _authTokenExpirationTime;
         RedisString<T> redisString = new RedisString<T>(_redisConnection, key, actualExpiration);
 
-        if (await redisString.SetAsync(value) == false)
+        var success = await redisString.SetAsync(value);
+        if (success == false)
         {
             _logger.LogError($"Failed to set value to Redis with key {key} with expiration {actualExpiration}");
-            return WebServerErrorCode.RemoteCacheError;
         }
 
-        return WebServerErrorCode.Success;
+        return success;
     }
 
-    public async Task<WebServerErrorCode> DeleteAsync(string key)
+    public async Task<bool> DeleteAsync(string key)
     {
         RedisString<string> redisString = new RedisString<string>(_redisConnection, key, null);
 
-        if (await redisString.DeleteAsync() == false)
+        var success = await redisString.DeleteAsync();
+        if (success == false)
         {
             _logger.LogError($"Failed to remove value from Redis with key {key}");
-            return WebServerErrorCode.RemoteCacheError;
         }
 
-        return WebServerErrorCode.Success;
+        return success;
     }
 
-    public async Task<WebServerErrorCode> LockAsync(int userId, string lockValue)
+    public async Task<bool> LockAsync(int userId, string lockValue)
     {
         string key = _keyGenerator.GenerateUserLockKey(userId);
         RedisLock<string> redisLock = new RedisLock<string>(_redisConnection, key);
@@ -84,7 +83,7 @@ public class RedisRemoteCache : IRemoteCache
             bool isLocked = await redisLock.TakeAsync(lockValue, _lockExpirationTime);
             if (isLocked)
             {
-                return WebServerErrorCode.Success;
+                return true;
             }
 
             // base(50~100) + (재시도 횟수 * 16) ms
@@ -95,20 +94,20 @@ public class RedisRemoteCache : IRemoteCache
         }
 
         _logger.LogError($"Failed to lock key {userId}, retry count: {retryCount}");
-        return WebServerErrorCode.RemoteCacheLockFailed;
+        return false;
     }
 
-    public async Task<WebServerErrorCode> UnlockAsync(int userId, string lockValue)
+    public async Task<bool> UnlockAsync(int userId, string lockValue)
     {
         string key = _keyGenerator.GenerateUserLockKey(userId);
         RedisLock<string> redisLock = new RedisLock<string>(_redisConnection, key);
 
-        if (await redisLock.ReleaseAsync(lockValue) == false)
+        var success = await redisLock.ReleaseAsync(lockValue);
+        if (success == false)
         {
             _logger.LogError($"Failed to unlock key {userId}, lock value: {lockValue}");
-            return WebServerErrorCode.RemoteCacheError;
         }
 
-        return WebServerErrorCode.Success;
+        return success;
     }
 }
