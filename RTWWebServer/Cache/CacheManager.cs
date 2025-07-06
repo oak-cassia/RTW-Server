@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using NetworkDefinition.ErrorCode;
 
 namespace RTWWebServer.Cache;
 
@@ -18,8 +17,8 @@ public class CacheManager(
             return localValue;
         }
 
-        (T? remoteValue, WebServerErrorCode errorCode) = await remoteCache.GetAsync<T>(key);
-        if (errorCode == WebServerErrorCode.Success)
+        T? remoteValue = await remoteCache.GetAsync<T>(key);
+        if (remoteValue != null)
         {
             localCache.Set(key, remoteValue);
             return remoteValue;
