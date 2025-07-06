@@ -23,6 +23,8 @@ public static class DependencyInjectionExtensions
 
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILoginService, LoginService>();
+        services.AddScoped<IUserSessionProvider, UserSessionProvider>();
+        services.AddScoped<IGameEntryService, GameEntryService>();
 
         return services;
     }
