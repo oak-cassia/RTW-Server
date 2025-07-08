@@ -10,7 +10,7 @@ namespace RTWTest.Webserver;
 [TestFixture]
 public class RequestLockingMiddlewareTests
 {
-    private Mock<IRemoteCache> _mockRemoteCache;
+    private Mock<IDistributedCacheAdapter> _mockDistributedCacheAdapter;
     private Mock<RequestDelegate> _mockNext;
     private RequestLockingMiddleware _middleware;
     private DefaultHttpContext _httpContext;
@@ -18,9 +18,9 @@ public class RequestLockingMiddlewareTests
     [SetUp]
     public void SetUp()
     {
-        _mockRemoteCache = new Mock<IRemoteCache>();
+        _mockDistributedCacheAdapter = new Mock<IDistributedCacheAdapter>();
         _mockNext = new Mock<RequestDelegate>();
-        _middleware = new RequestLockingMiddleware(_mockNext.Object, _mockRemoteCache.Object);
+        _middleware = new RequestLockingMiddleware(_mockNext.Object, _mockDistributedCacheAdapter.Object);
         _httpContext = new DefaultHttpContext();
     }
 
@@ -35,8 +35,8 @@ public class RequestLockingMiddlewareTests
 
         // Assert
         _mockNext.Verify(next => next(_httpContext), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.LockAsync(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+        _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
     }
 
     [Test]
@@ -45,7 +45,7 @@ public class RequestLockingMiddlewareTests
         // Arrange
         const int userId = 123;
         _httpContext.Items["UserId"] = userId;
-        _mockRemoteCache.Setup(cache => cache.LockAsync(userId, It.IsAny<string>()))
+        _mockDistributedCacheAdapter.Setup(cache => cache.LockAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
@@ -53,8 +53,8 @@ public class RequestLockingMiddlewareTests
 
         // Assert
         _mockNext.Verify(next => next(_httpContext), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.LockAsync(userId, It.IsAny<string>()), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync(userId, It.IsAny<string>()), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(userId, It.IsAny<string>()), Times.Once);
     }
 
     [Test]
@@ -63,8 +63,8 @@ public class RequestLockingMiddlewareTests
         // Arrange
         const int userId = 123;
         _httpContext.Items["UserId"] = userId;
-        _mockRemoteCache.Setup(cache => cache.LockAsync(userId, It.IsAny<string>()))
-            .ReturnsAsync(false);
+        _mockDistributedCacheAdapter.Setup(cache => cache.LockAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false); // 락 실패 시 false 반환
 
         // Act & Assert
         var exception = Assert.ThrowsAsync<GameException>(async () => await _middleware.InvokeAsync(_httpContext));
@@ -72,8 +72,8 @@ public class RequestLockingMiddlewareTests
         Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.RemoteCacheLockFailed));
 
         _mockNext.Verify(next => next(_httpContext), Times.Never);
-        _mockRemoteCache.Verify(cache => cache.LockAsync(userId, It.IsAny<string>()), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+        _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
     }
 
     [Test]
@@ -82,7 +82,7 @@ public class RequestLockingMiddlewareTests
         // Arrange
         const int userId = 123;
         _httpContext.Items["UserId"] = userId;
-        _mockRemoteCache.Setup(cache => cache.LockAsync(userId, It.IsAny<string>()))
+        _mockDistributedCacheAdapter.Setup(cache => cache.LockAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var expectedException = new InvalidOperationException("Test exception");
@@ -93,7 +93,7 @@ public class RequestLockingMiddlewareTests
         var thrownException = Assert.ThrowsAsync<InvalidOperationException>(async () => await _middleware.InvokeAsync(_httpContext));
 
         Assert.That(thrownException, Is.SameAs(expectedException));
-        _mockRemoteCache.Verify(cache => cache.LockAsync(userId, It.IsAny<string>()), Times.Once);
-        _mockRemoteCache.Verify(cache => cache.UnlockAsync(userId, It.IsAny<string>()), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(userId, It.IsAny<string>()), Times.Once);
     }
 }

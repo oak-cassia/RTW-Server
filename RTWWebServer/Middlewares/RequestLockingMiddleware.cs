@@ -4,11 +4,11 @@ using RTWWebServer.Exceptions;
 
 namespace RTWWebServer.Middlewares;
 
-public class RequestLockingMiddleware(RequestDelegate next, IRemoteCache remoteCache)
+public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAdapter distributedCacheAdapter)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!context.Items.TryGetValue("UserId", out var userIdObject) || userIdObject is not int userId)
+        if (!context.Items.TryGetValue("UserId", out object? userIdObject) || userIdObject is not int userId)
         {
             await next(context);
             return;
@@ -18,7 +18,7 @@ public class RequestLockingMiddleware(RequestDelegate next, IRemoteCache remoteC
         var lockAcquired = false;
         try
         {
-            lockAcquired = await remoteCache.LockAsync(userId, lockValue);
+            lockAcquired = await distributedCacheAdapter.LockAsync(userId, lockValue);
             if (!lockAcquired)
             {
                 throw new GameException("Too many requests. Please try again later.", WebServerErrorCode.RemoteCacheLockFailed);
@@ -30,7 +30,7 @@ public class RequestLockingMiddleware(RequestDelegate next, IRemoteCache remoteC
         {
             if (lockAcquired)
             {
-                await remoteCache.UnlockAsync(userId, lockValue);
+                await distributedCacheAdapter.UnlockAsync(userId, lockValue);
             }
         }
     }

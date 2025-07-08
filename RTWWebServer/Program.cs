@@ -8,6 +8,12 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 IConfiguration configuration = builder.Configuration;
 builder.Services.Configure<DatabaseConfiguration>(configuration.GetSection(nameof(DatabaseConfiguration)));
 
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    DatabaseConfiguration? dbConfig = configuration.GetSection(nameof(DatabaseConfiguration)).Get<DatabaseConfiguration>();
+    options.Configuration = dbConfig?.Redis;
+});
+
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
