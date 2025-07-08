@@ -4,6 +4,9 @@ using RTWWebServer.Data;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Services;
+using RTWWebServer.Configuration;
+using RTWWebServer.Exceptions;
+using StackExchange.Redis;
 
 namespace RTWWebServer;
 
@@ -41,8 +44,40 @@ public static class DependencyInjectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddConfigurations(this IServiceCollection services)
+    public static IServiceCollection AddConfigurations(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<DatabaseConfiguration>(configuration.GetSection(nameof(DatabaseConfiguration)));
+        return services;
+    }
+
+    // Redis 설정을 위한 확장 메서드
+    public static IServiceCollection AddRedisCache(this IServiceCollection services, IConfiguration configuration)
+    {
+        var redisConfiguration = configuration.GetSection("DatabaseConfiguration:Redis").Value;
+        if (string.IsNullOrEmpty(redisConfiguration))
+        {
+            throw new InvalidOperationException("Redis configuration is not found.");
+        }
+        
+        var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
+        services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(multiplexer);
+        });
+
+        return services;
+    }
+
+    // Web API 기본 서비스들을 위한 확장 메서드
+    public static IServiceCollection AddWebApiServices(this IServiceCollection services)
+    {
+        services.AddControllers();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+        services.AddExceptionHandler<GlobalGameExceptionHandler>();
+
         return services;
     }
 
