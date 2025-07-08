@@ -10,7 +10,7 @@ namespace RTWWebServer.Services;
 public class LoginService(
     IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
-    IRemoteCache remoteCache,
+    ICacheManager cacheManager,
     IJwtTokenProvider jwtTokenProvider,
     ILogger<LoginService> logger
 ) : ILoginService
@@ -57,15 +57,12 @@ public class LoginService(
             throw new GameException("Guest not found", WebServerErrorCode.GuestNotFound);
         }
 
-        // Todo: AuthToken 반환, Redis 저장, UserId 반환
+        //TODO: AuthToken 생성, 캐시에 저장, UserId 반환, Role을 정하고 입장시에 처음 데이터 생성하면 될 듯
         string authToken = jwtTokenProvider.GenerateToken();
-        var userId = guest.Id;
+        long userId = guest.Id;
 
-        bool success = await remoteCache.SetAsync(authToken, userId);
-        if (success == false)
-        {
-            throw new GameException("Failed to store auth token", WebServerErrorCode.RemoteCacheError);
-        }
+        cacheManager.Set(authToken, userId);
+        await cacheManager.CommitAllChangesAsync();
 
         return authToken;
     }

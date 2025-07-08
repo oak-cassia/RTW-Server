@@ -14,10 +14,13 @@ public static class DependencyInjectionExtensions
         services.AddSingleton<IGuidGenerator, GuidGenerator>();
         services.AddSingleton<IJwtTokenProvider, JwtTokenProvider>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
-        services.AddSingleton<IRemoteCache, RedisRemoteCache>(); // Redis 클라이언트는 스레드 안전
+
+
+        // IDistributedCache 어댑터 등록
+        services.AddSingleton<IDistributedCacheAdapter, DistributedCacheAdapter>();
         services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
 
-        // EF Core로 마이그레이션 완료 - IDatabaseContextProvider 제거
+        // 기존 캐시 서비스들을 어댑터 기반으로 교체
         services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>(); // 요청 범위 캐시
         services.AddScoped<ICacheManager, CacheManager>(); // 캐시 관리자, 요청 범위 캐시 의존
 
