@@ -4,6 +4,7 @@ using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Enums;
 
 namespace RTWWebServer.Services;
 
@@ -35,7 +36,8 @@ public class LoginService(
             throw new GameException("Invalid password", WebServerErrorCode.InvalidPassword);
         }
 
-        return jwtTokenProvider.GenerateJwt(account.Id);
+        // Account의 role에 따라 JWT 생성
+        return jwtTokenProvider.GenerateJwt(account.Id, account.Role);
     }
 
     public async Task<string> GuestLoginAsync(string guestGuid)
@@ -57,13 +59,7 @@ public class LoginService(
             throw new GameException("Guest not found", WebServerErrorCode.GuestNotFound);
         }
 
-        //TODO: AuthToken 생성, 캐시에 저장, UserId 반환, Role을 정하고 입장시에 처음 데이터 생성하면 될 듯
-        string authToken = jwtTokenProvider.GenerateToken();
-        long userId = guest.Id;
-
-        cacheManager.Set(authToken, userId);
-        await cacheManager.CommitAllChangesAsync();
-
-        return authToken;
+        // Guest는 항상 Guest role로 JWT 생성
+        return jwtTokenProvider.GenerateJwt(guest.Id, UserRole.Guest);
     }
 }

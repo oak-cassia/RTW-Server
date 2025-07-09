@@ -3,13 +3,13 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using RTWWebServer.Enums;
 
 namespace RTWWebServer.Providers.Authentication;
 
 public class JwtTokenProvider : IJwtTokenProvider
 {
     private const string ROLE_CLAIM_TYPE = "role";
-    private const string DEFAULT_USER_ROLE = "user";
     private const int TOKEN_EXPIRATION_MINUTES = 30;
 
     private const string JWT_SECRET_KEY = "Jwt:Secret";
@@ -50,10 +50,15 @@ public class JwtTokenProvider : IJwtTokenProvider
 
     public string GenerateJwt(long userId)
     {
+        return GenerateJwt(userId, UserRole.Normal);
+    }
+
+    public string GenerateJwt(long userId, UserRole role)
+    {
         Claim[] claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(ROLE_CLAIM_TYPE, DEFAULT_USER_ROLE),
+            new Claim(ROLE_CLAIM_TYPE, role.ToRoleString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
@@ -96,6 +101,25 @@ public class JwtTokenProvider : IJwtTokenProvider
 
             return long.TryParse(userIdClaim, out long userId)
                 ? userId
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public UserRole? GetUserRoleFromJwt(string token)
+    {
+        try
+        {
+            JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+
+            JwtSecurityToken jwt = tokenHandler.ReadJwtToken(token);
+            string? roleClaim = jwt.Claims.FirstOrDefault(c => c.Type == ROLE_CLAIM_TYPE)?.Value;
+
+            return roleClaim != null 
+                ? UserRoleExtensions.FromRoleString(roleClaim) 
                 : null;
         }
         catch
