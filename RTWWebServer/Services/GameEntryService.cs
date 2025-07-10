@@ -1,11 +1,15 @@
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Data.Entities;
+using RTWWebServer.Data.Repositories;
 using RTWWebServer.DTOs;
+using RTWWebServer.Enums;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Providers.Authentication;
 
 namespace RTWWebServer.Services;
 
 public class GameEntryService(
+    IGameUnitOfWork unitOfWork,
     IJwtTokenProvider jwtTokenProvider,
     IUserSessionProvider userSessionProvider,
     ILogger<GameEntryService> logger
@@ -23,18 +27,70 @@ public class GameEntryService(
             throw new GameException("Invalid JWT token", WebServerErrorCode.InvalidAuthToken);
         }
 
-        long? userIdLong = jwtTokenProvider.GetUserIdFromJwt(jwtToken);
-        if (!userIdLong.HasValue)
+        // JWT에서 role 추출
+        UserRole? userRole = jwtTokenProvider.GetUserRoleFromJwt(jwtToken);
+        if (!userRole.HasValue)
         {
-            throw new GameException("Failed to extract user ID from JWT token", WebServerErrorCode.InvalidAuthToken);
+            throw new GameException("Failed to extract role from JWT token", WebServerErrorCode.InvalidAuthToken);
         }
 
-        int userId = (int)userIdLong.Value;
+        User? user = null;
+        if (userRole == UserRole.Normal)
+        {
+            string? email = jwtTokenProvider.GetEmailFromJwt(jwtToken);
+            if (email == null)
+            {
+                throw new GameException("Failed to extract email from JWT token", WebServerErrorCode.InvalidAuthToken);
+            }
 
-        var userSession = await userSessionProvider.CreateSessionAsync(userId, jwtToken);
+            user = await GetOrCreateUserByEmailAsync(email, (int)userRole);
+        }
+        else if (userRole == UserRole.Guest)
+        {
+            var guidFromJwt = jwtTokenProvider.GetGuidFromJwt(jwtToken);
+            if (guidFromJwt == null)
+            {
+                throw new GameException("Failed to extract GUID from JWT token", WebServerErrorCode.InvalidAuthToken);
+            }
 
-        logger.LogInformation($"User {userId} successfully entered the game with auth token: {userSession.Token}");
+            var guidString = guidFromJwt.ToString();
+            if (guidString == null)
+            {
+                throw new GameException("Failed to extract GUID from JWT token", WebServerErrorCode.InvalidAuthToken);
+            }
+
+            user = await GetOrCreateUserByGuidAsync(guidString, (int)userRole);
+        }
+
+        if (user == null)
+        {
+            throw new GameException("Failed to extract user", WebServerErrorCode.InvalidAuthToken);
+        }
+
+        var userSession = await userSessionProvider.CreateSessionAsync(user.Id, jwtToken);
 
         return userSession;
+    }
+
+    private async Task<User> GetOrCreateUserByEmailAsync(string email, int userType)
+    {
+        var user = await unitOfWork.UserRepository.GetByEmailAsync(email);
+        if (user != null)
+        {
+            return user;
+        }
+
+        return await unitOfWork.UserRepository.CreateAsync(new User(null, email, userType, null, DateTime.Now, DateTime.Now));
+    }
+
+    private async Task<User> GetOrCreateUserByGuidAsync(string guid, int userType)
+    {
+        var user = await unitOfWork.UserRepository.GetByGuidAsync(guid);
+        if (user != null)
+        {
+            return user;
+        }
+
+        return await unitOfWork.UserRepository.CreateAsync(new User(guid, null, userType, null, DateTime.Now, DateTime.Now));
     }
 }
