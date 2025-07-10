@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using RTWWebServer.Enums;
 using RTWWebServer.Providers.Authentication;
 
 namespace RTWTest.Webserver.Authentication;
@@ -33,7 +34,7 @@ public class JwtTokenProviderTests
         long userId = 12345;
 
         // Act
-        string jwt = _jwtTokenProvider.GenerateJwt(userId);
+        string jwt = _jwtTokenProvider.GenerateJwt(userId, UserRole.Normal, "test@example.com");
 
         // Assert - 기본 JWT 구조 검증
         Assert.That(jwt, Is.Not.Null.And.Not.Empty);
@@ -67,8 +68,8 @@ public class JwtTokenProviderTests
         long userId2 = 1002;
 
         // Act
-        string jwt1 = _jwtTokenProvider.GenerateJwt(userId1);
-        string jwt2 = _jwtTokenProvider.GenerateJwt(userId2);
+        string jwt1 = _jwtTokenProvider.GenerateJwt(userId1, UserRole.Normal, "test1@example.com");
+        string jwt2 = _jwtTokenProvider.GenerateJwt(userId2, UserRole.Normal, "test2@example.com");
 
         // Assert - 토큰이 서로 다름
         Assert.That(jwt1, Is.Not.EqualTo(jwt2));
@@ -86,8 +87,9 @@ public class JwtTokenProviderTests
     public void GenerateToken_ShouldCreateUniqueRandomTokens()
     {
         // Act
-        string token1 = _jwtTokenProvider.GenerateToken();
-        string token2 = _jwtTokenProvider.GenerateToken();
+        // 서로 다른 사용자 ID를 사용하여 토큰 생성 (랜덤성 테스트)
+        string token1 = _jwtTokenProvider.GenerateJwt(1001, UserRole.Normal, "test1@example.com");
+        string token2 = _jwtTokenProvider.GenerateJwt(1002, UserRole.Normal, "test2@example.com");
 
         // Assert
         Assert.That(token1, Is.Not.Null.And.Not.Empty);
