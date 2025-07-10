@@ -2,12 +2,9 @@ using System.Collections.Concurrent;
 
 namespace RTWWebServer.Cache;
 
-public class CacheManager(
-    IRequestScopedLocalCache localCache,
-    IRemoteCache remoteCache
-) : ICacheManager
+public class CacheManager(IRequestScopedLocalCache localCache, IDistributedCacheAdapter distributedCache) : ICacheManager
 {
-    private readonly ConcurrentQueue<string> _dirtyKey = new ConcurrentQueue<string>();
+    private readonly ConcurrentQueue<string> _dirtyKeys = new ConcurrentQueue<string>();
 
     public async Task<T?> GetAsync<T>(string key)
     {
@@ -17,7 +14,7 @@ public class CacheManager(
             return localValue;
         }
 
-        T? remoteValue = await remoteCache.GetAsync<T>(key);
+        T? remoteValue = await distributedCache.GetAsync<T>(key);
         if (remoteValue != null)
         {
             localCache.Set(key, remoteValue);
@@ -31,40 +28,38 @@ public class CacheManager(
     {
         localCache.Set(key, value);
 
-        if (value == null)
+        if (value != null)
         {
-            return;
+            _dirtyKeys.Enqueue(key);
         }
-
-        _dirtyKey.Enqueue(key);
     }
 
     public async Task DeleteAsync(string key)
     {
         localCache.Remove(key);
-        await remoteCache.DeleteAsync(key);
+        await distributedCache.RemoveAsync(key);
     }
 
     public async Task CommitAllChangesAsync()
     {
-        while (_dirtyKey.TryDequeue(out string? key))
+        while (_dirtyKeys.TryDequeue(out string? key))
         {
             var value = localCache.Get<object>(key);
-            if (value == null)
+            if (value != null)
             {
-                await remoteCache.DeleteAsync(key);
-            }
-            else
-            {
-                await remoteCache.SetAsync(key, value);
+                await distributedCache.SetAsync(key, value);
             }
         }
-
-        _dirtyKey.Clear();
     }
 
     public void RollbackAllChanges()
     {
-        _dirtyKey.Clear();
+        // 더티 키들을 클리어하고 로컬 캐시의 변경사항을 무시
+        while (_dirtyKeys.TryDequeue(out _))
+        {
+        }
+
+        // 필요시 로컬 캐시도 클리어할 수 있음
+        // _localCache.Clear();
     }
 }
