@@ -4,13 +4,14 @@ using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Enums;
 
 namespace RTWWebServer.Services;
 
 public class LoginService(
-    IUnitOfWork unitOfWork,
+    IAccountUnitOfWork accountUnitOfWork,
     IPasswordHasher passwordHasher,
-    IRemoteCache remoteCache,
+    ICacheManager cacheManager,
     IJwtTokenProvider jwtTokenProvider,
     ILogger<LoginService> logger
 ) : ILoginService
@@ -23,7 +24,7 @@ public class LoginService(
             throw new GameException("Email and password are required", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        Account? account = await unitOfWork.Accounts.FindByEmailAsync(email);
+        Account? account = await accountUnitOfWork.Accounts.FindByEmailAsync(email);
         if (account == null)
         {
             throw new GameException("Invalid email", WebServerErrorCode.InvalidEmail);
@@ -35,7 +36,8 @@ public class LoginService(
             throw new GameException("Invalid password", WebServerErrorCode.InvalidPassword);
         }
 
-        return jwtTokenProvider.GenerateJwt(account.Id);
+        // Account의 role에 따라 JWT 생성 (email 포함)
+        return jwtTokenProvider.GenerateJwt(account.Id, account.Role, account.Email);
     }
 
     public async Task<string> GuestLoginAsync(string guestGuid)
@@ -51,22 +53,13 @@ public class LoginService(
             throw new GameException("Invalid guest GUID format", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        Guest? guest = await unitOfWork.Guests.FindByGuidAsync(parsedGuid.ToByteArray());
+        Guest? guest = await accountUnitOfWork.Guests.FindByGuidAsync(parsedGuid.ToByteArray());
         if (guest == null)
         {
             throw new GameException("Guest not found", WebServerErrorCode.GuestNotFound);
         }
 
-        // Todo: AuthToken 반환, Redis 저장, UserId 반환
-        string authToken = jwtTokenProvider.GenerateToken();
-        var userId = guest.Id;
-
-        bool success = await remoteCache.SetAsync(authToken, userId);
-        if (success == false)
-        {
-            throw new GameException("Failed to store auth token", WebServerErrorCode.RemoteCacheError);
-        }
-
-        return authToken;
+        // Guest는 항상 Guest role로 JWT 생성 (guid 포함)
+        return jwtTokenProvider.GenerateJwt(guest.Id, UserRole.Guest, parsedGuid);
     }
 }

@@ -4,8 +4,8 @@ namespace RTWWebServer.Providers.Authentication;
 
 public interface IUserSessionProvider
 {
-    Task<UserSession> CreateSessionAsync(int userId, string token);
-    Task<UserSession?> GetSessionAsync(int userId);
-    Task<bool> RemoveSessionAsync(int userId);
-    Task<bool> IsValidSessionAsync(int userId, string token);
+    Task<UserSession> CreateSessionAsync(long userId, string token);
+    Task<UserSession?> GetSessionAsync(long userId);
+    Task<bool> RemoveSessionAsync(long userId);
+    Task<bool> IsValidSessionAsync(long userId, string token);
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RTWWebServer.Data.Entities;
+using RTWWebServer.Enums;
 
 namespace RTWWebServer.Data;
 
@@ -18,13 +19,16 @@ public class AccountDbContext(DbContextOptions<AccountDbContext> options) : DbCo
             entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
             entity.Property(e => e.Password).IsRequired().HasMaxLength(64);
             entity.Property(e => e.Salt).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Role)
+                .HasConversion<int>()
+                .HasDefaultValue(UserRole.Normal);
         });
 
         modelBuilder.Entity<Guest>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.ToTable("Guest");
+            entity.HasIndex(e => e.Guid).IsUnique(); // Guid에 유니크 인덱스 추가
         });
 
         // base.OnModelCreating를 마지막에 호출하는 이유:

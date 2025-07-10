@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
 using RTWWebServer.Services;
@@ -10,9 +11,9 @@ namespace RTWWebServer.Controllers;
 public class GameController(IGameEntryService gameEntryService) : ControllerBase
 {
     [HttpPost("enter")]
-    public async Task<GameResponse> EnterGame([FromBody] GameEntryRequest request)
+    public async Task<GameResponse<UserSession>> EnterGame([FromBody] GameEntryRequest request)
     {
-        var sessionKey = await gameEntryService.EnterGameAsync(request.JwtToken);
-        return GameResponse.Ok();
+        var userSession = await gameEntryService.EnterGameAsync(request.JwtToken);
+        return GameResponse<UserSession>.Ok(userSession);
     }
 }
