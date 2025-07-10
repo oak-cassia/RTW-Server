@@ -1,11 +1,13 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace RTWWebServer.Data.Repositories;
 
-public class UnitOfWork(AccountDbContext dbContext, IAccountRepository accountRepository, IGuestRepository guestRepository) : IUnitOfWork
+/// <summary>
+/// 모든 UnitOfWork 구현체의 기본 클래스
+/// </summary>
+public abstract class BaseUnitOfWork(DbContext dbContext) : IUnitOfWork
 {
     private bool _disposed;
-
-    public IAccountRepository Accounts { get; } = accountRepository;
-    public IGuestRepository Guests { get; } = guestRepository;
 
     public async Task<int> CommitAsync()
     {
@@ -33,7 +35,7 @@ public class UnitOfWork(AccountDbContext dbContext, IAccountRepository accountRe
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (!_disposed && disposing)
         {

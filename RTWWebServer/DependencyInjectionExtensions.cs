@@ -39,7 +39,10 @@ public static class DependencyInjectionExtensions
     {
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IGuestRepository, GuestRepository>();
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IAccountUnitOfWork, AccountUnitOfWork>();
+        
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IGameUnitOfWork, GameUnitOfWork>();
 
         return services;
     }
@@ -90,6 +93,17 @@ public static class DependencyInjectionExtensions
                 configuration["DatabaseConfiguration:AccountDatabase"],
                 ServerVersion.AutoDetect(configuration["DatabaseConfiguration:AccountDatabase"])
             ));
+
+        // GameDbContext 추가
+        services.AddDbContext<GameDbContext>(options =>
+                options.UseMySql(
+                        configuration["DatabaseConfiguration:GameDatabase"],
+                        ServerVersion.AutoDetect(configuration["DatabaseConfiguration:GameDatabase"])
+                    )
+                    // 아래 로깅 코드를 추가합니다.
+                    .LogTo(Console.WriteLine, LogLevel.Information)
+                    .EnableSensitiveDataLogging() // 개발 중에만 사용
+        );
 
         return services;
     }
