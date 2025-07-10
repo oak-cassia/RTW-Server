@@ -7,7 +7,7 @@ public class RemoteCacheKeyGenerator : IRemoteCacheKeyGenerator
         return $"auth_{userId}";
     }
 
-    public string GenerateUserSessionKey(int userId)
+    public string GenerateUserSessionKey(long userId)
     {
         return $"session_{userId}";
     }
