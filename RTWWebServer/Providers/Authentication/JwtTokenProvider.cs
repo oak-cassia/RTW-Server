@@ -39,27 +39,38 @@ public class JwtTokenProvider : IJwtTokenProvider
         };
     }
 
-    public string GenerateToken()
-    {
-        using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
-        var token = new byte[32];
-        randomNumberGenerator.GetBytes(token);
-
-        return Convert.ToBase64String(token);
-    }
-
-    public string GenerateJwt(long userId)
-    {
-        return GenerateJwt(userId, UserRole.Normal);
-    }
-
-    public string GenerateJwt(long userId, UserRole role)
+    public string GenerateJwt(long userId, UserRole role, string email)
     {
         Claim[] claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(ROLE_CLAIM_TYPE, role.ToRoleString()),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, email)
+        };
+
+        SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(TOKEN_EXPIRATION_MINUTES),
+            Issuer = _issuer,
+            Audience = _audience,
+            SigningCredentials = new SigningCredentials(_securityKey, SecurityAlgorithms.HmacSha256Signature)
+        };
+
+        JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+        SecurityToken? token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
+    }
+
+    public string GenerateJwt(long userId, UserRole role, Guid guid)
+    {
+        Claim[] claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(ROLE_CLAIM_TYPE, role.ToRoleString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("guid", guid.ToString())
         };
 
         SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
@@ -118,8 +129,42 @@ public class JwtTokenProvider : IJwtTokenProvider
             JwtSecurityToken jwt = tokenHandler.ReadJwtToken(token);
             string? roleClaim = jwt.Claims.FirstOrDefault(c => c.Type == ROLE_CLAIM_TYPE)?.Value;
 
-            return roleClaim != null 
-                ? UserRoleExtensions.FromRoleString(roleClaim) 
+            return roleClaim != null
+                ? UserRoleExtensions.FromRoleString(roleClaim)
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public string? GetEmailFromJwt(string token)
+    {
+        try
+        {
+            JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+
+            JwtSecurityToken jwt = tokenHandler.ReadJwtToken(token);
+            return jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public Guid? GetGuidFromJwt(string token)
+    {
+        try
+        {
+            JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+
+            JwtSecurityToken jwt = tokenHandler.ReadJwtToken(token);
+            string? guidClaim = jwt.Claims.FirstOrDefault(c => c.Type == "guid")?.Value;
+
+            return guidClaim != null && Guid.TryParse(guidClaim, out Guid guid)
+                ? guid
                 : null;
         }
         catch
