@@ -12,7 +12,7 @@ public class UserSessionProvider(
 {
     private static readonly TimeSpan SessionExpiration = TimeSpan.FromDays(1);
 
-    public async Task<UserSession> CreateSessionAsync(int userId, string jwtToken)
+    public async Task<UserSession> CreateSessionAsync(long userId, string jwtToken)
     {
         var authToken = guidGenerator.GenerateGuid().ToString();
         UserSession userSession = new UserSession(userId, authToken);
@@ -24,7 +24,7 @@ public class UserSessionProvider(
         return userSession;
     }
 
-    public async Task<UserSession?> GetSessionAsync(int userId)
+    public async Task<UserSession?> GetSessionAsync(long userId)
     {
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
         UserSession? session = await distributedCache.GetAsync<UserSession>(sessionKey);
@@ -38,7 +38,7 @@ public class UserSessionProvider(
         return session;
     }
 
-    public async Task<bool> RemoveSessionAsync(int userId)
+    public async Task<bool> RemoveSessionAsync(long userId)
     {
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
         await distributedCache.RemoveAsync(sessionKey);
@@ -47,7 +47,7 @@ public class UserSessionProvider(
         return true;
     }
 
-    public async Task<bool> IsValidSessionAsync(int userId, string token)
+    public async Task<bool> IsValidSessionAsync(long userId, string token)
     {
         UserSession? session = await GetSessionAsync(userId);
         if (session == null)
