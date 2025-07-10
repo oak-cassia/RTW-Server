@@ -1,9 +1,12 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Middlewares;
+using RTWWebServer.Exceptions;
+using NetworkDefinition.ErrorCode;
 
 namespace RTWTest.Webserver.Authentication;
 
@@ -52,7 +55,7 @@ public class UserAuthenticationMiddlewareTest
     }
 
     [Test]
-    public async Task ShouldReturnInvalidRequestHttpBody_WhenBodyIsEmpty()
+    public void ShouldReturnInvalidRequestHttpBody_WhenBodyIsEmpty()
     {
         // Arrange
         var middleware = new UserAuthenticationMiddleware(
@@ -61,16 +64,19 @@ public class UserAuthenticationMiddlewareTest
             _mockNext.Object);
         var context = CreateHttpContext("/secure", "");
 
-        // Act
-        await middleware.InvokeAsync(context);
-
-        // Assert
-        Assert.That(context.Response.ContentType, Is.EqualTo("application/json"));
+        // Act & Assert
+        var exception = Assert.ThrowsAsync<GameException>(async () => await middleware.InvokeAsync(context));
+        Assert.Multiple(() => 
+        {
+            Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidRequestHttpBody));
+            Assert.That(exception.Message, Does.Contain("Failed to read request body"));
+        });
         _mockUserSessionProvider.VerifyNoOtherCalls();
+        _mockNext.Verify(next => next(It.IsAny<HttpContext>()), Times.Never);
     }
 
     [Test]
-    public async Task ShouldReturnInvalidAuthToken_WhenAuthTokenIsInvalid()
+    public void ShouldReturnInvalidAuthToken_WhenAuthTokenIsInvalid()
     {
         // Arrange
         var middleware = new UserAuthenticationMiddleware(
@@ -83,12 +89,14 @@ public class UserAuthenticationMiddlewareTest
             .Setup(provider => provider.IsValidSessionAsync(1, "invalid-token"))
             .ReturnsAsync(false);
 
-        // Act
-        await middleware.InvokeAsync(context);
-
-        // Assert
-        Assert.That(context.Response.ContentType, Is.EqualTo("application/json"));
-        _mockNext.Verify(next => next(context), Times.Never);
+        // Act & Assert
+        var exception = Assert.ThrowsAsync<GameException>(async () => await middleware.InvokeAsync(context));
+        Assert.Multiple(() =>
+        {
+            Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidAuthToken));
+            Assert.That(exception.Message, Does.Contain("Invalid or expired auth token"));
+        });
+        _mockNext.Verify(next => next(It.IsAny<HttpContext>()), Times.Never);
     }
 
     [Test]
