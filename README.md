@@ -47,16 +47,16 @@ RTW-Server/
 ## 사용 기술
 
 - **언어**: C# 13
-- **프레임워크**: .NET 9
 - **실시간 통신**: TCP 소켓, Google Protocol Buffers
 - **웹 서버**: ASP.NET Core
-- **인증**: 커스텀 토큰 기반 인증
 - **데이터베이스**: Entity Framework Core
 - **테스트**: NUnit
 
 ## 개발 환경
 
 - **IDE**: JetBrains Rider
+- **LLM**: Gemini 2.5 pro, Claude Sonnet 3.7(or 4)
+- **AI 툴**: Github Copilot Agent
 - **런타임**: .NET 9.0
 - **OS**: macOS
 - **RDB**: MySQL
