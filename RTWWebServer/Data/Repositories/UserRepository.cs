@@ -20,6 +20,11 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
 
+    public async Task<User?> GetByNicknameAsync(string nickname)
+    {
+        return await dbContext.Users.FirstOrDefaultAsync(u => u.Nickname == nickname);
+    }
+
     public async Task<IEnumerable<User>> GetAllAsync()
     {
         return await dbContext.Users.ToListAsync();
@@ -29,7 +34,7 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
     {
         user.CreatedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
-        
+
         dbContext.Users.Add(user);
         var test = dbContext.ChangeTracker.Entries();
         await dbContext.SaveChangesAsync();
@@ -39,7 +44,7 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
     public async Task<User> UpdateAsync(User user)
     {
         user.UpdatedAt = DateTime.UtcNow;
-        
+
         dbContext.Users.Update(user);
         await dbContext.SaveChangesAsync();
         return user;
