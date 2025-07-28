@@ -49,6 +49,10 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
                 entity.HasIndex(e => e.Email)
                     .IsUnique()
                     .HasDatabaseName("uk_email");
+                
+                entity.HasIndex(e => e.Nickname)
+                    .IsUnique()
+                    .HasDatabaseName("uk_nickname");
             });
         
         base.OnModelCreating(modelBuilder);
