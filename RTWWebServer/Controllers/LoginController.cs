@@ -17,9 +17,9 @@ public class LoginController(ILoginService loginService) : ControllerBase
     }
 
     [HttpPost("guestLogin")]
-    public async Task<GameResponse<GuestLoginResponse>> GuestLogin([FromBody] GuestLoginRequest request)
+    public async Task<GameResponse<string>> GuestLogin([FromBody] GuestLoginRequest request)
     {
         string authToken = await loginService.GuestLoginAsync(request.GuestGuid);
-        return GameResponse<GuestLoginResponse>.Ok(new GuestLoginResponse(authToken));
+        return GameResponse<string>.Ok(authToken);
     }
 }
