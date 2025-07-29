@@ -21,6 +21,7 @@ public abstract class BaseUnitOfWork(DbContext dbContext) : IUnitOfWork
 
     public async Task CommitTransactionAsync()
     {
+        await dbContext.SaveChangesAsync();
         await dbContext.Database.CommitTransactionAsync();
     }
 
