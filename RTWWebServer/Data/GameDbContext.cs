@@ -10,51 +10,75 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
-            {
-                entity.ToTable("Users");
-                
-                entity.HasKey(e => e.Id);
-                
-                entity.Property(e => e.Id)
-                    .HasColumnName("id")
-                    .ValueGeneratedOnAdd();
-                
-                entity.Property(e => e.Guid)
-                    .HasColumnName("guid")
-                    .HasMaxLength(64);
-                
-                entity.Property(e => e.Email)
-                    .HasColumnName("email")
-                    .HasMaxLength(256);
-                
-                entity.Property(e => e.UserType)
-                    .HasColumnName("user_type")
-                    .IsRequired();
-                
-                entity.Property(e => e.Nickname)
-                    .HasColumnName("nickname")
-                    .HasMaxLength(16);
-                
-                entity.Property(e => e.CreatedAt)
-                    .HasColumnName("created_at");
-                
-                entity.Property(e => e.UpdatedAt)
-                    .HasColumnName("updated_at");
-                
-                // Unique indexes
-                entity.HasIndex(e => e.Guid)
-                    .IsUnique()
-                    .HasDatabaseName("uk_guid");
-                
-                entity.HasIndex(e => e.Email)
-                    .IsUnique()
-                    .HasDatabaseName("uk_email");
-                
-                entity.HasIndex(e => e.Nickname)
-                    .IsUnique()
-                    .HasDatabaseName("uk_nickname");
-            });
-        
+        {
+            entity.ToTable("Users");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.Guid)
+                .HasColumnName("guid")
+                .HasMaxLength(64);
+
+            entity.Property(e => e.Email)
+                .HasColumnName("email")
+                .HasMaxLength(256);
+
+            entity.Property(e => e.UserType)
+                .HasColumnName("user_type")
+                .IsRequired();
+
+            entity.Property(e => e.Nickname)
+                .HasColumnName("nickname")
+                .HasMaxLength(16);
+
+            entity.Property(e => e.Level)
+                .HasColumnName("level");
+
+            entity.Property(e => e.CurrentExp)
+                .HasColumnName("current_exp");
+
+            entity.Property(e => e.CurrentStamina)
+                .HasColumnName("current_stamina");
+
+            entity.Property(e => e.MaxStamina)
+                .HasColumnName("max_stamina");
+
+            entity.Property(e => e.LastStaminaRecharge)
+                .HasColumnName("last_stamina_recharge");
+
+            entity.Property(e => e.PremiumCurrency)
+                .HasColumnName("premium_currency");
+
+            entity.Property(e => e.FreeCurrency)
+                .HasColumnName("free_currency");
+
+            entity.Property(e => e.MainCharacterId)
+                .HasColumnName("main_character_id");
+            
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at");
+
+            // Unique indexes
+            entity.HasIndex(e => e.Guid)
+                .IsUnique()
+                .HasDatabaseName("uk_guid");
+
+            entity.HasIndex(e => e.Email)
+                .IsUnique()
+                .HasDatabaseName("uk_email");
+
+            entity.HasIndex(e => e.Nickname)
+                .IsUnique()
+                .HasDatabaseName("uk_nickname");
+        });
+
         base.OnModelCreating(modelBuilder);
     }
 }
