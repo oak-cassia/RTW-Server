@@ -11,11 +11,9 @@ public class GuestRepository(AccountDbContext dbContext) : IGuestRepository
             .FirstOrDefaultAsync(g => g.Guid == new Guid(guestGuid));
     }
 
-    public Task<long> CreateGuestAsync(byte[] guestGuid)
+    public Task CreateGuestAsync(Guest guest)
     {
-        Guest guest = new Guest(new Guid(guestGuid));
-
         dbContext.Guests.Add(guest);
-        return Task.FromResult(guest.Id);
+        return Task.CompletedTask;
     }
 }

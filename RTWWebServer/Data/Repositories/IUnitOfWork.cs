@@ -2,7 +2,7 @@ namespace RTWWebServer.Data.Repositories;
 
 public interface IUnitOfWork : IDisposable
 {
-    Task<int> CommitAsync();
+    Task<int> SaveAsync();
 
     Task BeginTransactionAsync();
 
