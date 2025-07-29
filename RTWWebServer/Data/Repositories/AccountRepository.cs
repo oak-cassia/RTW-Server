@@ -16,12 +16,9 @@ public class AccountRepository(AccountDbContext dbContext) : IAccountRepository
             .FirstOrDefaultAsync(a => a.Email == email);
     }
 
-    public async Task<bool> CreateAccountAsync(string username, string email, string password, string salt)
+    public Task CreateAccountAsync(Account account)
     {
-        Account account = new Account(username, email, password, salt);
-
         dbContext.Accounts.Add(account);
-        int rowsAffected = await dbContext.SaveChangesAsync();
-        return rowsAffected > 0;
+        return Task.CompletedTask;
     }
 }

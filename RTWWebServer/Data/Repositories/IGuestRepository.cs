@@ -5,5 +5,5 @@ namespace RTWWebServer.Data.Repositories;
 public interface IGuestRepository
 {
     public Task<Guest?> FindByGuidAsync(byte[] guestGuid);
-    public Task<long> CreateGuestAsync(byte[] guestGuid);
+    public Task CreateGuestAsync(Guest guest);
 }
