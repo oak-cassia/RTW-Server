@@ -9,7 +9,7 @@ public abstract class BaseUnitOfWork(DbContext dbContext) : IUnitOfWork
 {
     private bool _disposed;
 
-    public async Task<int> CommitAsync()
+    public async Task<int> SaveAsync()
     {
         return await dbContext.SaveChangesAsync();
     }
@@ -21,6 +21,7 @@ public abstract class BaseUnitOfWork(DbContext dbContext) : IUnitOfWork
 
     public async Task CommitTransactionAsync()
     {
+        await dbContext.SaveChangesAsync();
         await dbContext.Database.CommitTransactionAsync();
     }
 

@@ -80,7 +80,12 @@ public class GameEntryService(
             return user;
         }
 
-        return await unitOfWork.UserRepository.CreateAsync(new User(null, email, userType, null, DateTime.Now, DateTime.Now));
+        // TODO
+        var now = DateTime.UtcNow;
+        return await unitOfWork.UserRepository.CreateAsync(new User(
+            0, null, email, userType, null,
+            1, 0, 100, 100, now,
+            0, 1000, null, now, now));
     }
 
     private async Task<User> GetOrCreateUserByGuidAsync(string guid, int userType)
@@ -91,6 +96,11 @@ public class GameEntryService(
             return user;
         }
 
-        return await unitOfWork.UserRepository.CreateAsync(new User(guid, null, userType, null, DateTime.Now, DateTime.Now));
+        // TODO
+        var now = DateTime.UtcNow;
+        return await unitOfWork.UserRepository.CreateAsync(new User(
+            0, guid, null, userType, null,
+            1, 0, 100, 100, now,
+            0, 1000, null, now, now));
     }
 }

@@ -20,29 +20,31 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
 
+    public async Task<User?> GetByNicknameAsync(string nickname)
+    {
+        return await dbContext.Users.FirstOrDefaultAsync(u => u.Nickname == nickname);
+    }
+
     public async Task<IEnumerable<User>> GetAllAsync()
     {
         return await dbContext.Users.ToListAsync();
     }
 
-    public async Task<User> CreateAsync(User user)
+    public Task<User> CreateAsync(User user)
     {
         user.CreatedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
-        
+
         dbContext.Users.Add(user);
-        var test = dbContext.ChangeTracker.Entries();
-        await dbContext.SaveChangesAsync();
-        return user;
+        return Task.FromResult(user);
     }
 
-    public async Task<User> UpdateAsync(User user)
+    public Task<User> UpdateAsync(User user)
     {
         user.UpdatedAt = DateTime.UtcNow;
-        
+
         dbContext.Users.Update(user);
-        await dbContext.SaveChangesAsync();
-        return user;
+        return Task.FromResult(user);
     }
 
     public async Task<bool> DeleteAsync(long id)
@@ -52,7 +54,6 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
             return false;
 
         dbContext.Users.Remove(user);
-        await dbContext.SaveChangesAsync();
         return true;
     }
 

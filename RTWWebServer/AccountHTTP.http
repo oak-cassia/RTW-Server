@@ -10,7 +10,7 @@ POST localhost:5000/Login/guestLogin
 Content-Type: application/json
 
 {
-    "GuestGuid": "79c62a79-8092-4355-94c7-cee5a40d889f"
+    "GuestGuid": "ba1a0bce-e810-4d40-b73e-86ab8e2236bc"
 }
 
 ### create Account
@@ -29,4 +29,22 @@ Content-Type: application/json
 {
     "email": "123@123.com",
     "password": "123"
+}
+
+### GameEntry
+POST localhost:5000/Game/enter
+Content-Type: application/json
+
+{
+    "JwtToken" : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6Im5vcm1hbCIsImp0aSI6ImZiNTkyMjMxLTI4YzktNDczMC04NjNkLWRmMzFlMTI1NGZiNyIsImVtYWlsIjoiMTIzQDEyMy5jb20iLCJuYmYiOjE3NTM3MDcxMDUsImV4cCI6MTc1MzcwODkwNSwiaWF0IjoxNzUzNzA3MTA1LCJpc3MiOiJteS1hdXRoLXNlcnZlci5jb20iLCJhdWQiOiJteS1nYW1lLXNlcnZlci5jb20ifQ.c91NRGMCBqFFNLdwpxxHJymMc-51JzlBsHIItnhhi0Y"
+}
+
+### NickName
+POST localhost:5000/User/nickname
+Content-Type: application/json
+
+{
+    "userId": 2,
+    "nickname": "새로운닉네임",
+    "authToken": "d16c921b-cb1e-4359-992f-0e054d598b91"
 }
