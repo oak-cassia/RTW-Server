@@ -12,7 +12,6 @@ public class JwtTokenProviderTests
     [SetUp]
     public void SetUp()
     {
-        // 테스트용 Configuration 설정
         var configurationData = new Dictionary<string, string?>
         {
             ["Jwt:Secret"] = "this-is-a-very-secure-secret-key-for-testing-purposes-that-is-long-enough",
@@ -28,72 +27,47 @@ public class JwtTokenProviderTests
     }
 
     [Test]
-    public void GenerateJwt_ShouldCreateValidTokenWithCorrectStructure()
+    public void GenerateAndParseJwt_ShouldWork()
     {
         // Arrange
         long userId = 12345;
+        string email = "test@example.com";
 
         // Act
-        string jwt = _jwtTokenProvider.GenerateJwt(userId, UserRole.Normal, "test@example.com");
-
-        // Assert - 기본 JWT 구조 검증
-        Assert.That(jwt, Is.Not.Null.And.Not.Empty);
-        Assert.That(jwt, Does.Contain(".")); // JWT는 점(.)으로 구분된 구조를 가짐
-
-        // Assert - JWT 토큰 검증
-        Assert.That(_jwtTokenProvider.ValidateJwt(jwt), Is.True);
-
-        // Assert - 사용자 ID 추출 검증
-        long? extractedUserId = _jwtTokenProvider.GetUserIdFromJwt(jwt);
-        Assert.That(extractedUserId, Is.Not.Null);
-        Assert.That(extractedUserId.Value, Is.EqualTo(userId));
-    }
-
-    [Test]
-    public void InvalidToken_ShouldReturnFalseAndNull()
-    {
-        // Arrange
-        string invalidJwt = "invalid.jwt.token";
-
-        // Act & Assert
-        Assert.That(_jwtTokenProvider.ValidateJwt(invalidJwt), Is.False);
-        Assert.That(_jwtTokenProvider.GetUserIdFromJwt(invalidJwt), Is.Null);
-    }
-
-    [Test]
-    public void MultipleUsers_ShouldGenerateUniqueValidTokens()
-    {
-        // Arrange
-        long userId1 = 1001;
-        long userId2 = 1002;
-
-        // Act
-        string jwt1 = _jwtTokenProvider.GenerateJwt(userId1, UserRole.Normal, "test1@example.com");
-        string jwt2 = _jwtTokenProvider.GenerateJwt(userId2, UserRole.Normal, "test2@example.com");
-
-        // Assert - 토큰이 서로 다름
-        Assert.That(jwt1, Is.Not.EqualTo(jwt2));
-
-        // Assert - 두 토큰 모두 유효함
-        Assert.That(_jwtTokenProvider.ValidateJwt(jwt1), Is.True);
-        Assert.That(_jwtTokenProvider.ValidateJwt(jwt2), Is.True);
-
-        // Assert - 각 토큰에서 올바른 사용자 ID 추출
-        Assert.That(_jwtTokenProvider.GetUserIdFromJwt(jwt1), Is.EqualTo(userId1));
-        Assert.That(_jwtTokenProvider.GetUserIdFromJwt(jwt2), Is.EqualTo(userId2));
-    }
-
-    [Test]
-    public void GenerateToken_ShouldCreateUniqueRandomTokens()
-    {
-        // Act
-        // 서로 다른 사용자 ID를 사용하여 토큰 생성 (랜덤성 테스트)
-        string token1 = _jwtTokenProvider.GenerateJwt(1001, UserRole.Normal, "test1@example.com");
-        string token2 = _jwtTokenProvider.GenerateJwt(1002, UserRole.Normal, "test2@example.com");
+        string jwt = _jwtTokenProvider.GenerateJwt(userId, UserRole.Normal, email);
 
         // Assert
-        Assert.That(token1, Is.Not.Null.And.Not.Empty);
-        Assert.That(token2, Is.Not.Null.And.Not.Empty);
-        Assert.That(token1, Is.Not.EqualTo(token2)); // 매번 다른 토큰이 생성되어야 함
+        Assert.That(jwt, Is.Not.Null.And.Not.Empty);
+        
+        var tokenInfo = _jwtTokenProvider.ParseJwtToken(jwt);
+        Assert.That(tokenInfo?.IsValid, Is.True);
+        Assert.That(tokenInfo?.UserId, Is.EqualTo(userId));
+        Assert.That(tokenInfo?.UserRole, Is.EqualTo(UserRole.Normal));
+        Assert.That(tokenInfo?.Email, Is.EqualTo(email));
+    }
+
+    [Test]
+    public void GenerateJwtWithGuid_ShouldWork()
+    {
+        // Arrange
+        long userId = 12345;
+        var guid = Guid.NewGuid();
+
+        // Act
+        string jwt = _jwtTokenProvider.GenerateJwt(userId, UserRole.Guest, guid);
+
+        // Assert
+        var tokenInfo = _jwtTokenProvider.ParseJwtToken(jwt);
+        Assert.That(tokenInfo?.IsValid, Is.True);
+        Assert.That(tokenInfo?.UserId, Is.EqualTo(userId));
+        Assert.That(tokenInfo?.Guid, Is.EqualTo(guid));
+    }
+
+    [Test]
+    public void InvalidToken_ShouldReturnNull()
+    {
+        // Act & Assert
+        Assert.That(_jwtTokenProvider.ValidateJwt("invalid.jwt.token"), Is.False);
+        Assert.That(_jwtTokenProvider.ParseJwtToken("invalid.jwt.token"), Is.Null);
     }
 }
