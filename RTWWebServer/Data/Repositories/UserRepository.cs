@@ -30,13 +30,13 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return await dbContext.Users.ToListAsync();
     }
 
-    public Task<User> CreateAsync(User user)
+    public Task CreateAsync(User user)
     {
         user.CreatedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
 
         dbContext.Users.Add(user);
-        return Task.FromResult(user);
+        return Task.CompletedTask;
     }
 
     public Task<User> UpdateAsync(User user)

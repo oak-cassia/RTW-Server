@@ -9,7 +9,7 @@ public interface IUserRepository
     Task<User?> GetByEmailAsync(string email);
     Task<User?> GetByNicknameAsync(string nickname);
     Task<IEnumerable<User>> GetAllAsync();
-    Task<User> CreateAsync(User user);
+    Task CreateAsync(User user);
     Task<User> UpdateAsync(User user);
     Task<bool> DeleteAsync(long id);
     Task<bool> ExistsByGuidAsync(string guid);
