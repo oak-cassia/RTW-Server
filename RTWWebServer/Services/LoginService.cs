@@ -42,24 +42,18 @@ public class LoginService(
 
     public async Task<string> GuestLoginAsync(string guestGuid)
     {
-        // 입력 데이터 검증
-        if (string.IsNullOrWhiteSpace(guestGuid))
-        {
-            throw new GameException("Guest GUID is required", WebServerErrorCode.InvalidRequestHttpBody);
-        }
-
         if (!Guid.TryParse(guestGuid, out Guid parsedGuid))
         {
             throw new GameException("Invalid guest GUID format", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        Guest? guest = await accountUnitOfWork.Guests.FindByGuidAsync(parsedGuid.ToByteArray());
-        if (guest == null)
+        Account? guestAccount = await accountUnitOfWork.Accounts.FindByGuidAsync(parsedGuid.ToString());
+        if (guestAccount is not { Role: UserRole.Guest })
         {
             throw new GameException("Guest not found", WebServerErrorCode.GuestNotFound);
         }
 
         // Guest는 항상 Guest role로 JWT 생성 (guid 포함)
-        return jwtTokenProvider.GenerateJwt(guest.Id, UserRole.Guest, parsedGuid);
+        return jwtTokenProvider.GenerateJwt(guestAccount.Id, UserRole.Guest, parsedGuid);
     }
 }
