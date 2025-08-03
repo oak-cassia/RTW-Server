@@ -42,7 +42,6 @@ public static class DependencyInjectionExtensions
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         services.AddScoped<IAccountRepository, AccountRepository>();
-        services.AddScoped<IGuestRepository, GuestRepository>();
         services.AddScoped<IAccountUnitOfWork, AccountUnitOfWork>();
 
         services.AddScoped<IUserRepository, UserRepository>();

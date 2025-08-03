@@ -7,7 +7,7 @@ namespace RTWWebServer.Data;
 public class AccountDbContext(DbContextOptions<AccountDbContext> options) : DbContext(options)
 {
     public DbSet<Account> Accounts { get; set; }
-    public DbSet<Guest> Guests { get; set; }
+    // Guest DbSet 제거 - 이제 Account에 통합됨
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -15,20 +15,22 @@ public class AccountDbContext(DbContextOptions<AccountDbContext> options) : DbCo
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.Property(e => e.UserName).IsRequired().HasMaxLength(64);
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
-            entity.Property(e => e.Password).IsRequired().HasMaxLength(64);
-            entity.Property(e => e.Salt).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Email).HasMaxLength(64);
+            entity.Property(e => e.Password).HasMaxLength(64);
+            entity.Property(e => e.Salt).HasMaxLength(64);
+            entity.Property(e => e.Guid).HasMaxLength(64);
+
             entity.Property(e => e.Role)
                 .HasConversion<int>()
-                .HasDefaultValue(UserRole.Normal);
-        });
+                .HasDefaultValue(UserRole.Normal)
+                .IsRequired();
 
-        modelBuilder.Entity<Guest>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            entity.HasIndex(e => e.Guid).IsUnique(); // Guid에 유니크 인덱스 추가
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+
+            // 인덱스 설정
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Guid).IsUnique();
         });
 
         // base.OnModelCreating를 마지막에 호출하는 이유:
