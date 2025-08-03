@@ -63,11 +63,8 @@ public class GameEntryService(
                     throw new GameException("Failed to extract email from JWT token", WebServerErrorCode.InvalidAuthToken);
                 }
 
-                return await GetOrCreateUserAsync(
-                    () => unitOfWork.UserRepository.GetByEmailAsync(tokenInfo.Email),
-                    tokenInfo.Email,
-                    null,
-                    (int)tokenInfo.UserRole.Value);
+                // Account ID를 통해 User를 조회하도록 변경
+                return await GetOrCreateUserByAccountIdAsync(tokenInfo.AccountId);
             }
 
             case UserRole.Guest:
@@ -77,12 +74,8 @@ public class GameEntryService(
                     throw new GameException("Failed to extract GUID from JWT token", WebServerErrorCode.InvalidAuthToken);
                 }
 
-                var guidString = tokenInfo.Guid.Value.ToString();
-                return await GetOrCreateUserAsync(
-                    () => unitOfWork.UserRepository.GetByGuidAsync(guidString),
-                    null,
-                    guidString,
-                    (int)tokenInfo.UserRole.Value);
+                // Account ID를 통해 Guest User를 조회하도록 변경
+                return await GetOrCreateUserByAccountIdAsync(tokenInfo.AccountId);
             }
 
             default:
@@ -90,22 +83,31 @@ public class GameEntryService(
         }
     }
 
-    private async Task<User> GetOrCreateUserAsync(
-        Func<Task<User?>> getUserFunc,
-        string? email,
-        string? guid,
-        int userType)
+    private async Task<User> GetOrCreateUserByAccountIdAsync(long accountId)
     {
-        var user = await getUserFunc();
+        var user = await unitOfWork.UserRepository.GetByAccountIdAsync(accountId);
         if (user != null)
         {
             return user;
         }
 
-        var now = DateTime.UtcNow;
-        return new User(
-            0, guid, email, userType, null,
-            1, 0, 100, 100, now,
-            0, 1000, null, now, now);
+        string nickname = $"User_{accountId}";
+        var currentTime = DateTime.UtcNow;
+        var newUser = new User(
+            accountId: accountId,
+            nickname: nickname,
+            level: 1,
+            currentExp: 0,
+            currentStamina: 100,
+            maxStamina: 100,
+            lastStaminaRecharge: currentTime,
+            premiumCurrency: 0,
+            freeCurrency: 0,
+            mainCharacterId: 0,
+            createdAt: currentTime,
+            updatedAt: currentTime
+        );
+
+        return await unitOfWork.UserRepository.CreateAsync(newUser);
     }
 }
