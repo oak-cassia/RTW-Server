@@ -10,14 +10,9 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return await dbContext.Users.FindAsync(id);
     }
 
-    public async Task<User?> GetByGuidAsync(string guid)
+    public async Task<User?> GetByAccountIdAsync(long accountId)
     {
-        return await dbContext.Users.FirstOrDefaultAsync(u => u.Guid == guid);
-    }
-
-    public async Task<User?> GetByEmailAsync(string email)
-    {
-        return await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+        return await dbContext.Users.FirstOrDefaultAsync(u => u.AccountId == accountId);
     }
 
     public async Task<User?> GetByNicknameAsync(string nickname)
@@ -30,40 +25,30 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return await dbContext.Users.ToListAsync();
     }
 
-    public Task CreateAsync(User user)
+    public async Task<User> CreateAsync(User user)
     {
-        user.CreatedAt = DateTime.UtcNow;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        dbContext.Users.Add(user);
-        return Task.CompletedTask;
+        await dbContext.Users.AddAsync(user);
+        return user;
     }
 
-    public Task<User> UpdateAsync(User user)
+    public void Update(User user)
     {
-        user.UpdatedAt = DateTime.UtcNow;
-
         dbContext.Users.Update(user);
-        return Task.FromResult(user);
     }
 
-    public async Task<bool> DeleteAsync(long id)
-    {
-        var user = await dbContext.Users.FindAsync(id);
-        if (user == null)
-            return false;
 
+    public void Delete(User user)
+    {
         dbContext.Users.Remove(user);
-        return true;
     }
 
-    public async Task<bool> ExistsByGuidAsync(string guid)
+    public async Task<User?> GetByMainCharacterIdAsync(long characterId)
     {
-        return await dbContext.Users.AnyAsync(u => u.Guid == guid);
+        return await dbContext.Users.FirstOrDefaultAsync(u => u.MainCharacterId == characterId);
     }
 
-    public async Task<bool> ExistsByEmailAsync(string email)
+    public async Task<bool> IsNicknameTakenAsync(string nickname)
     {
-        return await dbContext.Users.AnyAsync(u => u.Email == email);
+        return await dbContext.Users.AnyAsync(u => u.Nickname == nickname);
     }
 }

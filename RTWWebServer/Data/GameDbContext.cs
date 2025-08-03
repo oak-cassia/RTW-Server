@@ -11,74 +11,67 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
     {
         modelBuilder.Entity<User>(entity =>
         {
-            entity.ToTable("Users");
+            // 데이터베이스 제약조건 제거 - 모든 비즈니스 로직은 User 엔티티에서 관리
 
             entity.HasKey(e => e.Id);
-
             entity.Property(e => e.Id)
-                .HasColumnName("id")
                 .ValueGeneratedOnAdd();
 
-            entity.Property(e => e.Guid)
-                .HasColumnName("guid")
-                .HasMaxLength(64);
-
-            entity.Property(e => e.Email)
-                .HasColumnName("email")
-                .HasMaxLength(256);
-
-            entity.Property(e => e.UserType)
-                .HasColumnName("user_type")
+            entity.Property(e => e.AccountId)
                 .IsRequired();
 
             entity.Property(e => e.Nickname)
-                .HasColumnName("nickname")
-                .HasMaxLength(16);
+                .HasMaxLength(16)
+                .IsRequired();
 
             entity.Property(e => e.Level)
-                .HasColumnName("level");
+                .IsRequired();
 
             entity.Property(e => e.CurrentExp)
-                .HasColumnName("current_exp");
+                .IsRequired();
 
             entity.Property(e => e.CurrentStamina)
-                .HasColumnName("current_stamina");
+                .IsRequired();
 
             entity.Property(e => e.MaxStamina)
-                .HasColumnName("max_stamina");
+                .IsRequired();
 
             entity.Property(e => e.LastStaminaRecharge)
-                .HasColumnName("last_stamina_recharge");
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.Property(e => e.PremiumCurrency)
-                .HasColumnName("premium_currency");
+                .IsRequired();
 
             entity.Property(e => e.FreeCurrency)
-                .HasColumnName("free_currency");
+                .IsRequired();
 
             entity.Property(e => e.MainCharacterId)
-                .HasColumnName("main_character_id");
-            
+                .IsRequired();
+
             entity.Property(e => e.CreatedAt)
-                .HasColumnName("created_at");
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.Property(e => e.UpdatedAt)
-                .HasColumnName("updated_at");
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            // Unique indexes
-            entity.HasIndex(e => e.Guid)
+            // 인덱스 설정 - 성능을 위한 설정만 유지
+            entity.HasIndex(e => e.AccountId)
                 .IsUnique()
-                .HasDatabaseName("uk_guid");
-
-            entity.HasIndex(e => e.Email)
-                .IsUnique()
-                .HasDatabaseName("uk_email");
+                .HasDatabaseName("uk_account_id");
 
             entity.HasIndex(e => e.Nickname)
                 .IsUnique()
                 .HasDatabaseName("uk_nickname");
         });
 
+        // AccountDbContext와 일관성을 위해 base.OnModelCreating를 마지막에 호출
+        // 자식 클래스에서 정의한 구성이 우선 적용되도록 하기 위함
         base.OnModelCreating(modelBuilder);
     }
 }

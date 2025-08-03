@@ -5,13 +5,12 @@ namespace RTWWebServer.Data.Repositories;
 public interface IUserRepository
 {
     Task<User?> GetByIdAsync(long id);
-    Task<User?> GetByGuidAsync(string guid);
-    Task<User?> GetByEmailAsync(string email);
+    Task<User?> GetByAccountIdAsync(long accountId);
     Task<User?> GetByNicknameAsync(string nickname);
     Task<IEnumerable<User>> GetAllAsync();
-    Task CreateAsync(User user);
-    Task<User> UpdateAsync(User user);
-    Task<bool> DeleteAsync(long id);
-    Task<bool> ExistsByGuidAsync(string guid);
-    Task<bool> ExistsByEmailAsync(string email);
+    Task<User> CreateAsync(User user);
+    void Update(User user);
+    void Delete(User user);
+    Task<User?> GetByMainCharacterIdAsync(long characterId);
+    Task<bool> IsNicknameTakenAsync(string nickname);
 }
