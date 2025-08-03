@@ -9,8 +9,15 @@ namespace RTWWebServer.Providers.Authentication;
 
 public class JwtTokenProvider : IJwtTokenProvider
 {
-    private const string GUID_CLAIM_TYPE = "guid";
     private const int TOKEN_EXPIRATION_MINUTES = 30;
+
+    // JWT 클레임 타입 상수들 - 표준 ClaimTypes를 상수로 관리
+    private const string ACCOUNT_ID_CLAIM_TYPE = "AccountId";
+    private const string GUID_CLAIM_TYPE = "Guid";
+    private const string EMAIL_CLAIM_TYPE = ClaimTypes.Email;
+    private const string ROLE_CLAIM_TYPE = ClaimTypes.Role;
+    private const string JTI_CLAIM_TYPE = JwtRegisteredClaimNames.Jti;
+    private const string EXP_CLAIM_TYPE = JwtRegisteredClaimNames.Exp;
 
     private const string JWT_SECRET_KEY = "Jwt:Secret";
     private const string JWT_ISSUER_KEY = "Jwt:Issuer";
@@ -40,32 +47,26 @@ public class JwtTokenProvider : IJwtTokenProvider
         };
     }
 
-    public string GenerateJwt(long userId, UserRole role, string email)
+    public string GenerateJwt(long accountId, UserRole role, string email)
     {
         List<Claim> claims =
         [
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-
-            new Claim(JwtRegisteredClaimNames.Email, email),
-
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-
-            new Claim(ClaimTypes.Role, role.ToRoleString())
+            new Claim(ACCOUNT_ID_CLAIM_TYPE, accountId.ToString()),
+            new Claim(EMAIL_CLAIM_TYPE, email),
+            new Claim(JTI_CLAIM_TYPE, Guid.NewGuid().ToString()),
+            new Claim(ROLE_CLAIM_TYPE, role.ToString())
         ];
         return GenerateTokenFromClaims(claims);
     }
 
-    public string GenerateJwt(long userId, UserRole role, Guid guid)
+    public string GenerateJwt(long accountId, UserRole role, Guid guid)
     {
         List<Claim> claims =
         [
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-
-            new Claim(ClaimTypes.Role, role.ToRoleString()),
-
-            new Claim(GUID_CLAIM_TYPE, guid.ToString())
+            new Claim(ACCOUNT_ID_CLAIM_TYPE, accountId.ToString()),
+            new Claim(GUID_CLAIM_TYPE, guid.ToString()),
+            new Claim(JTI_CLAIM_TYPE, Guid.NewGuid().ToString()),
+            new Claim(ROLE_CLAIM_TYPE, role.ToString())
         ];
         return GenerateTokenFromClaims(claims);
     }
@@ -83,39 +84,49 @@ public class JwtTokenProvider : IJwtTokenProvider
             return null; // Validation failed
         }
 
-        JwtTokenInfo tokenInfo = new JwtTokenInfo();
-        
-        string? userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (long.TryParse(userIdClaim, out long userId))
+        var tokenInfo = new JwtTokenInfo
         {
-            tokenInfo.UserId = userId;
-        }
-        
-        string? roleClaim = principal.FindFirst(ClaimTypes.Role)?.Value;
-        if (roleClaim != null)
-        {
-            tokenInfo.UserRole = UserRoleExtensions.FromRoleString(roleClaim);
-        }
-        
-        tokenInfo.Email = principal.FindFirst(ClaimTypes.Email)?.Value;
-        
-        string? guidClaim = principal.FindFirst(GUID_CLAIM_TYPE)?.Value;
-        if (guidClaim != null && Guid.TryParse(guidClaim, out Guid guid))
-        {
-            tokenInfo.Guid = guid;
-        }
-
-        // JTI 파싱
-        tokenInfo.Jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-
-        // Expiration 파싱
-        string? expClaim = principal.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
-        if (long.TryParse(expClaim, out long exp))
-        {
-            tokenInfo.Expiration = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
-        }
+            AccountId = GetClaimAsLong(principal, ACCOUNT_ID_CLAIM_TYPE),
+            UserRole = GetClaimAsEnum(principal, ROLE_CLAIM_TYPE),
+            Email = principal.FindFirst(EMAIL_CLAIM_TYPE)?.Value,
+            Guid = GetClaimAsGuid(principal, GUID_CLAIM_TYPE),
+            ExpiresAt = GetClaimAsDateTime(principal, EXP_CLAIM_TYPE),
+            IsValid = true
+        };
 
         return tokenInfo;
+    }
+
+    private long GetClaimAsLong(ClaimsPrincipal principal, string claimType)
+    {
+        string? claim = principal.FindFirst(claimType)?.Value;
+        return long.TryParse(claim, out long result)
+            ? result
+            : 0;
+    }
+
+    private UserRole GetClaimAsEnum(ClaimsPrincipal principal, string claimType)
+    {
+        string? roleClaim = principal.FindFirst(claimType)?.Value;
+        return Enum.TryParse(roleClaim, true, out UserRole role)
+            ? role
+            : UserRole.Normal;
+    }
+
+    private Guid? GetClaimAsGuid(ClaimsPrincipal principal, string claimType)
+    {
+        string? guidClaim = principal.FindFirst(claimType)?.Value;
+        return Guid.TryParse(guidClaim, out Guid guid)
+            ? guid
+            : null;
+    }
+
+    private DateTime? GetClaimAsDateTime(ClaimsPrincipal principal, string claimType)
+    {
+        string? expClaim = principal.FindFirst(claimType)?.Value;
+        return long.TryParse(expClaim, out long exp)
+            ? DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime
+            : null;
     }
 
     private string GenerateTokenFromClaims(IEnumerable<Claim> claims)
