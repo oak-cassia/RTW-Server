@@ -4,5 +4,5 @@ namespace RTWWebServer.Services;
 
 public interface IGameEntryService
 {
-    Task<UserSession> EnterGameAsync(string jwtToken);
+    Task<UserSession> EnterGameAsync(long accountId);
 }

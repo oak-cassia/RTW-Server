@@ -7,6 +7,7 @@ IConfiguration configuration = builder.Configuration;
 
 builder.Services.AddRedisCache(configuration);
 builder.Services.AddWebApiServices();
+builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddCustomServices();
 builder.Services.AddRepositories();
 builder.Services.AddConfigurations(configuration);
@@ -22,9 +23,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler(opt => { });
-app.UseMiddleware<UserAuthenticationMiddleware>();
-app.UseMiddleware<RequestLockingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<UserAuthenticationMiddleware>();
+app.UseMiddleware<RequestLockingMiddleware>();
 app.MapControllers();
 app.Run();

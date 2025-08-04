@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using RTWWebServer.DTOs;
-using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
 using RTWWebServer.Services;
+using RTWWebServer.Extensions;
 
 namespace RTWWebServer.Controllers;
 
@@ -11,9 +12,13 @@ namespace RTWWebServer.Controllers;
 public class GameController(IGameEntryService gameEntryService) : ControllerBase
 {
     [HttpPost("enter")]
-    public async Task<GameResponse<UserSession>> EnterGame([FromBody] GameEntryRequest request)
+    [Authorize]
+    public async Task<GameResponse<UserSession>> EnterGame()
     {
-        var userSession = await gameEntryService.EnterGameAsync(request.JwtToken);
+        // 컨트롤러에서 인증된 사용자 정보를 추출
+        long accountId = User.GetAccountId();
+
+        var userSession = await gameEntryService.EnterGameAsync(accountId);
         return GameResponse<UserSession>.Ok(userSession);
     }
 }
