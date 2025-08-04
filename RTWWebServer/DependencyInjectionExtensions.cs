@@ -7,6 +7,9 @@ using RTWWebServer.Services;
 using RTWWebServer.Configuration;
 using RTWWebServer.Exceptions;
 using StackExchange.Redis;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace RTWWebServer;
 
@@ -39,9 +42,8 @@ public static class DependencyInjectionExtensions
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         services.AddScoped<IAccountRepository, AccountRepository>();
-        services.AddScoped<IGuestRepository, GuestRepository>();
         services.AddScoped<IAccountUnitOfWork, AccountUnitOfWork>();
-        
+
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IGameUnitOfWork, GameUnitOfWork>();
 
@@ -62,14 +64,11 @@ public static class DependencyInjectionExtensions
         {
             throw new InvalidOperationException("Redis configuration is not found.");
         }
-        
+
         var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
         services.AddSingleton<IConnectionMultiplexer>(multiplexer);
 
-        services.AddStackExchangeRedisCache(options =>
-        {
-            options.ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(multiplexer);
-        });
+        services.AddStackExchangeRedisCache(options => { options.ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(multiplexer); });
 
         return services;
     }
@@ -81,6 +80,45 @@ public static class DependencyInjectionExtensions
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
         services.AddExceptionHandler<GlobalGameExceptionHandler>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        var jwtSettings = configuration.GetSection("Jwt");
+        var secretKey = jwtSettings["Secret"];
+
+        if (string.IsNullOrEmpty(secretKey))
+        {
+            throw new InvalidOperationException("JWT Secret is not configured.");
+        }
+
+        var key = Encoding.ASCII.GetBytes(secretKey);
+
+        services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.RequireHttpsMetadata = false; // 개발 환경에서는 false
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidateAudience = true,
+                    ValidAudience = jwtSettings["Audience"],
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
+
+        services.AddAuthorization();
 
         return services;
     }

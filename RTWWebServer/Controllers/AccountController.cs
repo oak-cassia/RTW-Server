@@ -19,7 +19,7 @@ public class AccountController(IAccountService accountService) : ControllerBase
     [HttpPost("createAccount")]
     public async Task<GameResponse> CreateAccount([FromBody] RegisterRequest request)
     {
-        await accountService.CreateAccountAsync("", request.Email, request.Password);
+        await accountService.CreateAccountAsync(request.Email, request.Password);
         return GameResponse.Ok();
     }
 }

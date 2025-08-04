@@ -12,7 +12,7 @@ public class UserSessionProvider(
 {
     private static readonly TimeSpan SessionExpiration = TimeSpan.FromDays(1);
 
-    public async Task<UserSession> CreateSessionAsync(long userId, string jwtToken)
+    public async Task<UserSession> CreateSessionAsync(long userId)
     {
         var authToken = guidGenerator.GenerateGuid().ToString();
         UserSession userSession = new UserSession(userId, authToken);

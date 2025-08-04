@@ -10,11 +10,17 @@ public class UserAuthenticationMiddleware(
     ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
+    // JWT 인증을 사용하는 경로들 (ASP.NET Core의 [Authorize] 어트리뷰트로 처리)
+    private static readonly HashSet<string> JWT_AUTHENTICATED_PATHS =
+    [
+        "/Game/enter"
+    ];
+
+    // 인증이 필요 없는 경로들
     private static readonly HashSet<string> EXCLUDED_PATHS =
     [
         "/Login",
-        "/Account",
-        "/Game/enter" // 게임 입장 API는 JWT 토큰으로 별도 인증
+        "/Account"
     ];
 
     public async Task InvokeAsync(HttpContext context)
@@ -22,12 +28,15 @@ public class UserAuthenticationMiddleware(
         context.Request.EnableBuffering();
 
         string path = context.Request.Path.Value ?? string.Empty;
-        if (IsExcludedPath(path))
+        
+        // 인증이 필요 없는 경로나 JWT로 인증되는 경로는 건너뛰기
+        if (IsExcludedPath(path) || IsJwtAuthenticatedPath(path))
         {
             await next(context);
             return;
         }
 
+        // UserSession 기반 인증이 필요한 경로들 처리
         string requestBody = await ReadRequestBodyAsync(context);
         if (string.IsNullOrEmpty(requestBody))
         {
@@ -35,7 +44,7 @@ public class UserAuthenticationMiddleware(
         }
 
         (int userId, string authToken) = ExtractUserIdAndAuthToken(requestBody);
-        if (userId == default || string.IsNullOrEmpty(authToken))
+        if (userId == 0 || string.IsNullOrEmpty(authToken))
         {
             throw new GameException("Failed to extract user id and auth token from request body", WebServerErrorCode.InvalidRequestHttpBody);
         }
@@ -55,6 +64,11 @@ public class UserAuthenticationMiddleware(
     private bool IsExcludedPath(string path)
     {
         return EXCLUDED_PATHS.Any(path.StartsWith);
+    }
+
+    private bool IsJwtAuthenticatedPath(string path)
+    {
+        return JWT_AUTHENTICATED_PATHS.Any(path.StartsWith);
     }
 
     private async Task<string> ReadRequestBodyAsync(HttpContext context)
@@ -83,7 +97,7 @@ public class UserAuthenticationMiddleware(
             if (!bodyDocument.RootElement.TryGetProperty("authToken", out JsonElement authTokenElement) ||
                 !bodyDocument.RootElement.TryGetProperty("userId", out JsonElement userIdElement))
             {
-                return (default, string.Empty);
+                return (0, string.Empty);
             }
 
             int userId = userIdElement.GetInt32();
