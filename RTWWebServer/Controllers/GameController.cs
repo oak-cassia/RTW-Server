@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Response;
 using RTWWebServer.Services;
-using NetworkDefinition.ErrorCode;
+using RTWWebServer.Extensions;
 
 namespace RTWWebServer.Controllers;
 
@@ -15,15 +15,10 @@ public class GameController(IGameEntryService gameEntryService) : ControllerBase
     [Authorize]
     public async Task<GameResponse<UserSession>> EnterGame()
     {
-        var jwtToken = HttpContext.Request.Headers["Authorization"]
-            .FirstOrDefault()?.Split(" ").Last();
-            
-        if (string.IsNullOrEmpty(jwtToken))
-        {
-            return GameResponse<UserSession>.Fail(WebServerErrorCode.InvalidAuthToken);
-        }
+        // 컨트롤러에서 인증된 사용자 정보를 추출
+        long accountId = User.GetAccountId();
 
-        var userSession = await gameEntryService.EnterGameAsync(jwtToken);
+        var userSession = await gameEntryService.EnterGameAsync(accountId);
         return GameResponse<UserSession>.Ok(userSession);
     }
 }
