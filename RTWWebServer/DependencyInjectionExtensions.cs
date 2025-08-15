@@ -146,4 +146,19 @@ public static class DependencyInjectionExtensions
 
         return services;
     }
+
+    // Master Data 시스템을 위한 확장 메서드
+    public static IServiceCollection AddMasterDataSystem(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Master data options 설정
+        services.AddOptions<MasterDataOptions>()
+            .Bind(configuration)
+            .ValidateOnStart();
+
+        // Services 등록
+        services.AddSingleton<MasterDataOptionsValidator>();
+        services.AddSingleton<IMasterDataService, MasterDataService>();
+
+        return services;
+    }
 }
