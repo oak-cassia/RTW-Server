@@ -1,0 +1,40 @@
+{
+  "Characters": [
+    {
+      "Id": 1001,
+      "Name": "유우",
+      "Portfolio": 15,
+      "Development": 25,
+      "JobSearching": 30
+    },
+    {
+      "Id": 1002,
+      "Name": "하나",
+      "Portfolio": 25,
+      "Development": 30,
+      "JobSearching": 15
+    },
+    {
+      "Id": 1003,
+      "Name": "리오",
+      "Portfolio": 35,
+      "Development": 40,
+      "JobSearching": 5
+    },
+    {
+      "Id": 1004,
+      "Name": "와모",
+      "Portfolio": 40,
+      "Development": 35,
+      "JobSearching": 10
+    },
+    {
+      "Id": 1005,
+      "Name": "겨울",
+      "Portfolio": 30,
+      "Development": 20,
+      "JobSearching": 40
+    }
+  ]
+}
+
