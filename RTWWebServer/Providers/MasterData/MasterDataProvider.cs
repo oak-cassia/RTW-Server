@@ -22,8 +22,8 @@ public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
     public bool TryGetCharacter(int id, out CharacterMaster character)
         => _characters.TryGetValue(id, out character!);
 
-    public IReadOnlyCollection<CharacterMaster> GetAllCharacters()
-        => _characters.Values.ToList();
+    public ImmutableDictionary<int, CharacterMaster> GetAllCharacters()
+        => _characters;
 
     public void Dispose()
         => _reloader?.Dispose();
