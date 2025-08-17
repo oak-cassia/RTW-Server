@@ -1,6 +1,6 @@
-namespace RTWWebServer.DTOs.Response;
+namespace RTWWebServer.DTOs;
 
-public class CharacterGachaResponse
+public class CharacterGachaResult
 {
     public List<int> CharacterMasterIds { get; set; } = new();
     public long RemainingPremiumCurrency { get; set; }
