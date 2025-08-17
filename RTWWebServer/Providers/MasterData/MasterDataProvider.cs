@@ -1,17 +1,17 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.Options;
 using RTWWebServer.Configuration;
-using RTWWebServer.Data.Entities;
+using RTWWebServer.MasterData.Models;
 
-namespace RTWWebServer.Services;
+namespace RTWWebServer.Providers.MasterData;
 
-public sealed class MasterDataService : IMasterDataService, IDisposable
+public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
 {
     private ImmutableDictionary<int, CharacterMaster> _characters = ImmutableDictionary<int, CharacterMaster>.Empty;
     private readonly IDisposable? _reloader;
-    private readonly ILogger<MasterDataService> _logger;
+    private readonly ILogger<MasterDataProvider> _logger;
 
-    public MasterDataService(IOptionsMonitor<MasterDataOptions> monitor, ILogger<MasterDataService> logger)
+    public MasterDataProvider(IOptionsMonitor<MasterDataOptions> monitor, ILogger<MasterDataProvider> logger)
     {
         _logger = logger;
 
