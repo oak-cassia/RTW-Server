@@ -1,4 +1,4 @@
-using RTWWebServer.MasterData.Models;
+using RTWWebServer.MasterDatas.Models;
 
 namespace RTWWebServer.Providers.MasterData;
 

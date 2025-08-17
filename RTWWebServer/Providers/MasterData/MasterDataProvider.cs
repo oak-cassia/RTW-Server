@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.Options;
 using RTWWebServer.Configuration;
-using RTWWebServer.MasterData.Models;
+using RTWWebServer.MasterDatas.Models;
 
 namespace RTWWebServer.Providers.MasterData;
 
