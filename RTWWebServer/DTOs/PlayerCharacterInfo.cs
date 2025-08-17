@@ -1,4 +1,4 @@
-namespace RTWWebServer.DTOs.Response;
+namespace RTWWebServer.DTOs;
 
 public class PlayerCharacterInfo
 {
