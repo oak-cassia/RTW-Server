@@ -42,4 +42,15 @@ public static class ClaimsPrincipalExtensions
 
         return null;
     }
+
+    public static long GetUserId(this ClaimsPrincipal principal)
+    {
+        var userIdClaim = principal.FindFirst("UserId");
+        if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
+        {
+            throw new InvalidOperationException("UserId claim not found or invalid.");
+        }
+
+        return userId;
+    }
 }
