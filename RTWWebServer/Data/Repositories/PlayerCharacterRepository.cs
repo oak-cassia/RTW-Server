@@ -11,7 +11,7 @@ public class PlayerCharacterRepository(GameDbContext context) : IPlayerCharacter
             .FirstOrDefaultAsync(pc => pc.UserId == userId && pc.CharacterMasterId == characterMasterId);
     }
 
-    public async Task<List<PlayerCharacter>> GetByUserIdAsync(long userId)
+    public async Task<IEnumerable<PlayerCharacter>> GetByUserIdAsync(long userId)
     {
         return await context.PlayerCharacters
             .Where(pc => pc.UserId == userId)
