@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using RTWWebServer.Configuration;
-using RTWWebServer.MasterData.Models;
+using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.MasterData;
 
 namespace RTWTest.Webserver.MasterData;

@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using RTWWebServer.Data.Entities;
+using RTWWebServer.MasterDatas.Models;
 
 namespace RTWTest.Webserver.MasterData;
 
