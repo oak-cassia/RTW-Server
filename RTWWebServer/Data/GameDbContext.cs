@@ -6,6 +6,7 @@ namespace RTWWebServer.Data;
 public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users { get; set; }
+    public DbSet<PlayerCharacter> PlayerCharacters { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +69,43 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
             entity.HasIndex(e => e.Nickname)
                 .IsUnique()
                 .HasDatabaseName("uk_nickname");
+        });
+
+        modelBuilder.Entity<PlayerCharacter>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.UserId)
+                .IsRequired();
+
+            entity.Property(e => e.CharacterMasterId)
+                .IsRequired();
+
+            entity.Property(e => e.Level)
+                .IsRequired();
+
+            entity.Property(e => e.CurrentExp)
+                .IsRequired();
+
+            entity.Property(e => e.ObtainedAt)
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.UpdatedAt)
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Foreign key relationships - navigation property 없이 직접 설정
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("ix_user_id");
+
+            entity.HasIndex(e => new { e.UserId, e.CharacterMasterId })
+                .IsUnique()
+                .HasDatabaseName("uk_user_character");
         });
 
         // AccountDbContext와 일관성을 위해 base.OnModelCreating를 마지막에 호출

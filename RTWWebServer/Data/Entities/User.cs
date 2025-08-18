@@ -16,7 +16,7 @@ public class User(
     DateTime createdAt,
     DateTime updatedAt)
 {
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     public long AccountId { get; set; } = accountId;
 

@@ -4,7 +4,8 @@ using RTWWebServer.Middlewares;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add JSON file for master data before getting configuration
-builder.Configuration.AddJsonFile("MasterData/CharacterMaster.json", optional: false, reloadOnChange: true);
+var masterDataPath = Path.Combine(builder.Environment.ContentRootPath, "MasterDatas", "CharacterMaster.json");
+builder.Configuration.AddJsonFile(masterDataPath, optional: false, reloadOnChange: true);
 
 IConfiguration configuration = builder.Configuration;
 
