@@ -10,6 +10,7 @@ using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using RTWWebServer.Providers.MasterData;
 
 namespace RTWWebServer;
 
@@ -35,6 +36,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IUserSessionProvider, UserSessionProvider>();
         services.AddScoped<IGameEntryService, GameEntryService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ICharacterGachaService, CharacterGachaService>();
 
         return services;
     }
@@ -45,6 +47,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IAccountUnitOfWork, AccountUnitOfWork>();
 
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
         services.AddScoped<IGameUnitOfWork, GameUnitOfWork>();
 
         return services;
@@ -157,7 +160,7 @@ public static class DependencyInjectionExtensions
 
         // Services 등록
         services.AddSingleton<MasterDataOptionsValidator>();
-        services.AddSingleton<IMasterDataService, MasterDataService>();
+        services.AddSingleton<IMasterDataProvider, MasterDataProvider>();
 
         return services;
     }

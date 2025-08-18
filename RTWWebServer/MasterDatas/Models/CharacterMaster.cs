@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace RTWWebServer.Data.Entities;
+namespace RTWWebServer.MasterDatas.Models;
 
 public sealed class CharacterMaster
 {

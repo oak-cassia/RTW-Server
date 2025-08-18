@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
-using RTWWebServer.Data.Entities;
 using System.ComponentModel.DataAnnotations;
+using RTWWebServer.MasterDatas.Models;
 
 namespace RTWWebServer.Configuration;
 

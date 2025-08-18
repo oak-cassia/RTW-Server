@@ -2,21 +2,21 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using RTWWebServer.Configuration;
-using RTWWebServer.Data.Entities;
-using RTWWebServer.Services;
+using RTWWebServer.MasterDatas.Models;
+using RTWWebServer.Providers.MasterData;
 
 namespace RTWTest.Webserver.MasterData;
 
 [TestFixture]
-public class MasterDataServiceTests
+public class MasterDataProviderTests
 {
-    private Mock<ILogger<MasterDataService>> _mockLogger = null!;
+    private Mock<ILogger<MasterDataProvider>> _mockLogger = null!;
     private MasterDataOptions _testOptions = null!;
 
     [SetUp]
     public void Setup()
     {
-        _mockLogger = new Mock<ILogger<MasterDataService>>();
+        _mockLogger = new Mock<ILogger<MasterDataProvider>>();
 
         _testOptions = new MasterDataOptions
         {
@@ -46,7 +46,7 @@ public class MasterDataServiceTests
     public void TryGetCharacter_ReturnsCorrectResults()
     {
         var mockOptionsMonitor = CreateMockOptionsMonitor(_testOptions);
-        using var service = new MasterDataService(mockOptionsMonitor.Object, _mockLogger.Object);
+        using var service = new MasterDataProvider(mockOptionsMonitor.Object, _mockLogger.Object);
 
         Assert.That(service.TryGetCharacter(1, out var char1), Is.True);
         Assert.That(char1?.Name, Is.EqualTo("Character1"));
@@ -61,7 +61,7 @@ public class MasterDataServiceTests
     public void GetAllCharacters_ReturnsAllCharacters()
     {
         var mockOptionsMonitor = CreateMockOptionsMonitor(_testOptions);
-        using var service = new MasterDataService(mockOptionsMonitor.Object, _mockLogger.Object);
+        using var service = new MasterDataProvider(mockOptionsMonitor.Object, _mockLogger.Object);
 
         var characters = service.GetAllCharacters();
 
@@ -74,7 +74,7 @@ public class MasterDataServiceTests
     {
         var emptyOptions = new MasterDataOptions { Characters = [] };
         var mockOptionsMonitor = CreateMockOptionsMonitor(emptyOptions);
-        using var emptyService = new MasterDataService(mockOptionsMonitor.Object, _mockLogger.Object);
+        using var emptyService = new MasterDataProvider(mockOptionsMonitor.Object, _mockLogger.Object);
 
         var characters = emptyService.GetAllCharacters();
         Assert.That(characters, Is.Empty);
