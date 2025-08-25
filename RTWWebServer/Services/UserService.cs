@@ -1,20 +1,23 @@
+using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 
 namespace RTWWebServer.Services;
 
-public class UserService(IGameUnitOfWork unitOfWork)
+public class UserService(
+    GameDbContext dbContext,
+    IUserRepository userRepository)
     : IUserService
 {
     public async Task<User> UpdateNicknameAsync(long userId, string nickname)
     {
-        var user = await unitOfWork.UserRepository.GetByIdAsync(userId);
+        var user = await userRepository.GetByIdAsync(userId);
         if (user == null)
         {
             throw new KeyNotFoundException($"invalid user id {userId}");
         }
 
-        var existingUser = await unitOfWork.UserRepository.GetByNicknameAsync(nickname);
+        var existingUser = await userRepository.GetByNicknameAsync(nickname);
         if (existingUser != null)
         {
             throw new KeyNotFoundException($"invalid nickname {nickname}");
@@ -23,8 +26,8 @@ public class UserService(IGameUnitOfWork unitOfWork)
         user.Nickname = nickname;
         user.UpdatedAt = DateTime.UtcNow;
 
-        unitOfWork.UserRepository.Update(user);
-        await unitOfWork.SaveAsync();
+        userRepository.Update(user);
+        await dbContext.SaveChangesAsync();
         return user;
     }
 }
