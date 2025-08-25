@@ -44,11 +44,8 @@ public static class DependencyInjectionExtensions
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         services.AddScoped<IAccountRepository, AccountRepository>();
-        services.AddScoped<IAccountUnitOfWork, AccountUnitOfWork>();
-
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
-        services.AddScoped<IGameUnitOfWork, GameUnitOfWork>();
 
         return services;
     }
