@@ -1,4 +1,5 @@
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.DTOs;
@@ -8,7 +9,8 @@ using RTWWebServer.Providers.Authentication;
 namespace RTWWebServer.Services;
 
 public class GameEntryService(
-    IGameUnitOfWork unitOfWork,
+    GameDbContext dbContext,
+    IUserRepository userRepository,
     IUserSessionProvider userSessionProvider,
     ILogger<GameEntryService> logger
 ) : IGameEntryService
@@ -25,8 +27,8 @@ public class GameEntryService(
         // 새로 생성된 사용자인지 ID로 확인 (ID가 0이면 새로 생성된 사용자)
         if (user.Id == 0)
         {
-            await unitOfWork.UserRepository.CreateAsync(user);
-            await unitOfWork.SaveAsync();
+            await userRepository.CreateAsync(user);
+            await dbContext.SaveChangesAsync();
             // DB 쿼리 후 ID가 설정되었는지 확인
             if (user.Id <= 0)
             {
@@ -42,7 +44,7 @@ public class GameEntryService(
 
     private async Task<User> GetOrCreateUserByAccountIdAsync(long accountId)
     {
-        var user = await unitOfWork.UserRepository.GetByAccountIdAsync(accountId);
+        var user = await userRepository.GetByAccountIdAsync(accountId);
         if (user != null)
         {
             return user;
@@ -65,6 +67,6 @@ public class GameEntryService(
             updatedAt: currentTime
         );
 
-        return await unitOfWork.UserRepository.CreateAsync(newUser);
+        return await userRepository.CreateAsync(newUser);
     }
 }

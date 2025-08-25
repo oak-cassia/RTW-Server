@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.DTOs;
@@ -8,20 +9,24 @@ using RTWWebServer.Providers.MasterData;
 
 namespace RTWWebServer.Services;
 
-public class CharacterGachaService(IGameUnitOfWork gameUnitOfWork, IMasterDataProvider masterDataProvider) : ICharacterGachaService
+public class CharacterGachaService(
+    GameDbContext dbContext, 
+    IUserRepository userRepository,
+    IPlayerCharacterRepository playerCharacterRepository,
+    IMasterDataProvider masterDataProvider) : ICharacterGachaService
 {
     const int COST_PER_GACHA = 300;
 
     public async Task<CharacterGachaResult> PerformGachaAsync(long userId, int gachaType, int count)
     {
-        var user = await gameUnitOfWork.UserRepository.GetByIdAsync(userId);
+        var user = await userRepository.GetByIdAsync(userId);
         if (user == null)
         {
             throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
         }
 
         // 사용자가 이미 보유한 캐릭터 ID 목록 조회
-        var ownedCharacterIds = (await gameUnitOfWork.PlayerCharacterRepository.GetByUserIdAsync(userId))
+        var ownedCharacterIds = (await playerCharacterRepository.GetByUserIdAsync(userId))
             .Select(pc => pc.CharacterMasterId)
             .ToHashSet();
 
@@ -38,7 +43,7 @@ public class CharacterGachaService(IGameUnitOfWork gameUnitOfWork, IMasterDataPr
         foreach (var characterId in characterMasterIds)
         {
             // 새 캐릭터 - 보유 목록에 추가
-            await gameUnitOfWork.PlayerCharacterRepository.AddAsync(new PlayerCharacter(
+            await playerCharacterRepository.AddAsync(new PlayerCharacter(
                 userId: userId,
                 characterMasterId: characterId,
                 level: 1,
@@ -55,9 +60,9 @@ public class CharacterGachaService(IGameUnitOfWork gameUnitOfWork, IMasterDataPr
         }
 
         user.PremiumCurrency -= actualCost;
-        gameUnitOfWork.UserRepository.Update(user);
+        userRepository.Update(user);
 
-        await gameUnitOfWork.SaveAsync();
+        await dbContext.SaveChangesAsync();
 
         return new CharacterGachaResult
         {
@@ -69,7 +74,7 @@ public class CharacterGachaService(IGameUnitOfWork gameUnitOfWork, IMasterDataPr
 
     public async Task<PlayerCharacterInfo[]> GetPlayerCharactersAsync(long userId)
     {
-        var playerCharacters = await gameUnitOfWork.PlayerCharacterRepository.GetByUserIdAsync(userId);
+        var playerCharacters = await playerCharacterRepository.GetByUserIdAsync(userId);
 
         return playerCharacters.Select(pc => new PlayerCharacterInfo
         {

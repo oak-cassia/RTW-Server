@@ -1,4 +1,5 @@
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.Enums;
@@ -8,7 +9,8 @@ using RTWWebServer.Providers.Authentication;
 namespace RTWWebServer.Services;
 
 public class AccountService(
-    IAccountUnitOfWork accountUnitOfWork,
+    AccountDbContext dbContext,
+    IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
     IGuidGenerator guidGenerator
 ) : IAccountService
@@ -42,9 +44,9 @@ public class AccountService(
 
     private async Task SaveAccountAndValidateAsync(Account account)
     {
-        await accountUnitOfWork.Accounts.AddAsync(account);
+        await accountRepository.AddAsync(account);
 
-        await accountUnitOfWork.SaveAsync();
+        await dbContext.SaveChangesAsync();
 
         if (account.Id <= 0)
         {
