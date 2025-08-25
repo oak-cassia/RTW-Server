@@ -9,7 +9,7 @@ using RTWWebServer.Enums;
 namespace RTWWebServer.Services;
 
 public class LoginService(
-    IAccountUnitOfWork accountUnitOfWork,
+    IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
     ICacheManager cacheManager,
     IJwtTokenProvider jwtTokenProvider,
@@ -24,7 +24,7 @@ public class LoginService(
             throw new GameException("Email and password are required", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        Account? account = await accountUnitOfWork.Accounts.FindByEmailAsync(email);
+        Account? account = await accountRepository.FindByEmailAsync(email);
         if (account == null)
         {
             throw new GameException("Invalid email", WebServerErrorCode.InvalidEmail);
@@ -47,7 +47,7 @@ public class LoginService(
             throw new GameException("Invalid guest GUID format", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        Account? guestAccount = await accountUnitOfWork.Accounts.FindByGuidAsync(parsedGuid.ToString());
+        Account? guestAccount = await accountRepository.FindByGuidAsync(parsedGuid.ToString());
         if (guestAccount is not { Role: UserRole.Guest })
         {
             throw new GameException("Guest not found", WebServerErrorCode.GuestNotFound);
