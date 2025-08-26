@@ -10,7 +10,7 @@ using RTWWebServer.Providers.MasterData;
 namespace RTWWebServer.Services;
 
 public class CharacterGachaService(
-    GameDbContext dbContext, 
+    GameDbContext dbContext,
     IUserRepository userRepository,
     IPlayerCharacterRepository playerCharacterRepository,
     IMasterDataProvider masterDataProvider) : ICharacterGachaService
@@ -19,30 +19,34 @@ public class CharacterGachaService(
 
     public async Task<CharacterGachaResult> PerformGachaAsync(long userId, int gachaType, int count)
     {
-        var user = await userRepository.GetByIdAsync(userId);
-        if (user == null)
+        if (count <= 0)
         {
-            throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
+            throw new GameException("Invalid gacha count", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        // 사용자가 이미 보유한 캐릭터 ID 목록 조회
+        var user = await userRepository.GetByIdAsync(userId) ??
+                   throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
+
         var ownedCharacterIds = (await playerCharacterRepository.GetByUserIdAsync(userId))
             .Select(pc => pc.CharacterMasterId)
             .ToHashSet();
 
         var allCharacters = masterDataProvider.GetAllCharacters();
-
-        // 보유 유닛 < 전체 유닛 검증
         if (ownedCharacterIds.Count >= allCharacters.Count)
         {
             throw new GameException("No new characters available to obtain", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        var characterMasterIds = PickDistinct(allCharacters.Keys, ownedCharacterIds, count);
+        var selectedCharacterIds = PickRandomIdsWithoutReplacement(allCharacters.Keys, ownedCharacterIds, count);
 
-        foreach (var characterId in characterMasterIds)
+        var actualCost = selectedCharacterIds.Count * COST_PER_GACHA;
+        if (user.PremiumCurrency < actualCost)
         {
-            // 새 캐릭터 - 보유 목록에 추가
+            throw new GameException("Insufficient premium currency", WebServerErrorCode.InsufficientCurrency);
+        }
+
+        foreach (var characterId in selectedCharacterIds)
+        {
             await playerCharacterRepository.AddAsync(new PlayerCharacter(
                 userId: userId,
                 characterMasterId: characterId,
@@ -52,21 +56,13 @@ public class CharacterGachaService(
             ));
         }
 
-        // 실제 사용한 비용만큼 화폐 차감
-        var actualCost = characterMasterIds.Count * COST_PER_GACHA;
-        if (user.PremiumCurrency < actualCost)
-        {
-            throw new GameException("Insufficient premium currency", WebServerErrorCode.InsufficientCurrency);
-        }
-
         user.PremiumCurrency -= actualCost;
         userRepository.Update(user);
-
         await dbContext.SaveChangesAsync();
 
         return new CharacterGachaResult
         {
-            CharacterMasterIds = characterMasterIds,
+            CharacterMasterIds = selectedCharacterIds,
             RemainingPremiumCurrency = user.PremiumCurrency,
             RemainingFreeCurrency = user.FreeCurrency
         };
@@ -87,17 +83,40 @@ public class CharacterGachaService(
         }).ToArray();
     }
 
-    private static List<int> PickDistinct(IEnumerable<int> allCharacterIds, HashSet<int> ownedCharacterIds, int requestedCount)
+    private static List<int> PickRandomIdsWithoutReplacement(IEnumerable<int> allCharacterIds, HashSet<int> ownedCharacterIds, int requestedCount)
     {
-        // 미보유 캐릭터 ID만 필터링하고 리스트로 변환
         var unownedCharacterIds = allCharacterIds.Where(id => !ownedCharacterIds.Contains(id)).ToArray();
 
-        // 제자리 셔플 (리스트 크기 변경 없음)
-        RandomNumberGenerator.Shuffle(unownedCharacterIds.AsSpan());
-
-        // 필요한 개수만큼 리스트 크기 조정
         var actualCount = Math.Min(requestedCount, unownedCharacterIds.Length);
 
-        return new List<int>(unownedCharacterIds[..actualCount]);
+        ShufflePrefix(unownedCharacterIds.AsSpan(), actualCount);
+
+        var result = new List<int>(actualCount);
+        for (var i = 0; i < actualCount; i++)
+            result.Add(unownedCharacterIds[i]);
+
+        return result;
+
+    }
+
+    // TODO : 함수 다른 클래스로 분리
+    private static void ShufflePrefix(Span<int> values, int prefixCount)
+    {
+        var length = values.Length;
+
+        prefixCount = Math.Min(length, prefixCount);
+        if (prefixCount < 1)
+        {
+            return;
+        }
+
+        for (var i = 0; i < prefixCount; ++i)
+        {
+            var j = RandomNumberGenerator.GetInt32(i, length);
+            if (i != j)
+            {
+                (values[i], values[j]) = (values[j], values[i]);
+            }
+        }
     }
 }
