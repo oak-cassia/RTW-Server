@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using RTWWebServer.DTOs;
 using RTWWebServer.Enums;
+using RTWWebServer.Extensions;
 
 namespace RTWWebServer.Providers.Authentication;
 
@@ -12,10 +13,9 @@ public class JwtTokenProvider : IJwtTokenProvider
     private const int TOKEN_EXPIRATION_MINUTES = 30;
 
     // JWT 클레임 타입 상수들 - 표준 ClaimTypes를 상수로 관리
-    private const string ACCOUNT_ID_CLAIM_TYPE = "AccountId";
     private const string GUID_CLAIM_TYPE = "Guid";
-    private const string EMAIL_CLAIM_TYPE = ClaimTypes.Email;
-    private const string ROLE_CLAIM_TYPE = ClaimTypes.Role;
+    private const string EMAIL_CLAIM_TYPE = JwtRegisteredClaimNames.Email;
+    private const string ROLE_CLAIM_TYPE = "role";
     private const string JTI_CLAIM_TYPE = JwtRegisteredClaimNames.Jti;
     private const string EXP_CLAIM_TYPE = JwtRegisteredClaimNames.Exp;
 
@@ -51,7 +51,7 @@ public class JwtTokenProvider : IJwtTokenProvider
     {
         List<Claim> claims =
         [
-            new Claim(ACCOUNT_ID_CLAIM_TYPE, accountId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()), // 표준 subject claim
             new Claim(EMAIL_CLAIM_TYPE, email),
             new Claim(JTI_CLAIM_TYPE, Guid.NewGuid().ToString()),
             new Claim(ROLE_CLAIM_TYPE, role.ToString())
@@ -63,7 +63,7 @@ public class JwtTokenProvider : IJwtTokenProvider
     {
         List<Claim> claims =
         [
-            new Claim(ACCOUNT_ID_CLAIM_TYPE, accountId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()), // 표준 subject claim
             new Claim(GUID_CLAIM_TYPE, guid.ToString()),
             new Claim(JTI_CLAIM_TYPE, Guid.NewGuid().ToString()),
             new Claim(ROLE_CLAIM_TYPE, role.ToString())
@@ -86,7 +86,7 @@ public class JwtTokenProvider : IJwtTokenProvider
 
         var tokenInfo = new JwtTokenInfo
         {
-            AccountId = GetClaimAsLong(principal, ACCOUNT_ID_CLAIM_TYPE),
+            AccountId = principal.TryGetSubjectId(out var accountId) ? accountId : 0,
             UserRole = GetClaimAsEnum(principal, ROLE_CLAIM_TYPE),
             Email = principal.FindFirst(EMAIL_CLAIM_TYPE)?.Value,
             Guid = GetClaimAsGuid(principal, GUID_CLAIM_TYPE),
@@ -97,13 +97,7 @@ public class JwtTokenProvider : IJwtTokenProvider
         return tokenInfo;
     }
 
-    private long GetClaimAsLong(ClaimsPrincipal principal, string claimType)
-    {
-        string? claim = principal.FindFirst(claimType)?.Value;
-        return long.TryParse(claim, out long result)
-            ? result
-            : 0;
-    }
+
 
     private UserRole GetClaimAsEnum(ClaimsPrincipal principal, string claimType)
     {
