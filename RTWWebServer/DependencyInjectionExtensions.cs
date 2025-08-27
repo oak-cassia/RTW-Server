@@ -103,6 +103,7 @@ public static class DependencyInjectionExtensions
             })
             .AddJwtBearer(options =>
             {
+                options.MapInboundClaims = false;
                 options.RequireHttpsMetadata = false; // 개발 환경에서는 false
                 options.SaveToken = true;
                 options.TokenValidationParameters = new TokenValidationParameters
