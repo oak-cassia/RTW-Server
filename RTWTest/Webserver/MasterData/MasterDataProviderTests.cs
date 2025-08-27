@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -66,7 +67,13 @@ public class MasterDataProviderTests
         var characters = service.GetAllCharacters();
 
         Assert.That(characters, Has.Count.EqualTo(2));
-        Assert.That(characters, Is.AssignableTo<IReadOnlyCollection<CharacterMaster>>());
+        Assert.That(characters, Is.AssignableTo<ImmutableDictionary<int, CharacterMaster>>());
+        
+        // 실제 데이터 검증
+        Assert.That(characters.ContainsKey(1), Is.True);
+        Assert.That(characters.ContainsKey(2), Is.True);
+        Assert.That(characters[1].Name, Is.EqualTo("Character1"));
+        Assert.That(characters[2].Name, Is.EqualTo("Character2"));
     }
 
     [Test]
