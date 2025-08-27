@@ -11,6 +11,7 @@ public enum WebServerErrorCode
     InvalidRequestHttpBody = 1005,
     InvalidAuthToken = 1006,
     InsufficientCurrency = 1007,
+    InvalidArgument = 1008,
     DatabaseError = 1100,
     RemoteCacheError = 1200,
     RemoteCacheLockFailed = 1201, 
