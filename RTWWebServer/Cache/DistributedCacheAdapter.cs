@@ -11,7 +11,7 @@ public class DistributedCacheAdapter(IDistributedCache distributedCache, IConnec
     private const int BASE_LOCK_DELAY_MAX_MS = 100;
     private const int LOCK_DELAY_MULTIPLIER = 16;
     private readonly TimeSpan _defaultExpiration = TimeSpan.FromHours(24);
-    private readonly TimeSpan _lockExpiration = TimeSpan.FromSeconds(3);
+    private readonly TimeSpan _lockExpiration = TimeSpan.FromSeconds(30);
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
     {
@@ -41,10 +41,9 @@ public class DistributedCacheAdapter(IDistributedCache distributedCache, IConnec
         await distributedCache.RemoveAsync(key, cancellationToken);
     }
 
-    public async Task<bool> LockAsync(int userId, string lockValue, CancellationToken cancellationToken = default)
+    public async Task<bool> LockAsync(string lockKey, string lockValue, CancellationToken cancellationToken = default)
     {
         IDatabase database = redis.GetDatabase();
-        var lockKey = $"lock:user:{userId}";
         var retryCount = 0;
         int baseDelay = Random.Shared.Next(BASE_LOCK_DELAY_MIN_MS, BASE_LOCK_DELAY_MAX_MS);
 
@@ -65,10 +64,9 @@ public class DistributedCacheAdapter(IDistributedCache distributedCache, IConnec
         return false;
     }
 
-    public async Task<bool> UnlockAsync(int userId, string lockValue)
+    public async Task<bool> UnlockAsync(string lockKey, string lockValue)
     {
         IDatabase database = redis.GetDatabase();
-        var lockKey = $"lock:user:{userId}";
 
         const string script = @"
             if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -77,7 +75,7 @@ public class DistributedCacheAdapter(IDistributedCache distributedCache, IConnec
                 return 0
             end";
 
-        RedisResult result = await database.ScriptEvaluateAsync(script, new RedisKey[] { lockKey }, new RedisValue[] { lockValue });
+        RedisResult result = await database.ScriptEvaluateAsync(script, [lockKey], [lockValue]);
         return (long)result == 1;
     }
 }
