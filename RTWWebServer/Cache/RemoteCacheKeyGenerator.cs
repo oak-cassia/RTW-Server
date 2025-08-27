@@ -2,9 +2,9 @@ namespace RTWWebServer.Cache;
 
 public class RemoteCacheKeyGenerator : IRemoteCacheKeyGenerator
 {
-    public string GenerateUserLockKey(int userId)
+    public string GenerateAccountLockKey(long accountId)
     {
-        return $"auth_{userId}";
+        return $"lock:account:{accountId}";
     }
 
     public string GenerateUserSessionKey(long userId)
