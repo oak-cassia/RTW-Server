@@ -10,13 +10,11 @@ public class UserAuthenticationMiddleware(
     ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
-    // JWT 인증을 사용하는 경로들 (ASP.NET Core의 [Authorize] 어트리뷰트로 처리)
     private static readonly HashSet<string> JWT_AUTHENTICATED_PATHS =
     [
         "/Game/enter"
     ];
 
-    // 인증이 필요 없는 경로들
     private static readonly HashSet<string> EXCLUDED_PATHS =
     [
         "/Login",
@@ -36,78 +34,75 @@ public class UserAuthenticationMiddleware(
             return;
         }
 
-        // UserSession 기반 인증이 필요한 경로들 처리
+        // 세션 기반 인증
         string requestBody = await ReadRequestBodyAsync(context);
         if (string.IsNullOrEmpty(requestBody))
-        {
             throw new GameException("Failed to read request body", WebServerErrorCode.InvalidRequestHttpBody);
-        }
 
-        (int userId, string authToken) = ExtractUserIdAndAuthToken(requestBody);
-        if (userId == 0 || string.IsNullOrEmpty(authToken))
-        {
+        (long userId, string authToken) = ExtractUserIdAndAuthToken(requestBody);
+        if (userId <= 0 || string.IsNullOrEmpty(authToken))
             throw new GameException("Failed to extract user id and auth token from request body", WebServerErrorCode.InvalidRequestHttpBody);
-        }
 
         if (!await userSessionProvider.IsValidSessionAsync(userId, authToken))
-        {
             throw new GameException($"Invalid or expired auth token for userId: {userId}", WebServerErrorCode.InvalidAuthToken);
-        }
 
-        // 세션 정보를 HttpContext에 추가하여 컨트롤러에서 사용할 수 있도록 함
         context.Items["UserId"] = userId;
-        context.Items["AuthToken"] = authToken;
 
         await next(context);
     }
 
-    private bool IsExcludedPath(string path)
-    {
-        return EXCLUDED_PATHS.Any(path.StartsWith);
-    }
+    private bool IsExcludedPath(string path) => EXCLUDED_PATHS.Any(path.StartsWith);
 
-    private bool IsJwtAuthenticatedPath(string path)
-    {
-        return JWT_AUTHENTICATED_PATHS.Any(path.StartsWith);
-    }
+    private bool IsJwtAuthenticatedPath(string path) => JWT_AUTHENTICATED_PATHS.Any(path.StartsWith);
 
     private async Task<string> ReadRequestBodyAsync(HttpContext context)
     {
         try
         {
-            using StreamReader bodyReader = new StreamReader(context.Request.Body, leaveOpen: true);
+            using var bodyReader = new StreamReader(context.Request.Body, leaveOpen: true);
             string body = await bodyReader.ReadToEndAsync();
-
             context.Request.Body.Position = 0;
-
             return body;
         }
-        catch (Exception)
+        catch
         {
             return string.Empty;
         }
     }
 
-    private (int, string) ExtractUserIdAndAuthToken(string requestBody)
+    private (long, string) ExtractUserIdAndAuthToken(string requestBody)
     {
         try
         {
-            using JsonDocument bodyDocument = JsonDocument.Parse(requestBody);
+            using var bodyDocument = JsonDocument.Parse(requestBody);
+            var root = bodyDocument.RootElement;
 
-            if (!bodyDocument.RootElement.TryGetProperty("authToken", out JsonElement authTokenElement) ||
-                !bodyDocument.RootElement.TryGetProperty("userId", out JsonElement userIdElement))
+            if (!root.TryGetProperty("authToken", out var authTokenEl) ||
+                !root.TryGetProperty("userId", out var userIdEl))
             {
                 return (0, string.Empty);
             }
 
-            int userId = userIdElement.GetInt32();
-            string authToken = authTokenElement.GetString() ?? string.Empty;
+            // JSON이 숫자면 GetInt64, 문자열이면 TryParse
+            long userId = 0;
 
+            switch (userIdEl.ValueKind)
+            {
+                case JsonValueKind.String:
+                    long.TryParse(userIdEl.GetString(), out userId);
+                    break;
+
+                case JsonValueKind.Number:
+                    userId = userIdEl.GetInt64();
+                    break;
+            }
+
+            string authToken = authTokenEl.GetString() ?? string.Empty;
             return (userId, authToken);
         }
-        catch (Exception)
+        catch
         {
-            return (default, string.Empty);
+            return (0, string.Empty);
         }
     }
 }
