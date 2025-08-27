@@ -16,7 +16,7 @@ public class GameController(IGameEntryService gameEntryService) : ControllerBase
     public async Task<GameResponse<UserSession>> EnterGame()
     {
         // 컨트롤러에서 인증된 사용자 정보를 추출
-        long accountId = User.GetAccountId();
+        User.TryGetSubjectId(out var accountId);
 
         var userSession = await gameEntryService.EnterGameAsync(accountId);
         return GameResponse<UserSession>.Ok(userSession);

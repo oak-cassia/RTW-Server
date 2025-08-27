@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Data;
@@ -23,8 +24,11 @@ public class CharacterGachaServiceTests
     [SetUp]
     public void SetUp()
     {
-        // Use a simple stub/fake for DbContext
-        _dbContext = null!; // Service won't actually call SaveChangesAsync in unit tests
+        var options = new DbContextOptionsBuilder<GameDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        _dbContext = new GameDbContext(options);
+        
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
         _mockUserRepository = new Mock<IUserRepository>();
         _mockPlayerCharacterRepository = new Mock<IPlayerCharacterRepository>();
@@ -34,6 +38,12 @@ public class CharacterGachaServiceTests
             _mockUserRepository.Object,
             _mockPlayerCharacterRepository.Object,
             _mockMasterDataProvider.Object);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _dbContext?.Dispose();
     }
 
     [Test]
