@@ -15,6 +15,9 @@ public class JwtTokenProviderTests
     [SetUp]
     public void SetUp()
     {
+        // JWT 클레임 타입 자동 매핑 비활성화 (테스트 환경에서 일관성 보장)
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+        
         Dictionary<string, string?> configurationData = new Dictionary<string, string?>
         {
             ["Jwt:Secret"] = TEST_SECRET,
@@ -113,10 +116,10 @@ public class JwtTokenProviderTests
 
         List<Claim> claims = new List<Claim>
         {
-            new Claim("AccountId", accountId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, email),
+            new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, email), // 원본 클레임 타입 사용
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Role, "Normal")
+            new Claim("role", "Normal") // 원본 클레임 타입 사용
         };
 
         SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
