@@ -1,14 +1,16 @@
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
 using RTWWebServer.Exceptions;
+using RTWWebServer.Extensions;
 
 namespace RTWWebServer.Middlewares;
 
-public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAdapter distributedCacheAdapter)
+public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAdapter distributedCacheAdapter, IRemoteCacheKeyGenerator keyGenerator)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!context.Items.TryGetValue("UserId", out object? userIdObject) || userIdObject is not int userId)
+        var lockKey = ResolveLockKey(context);
+        if (lockKey == null)
         {
             await next(context);
             return;
@@ -16,22 +18,38 @@ public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAda
 
         var lockValue = Guid.NewGuid().ToString();
         var lockAcquired = false;
+
         try
         {
-            lockAcquired = await distributedCacheAdapter.LockAsync(userId, lockValue);
+            lockAcquired = await distributedCacheAdapter.LockAsync(lockKey, lockValue);
             if (!lockAcquired)
             {
-                throw new GameException("Too many requests. Please try again later.", WebServerErrorCode.RemoteCacheLockFailed);
+                throw new GameException($"Failed to acquire lock for key: {lockKey}", WebServerErrorCode.RemoteCacheLockFailed);
             }
 
             await next(context);
+        }
+        catch (Exception ex) when (ex is not GameException)
+        {
+            throw;
         }
         finally
         {
             if (lockAcquired)
             {
-                await distributedCacheAdapter.UnlockAsync(userId, lockValue);
+                await distributedCacheAdapter.UnlockAsync(lockKey, lockValue);
             }
         }
+    }
+
+    private string? ResolveLockKey(HttpContext context)
+    {
+        if (context.User.Identity?.IsAuthenticated == true &&
+            context.User.TryGetSubjectId(out var accountId))
+        {
+            return keyGenerator.GenerateAccountLockKey(accountId);
+        }
+
+        return null; // 인증되지 않은 경로
     }
 }
