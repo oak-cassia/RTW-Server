@@ -4,55 +4,65 @@ using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.DTOs;
 using RTWWebServer.Exceptions;
+using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.Authentication;
+using RTWWebServer.Providers.MasterData;
 
 namespace RTWWebServer.Services;
 
 public class GameEntryService(
     GameDbContext dbContext,
     IUserRepository userRepository,
+    IPlayerCharacterRepository playerCharacterRepository,
+    IMasterDataProvider masterDataProvider,
     IUserSessionProvider userSessionProvider,
     ILogger<GameEntryService> logger
 ) : IGameEntryService
 {
+    private const int DEFAULT_CHARACTER_ID = 1001;
     public async Task<UserSession> EnterGameAsync(long accountId)
     {
         if (accountId <= 0)
         {
-            throw new GameException("Invalid account ID", WebServerErrorCode.InvalidAuthToken);
+            throw new GameException("Invalid account ID", WebServerErrorCode.InvalidArgument);
         }
 
-        User user = await GetOrCreateUserByAccountIdAsync(accountId);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
 
-        // 새로 생성된 사용자인지 ID로 확인 (ID가 0이면 새로 생성된 사용자)
-        if (user.Id == 0)
+        try
         {
-            await userRepository.CreateAsync(user);
-            await dbContext.SaveChangesAsync();
-            // DB 쿼리 후 ID가 설정되었는지 확인
-            if (user.Id <= 0)
+            var user = await userRepository.GetByAccountIdAsync(accountId);
+            if (user == null)
             {
-                throw new GameException("Failed to create user - ID not generated", WebServerErrorCode.DatabaseError);
+                user = CreateNewUser(accountId);
+                await userRepository.CreateAsync(user);
+                await dbContext.SaveChangesAsync(); // ID 생성을 위해 저장
+
+                if (user.Id <= 0)
+                {
+                    throw new GameException("Failed to create user - ID not generated", WebServerErrorCode.DatabaseError);
+                }
+                
+                await CreateDefaultCharacterForNewUserAsync(user.Id);
             }
+
+            await transaction.CommitAsync();
+
+            var userSession = await userSessionProvider.CreateSessionAsync(user.Id);
+            return userSession;
         }
-
-        var userSession = await userSessionProvider.CreateSessionAsync(user.Id);
-
-        return userSession;
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
-
-    private async Task<User> GetOrCreateUserByAccountIdAsync(long accountId)
+    private User CreateNewUser(long accountId)
     {
-        var user = await userRepository.GetByAccountIdAsync(accountId);
-        if (user != null)
-        {
-            return user;
-        }
-
         string nickname = $"User_{accountId}";
         var currentTime = DateTime.UtcNow;
-        var newUser = new User(
+        return new User(
             accountId: accountId,
             nickname: nickname,
             level: 1,
@@ -66,7 +76,28 @@ public class GameEntryService(
             createdAt: currentTime,
             updatedAt: currentTime
         );
+    }
 
-        return await userRepository.CreateAsync(newUser);
+    private async Task CreateDefaultCharacterForNewUserAsync(long userId)
+    {
+        // 첫 번째 캐릭터를 기본 캐릭터로 생성
+        if (masterDataProvider.TryGetCharacter(DEFAULT_CHARACTER_ID, out CharacterMaster characterMaster) == false)
+        {
+            logger.LogWarning("No characters available in master data for default character creation");
+            return;
+        }
+
+        var defaultCharacter = new PlayerCharacter(
+            userId: userId,
+            characterMasterId: characterMaster.Id,
+            level: 1,
+            currentExp: 0,
+            obtainedAt: DateTime.UtcNow
+        );
+
+        await playerCharacterRepository.AddAsync(defaultCharacter);
+        await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Created default character {CharacterId} for user {UserId}", defaultCharacter.Id, userId);
     }
 }
