@@ -11,4 +11,14 @@ public class RemoteCacheKeyGenerator : IRemoteCacheKeyGenerator
     {
         return $"session_{userId}";
     }
+
+    public string GenerateUserKey(long userId)
+    {
+        return $"user:user:{userId}";
+    }
+
+    public string GeneratePlayerCharactersKey(long userId)
+    {
+        return $"player:characters:{userId}";
+    }
 }
