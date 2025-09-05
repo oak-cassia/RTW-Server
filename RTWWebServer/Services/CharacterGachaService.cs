@@ -28,6 +28,8 @@ public class CharacterGachaService(
             throw new GameException("Invalid gacha count", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
+        var user = await GetCachedUser(userId) ?? throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
+
         var playerCharacters = await GetCachedPlayerCharactersAsync(userId);
         var ownedCharacterIds = playerCharacters
             .Select(pc => pc.CharacterMasterId)
@@ -41,8 +43,6 @@ public class CharacterGachaService(
 
         var selectedCharacterIds = PickRandomIdsWithoutReplacement(allCharacters.Keys, ownedCharacterIds, count);
         var actualCost = selectedCharacterIds.Count * COST_PER_GACHA;
-
-        var user = await GetCachedUser(userId) ?? throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
 
         if (user.PremiumCurrency < actualCost)
         {
