@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Cache;
 using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
@@ -13,7 +14,10 @@ public class CharacterGachaService(
     GameDbContext dbContext,
     IUserRepository userRepository,
     IPlayerCharacterRepository playerCharacterRepository,
-    IMasterDataProvider masterDataProvider) : ICharacterGachaService
+    IMasterDataProvider masterDataProvider,
+    ICacheManager cacheManager,
+    IRemoteCacheKeyGenerator remoteCacheKeyGenerator
+) : ICharacterGachaService
 {
     const int COST_PER_GACHA = 300;
 
@@ -24,10 +28,10 @@ public class CharacterGachaService(
             throw new GameException("Invalid gacha count", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        var user = await userRepository.GetByIdAsync(userId) ??
-                   throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
+        var user = await GetCachedUser(userId) ?? throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
 
-        var ownedCharacterIds = (await playerCharacterRepository.GetByUserIdAsync(userId))
+        var playerCharacters = await GetCachedPlayerCharactersAsync(userId);
+        var ownedCharacterIds = playerCharacters
             .Select(pc => pc.CharacterMasterId)
             .ToHashSet();
 
@@ -38,8 +42,8 @@ public class CharacterGachaService(
         }
 
         var selectedCharacterIds = PickRandomIdsWithoutReplacement(allCharacters.Keys, ownedCharacterIds, count);
-
         var actualCost = selectedCharacterIds.Count * COST_PER_GACHA;
+
         if (user.PremiumCurrency < actualCost)
         {
             throw new GameException("Insufficient premium currency", WebServerErrorCode.InsufficientCurrency);
@@ -47,18 +51,26 @@ public class CharacterGachaService(
 
         foreach (var characterId in selectedCharacterIds)
         {
-            await playerCharacterRepository.AddAsync(new PlayerCharacter(
+            var newCharacter = new PlayerCharacter(
                 userId: userId,
                 characterMasterId: characterId,
                 level: 1,
                 currentExp: 0,
                 obtainedAt: DateTime.UtcNow
-            ));
+            );
+
+            await playerCharacterRepository.AddAsync(newCharacter);
+
+            playerCharacters.Add(newCharacter);
         }
 
         user.PremiumCurrency -= actualCost;
         userRepository.Update(user);
+
         await dbContext.SaveChangesAsync();
+
+        cacheManager.Set(remoteCacheKeyGenerator.GeneratePlayerCharactersKey(userId), playerCharacters);
+        await cacheManager.CommitAllChangesAsync();
 
         return new CharacterGachaResult
         {
@@ -70,9 +82,8 @@ public class CharacterGachaService(
 
     public async Task<PlayerCharacterInfo[]> GetPlayerCharactersAsync(long userId)
     {
-        var playerCharacters = await playerCharacterRepository.GetByUserIdAsync(userId);
-
-        return playerCharacters.Select(pc => new PlayerCharacterInfo
+        var playerCharacters = await GetCachedPlayerCharactersAsync(userId);
+        var result = playerCharacters.Select(pc => new PlayerCharacterInfo
         {
             Id = pc.Id,
             CharacterMasterId = pc.CharacterMasterId,
@@ -81,6 +92,43 @@ public class CharacterGachaService(
             ObtainedAt = pc.ObtainedAt,
             UpdatedAt = pc.UpdatedAt
         }).ToArray();
+
+        await cacheManager.CommitAllChangesAsync();
+
+        return result;
+    }
+
+    private async Task<List<PlayerCharacter>> GetCachedPlayerCharactersAsync(long userId)
+    {
+        var cacheKey = remoteCacheKeyGenerator.GeneratePlayerCharactersKey(userId);
+        var cachedCharacters = await cacheManager.GetAsync<List<PlayerCharacter>>(cacheKey);
+        if (cachedCharacters is not null)
+        {
+            return cachedCharacters;
+        }
+
+        var characters = (await playerCharacterRepository.GetByUserIdAsync(userId)).ToList();
+        cacheManager.Set(cacheKey, characters);
+
+        return characters;
+    }
+
+    private async Task<User?> GetCachedUser(long userId)
+    {
+        var cacheKey = remoteCacheKeyGenerator.GenerateUserKey(userId);
+        var user = await cacheManager.GetAsync<User>(cacheKey);
+        if (user is not null)
+        {
+            return user;
+        }
+
+        user = await userRepository.GetByIdAsync(userId);
+        if (user is not null)
+        {
+            cacheManager.Set(cacheKey, user);
+        }
+
+        return user;
     }
 
     private static List<int> PickRandomIdsWithoutReplacement(IEnumerable<int> allCharacterIds, HashSet<int> ownedCharacterIds, int requestedCount)
