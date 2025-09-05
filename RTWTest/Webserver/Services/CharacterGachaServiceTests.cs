@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using NetworkDefinition.ErrorCode;
+using RTWWebServer.Cache;
 using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
@@ -19,6 +20,8 @@ public class CharacterGachaServiceTests
     private Mock<IMasterDataProvider> _mockMasterDataProvider;
     private Mock<IUserRepository> _mockUserRepository;
     private Mock<IPlayerCharacterRepository> _mockPlayerCharacterRepository;
+    private Mock<ICacheManager> _mockCacheManager;
+    private Mock<IRemoteCacheKeyGenerator> _mockRemoteCacheKeyGenerator;
     private CharacterGachaService _service;
 
     [SetUp]
@@ -32,12 +35,35 @@ public class CharacterGachaServiceTests
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
         _mockUserRepository = new Mock<IUserRepository>();
         _mockPlayerCharacterRepository = new Mock<IPlayerCharacterRepository>();
+        _mockCacheManager = new Mock<ICacheManager>();
+        _mockRemoteCacheKeyGenerator = new Mock<IRemoteCacheKeyGenerator>();
+
+        // Cache Key 생성 기본 설정
+        _mockRemoteCacheKeyGenerator
+            .Setup(x => x.GenerateUserKey(It.IsAny<long>()))
+            .Returns<long>(id => $"user:{id}");
+        _mockRemoteCacheKeyGenerator
+            .Setup(x => x.GeneratePlayerCharactersKey(It.IsAny<long>()))
+            .Returns<long>(id => $"playerchars:{id}");
+
+        // 캐시 조회는 기본적으로 미스 처리하여 리포지토리 경로를 타도록 설정
+        _mockCacheManager
+            .Setup(x => x.GetAsync<List<PlayerCharacter>>(It.IsAny<string>()))
+            .ReturnsAsync((List<PlayerCharacter>)null);
+        _mockCacheManager
+            .Setup(x => x.GetAsync<User>(It.IsAny<string>()))
+            .ReturnsAsync((User)null);
+        _mockCacheManager
+            .Setup(x => x.CommitAllChangesAsync())
+            .Returns(Task.CompletedTask);
 
         _service = new CharacterGachaService(
             _dbContext, 
             _mockUserRepository.Object,
             _mockPlayerCharacterRepository.Object,
-            _mockMasterDataProvider.Object);
+            _mockMasterDataProvider.Object,
+            _mockCacheManager.Object,
+            _mockRemoteCacheKeyGenerator.Object);
     }
 
     [TearDown]
