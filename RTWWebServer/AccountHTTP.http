@@ -1,20 +1,22 @@
+@baseUrl = localhost:8080
+
 ### Post create Guest
-POST localhost:5000/Account/createGuestAccount
+POST {{baseUrl}}/Account/createGuestAccount
 Content-Type: application/json
 
 {
 }
 
 ### Login Guest
-POST localhost:5000/Login/guestLogin
+POST {{baseUrl}}/Login/guestLogin
 Content-Type: application/json
 
 {
-    "GuestGuid": "6a8a3734-ec43-40ec-b1f7-d51db336bed7"
+    "GuestGuid": "4a66edaf-0ad1-4344-b486-538ef1b58c87"
 }
 
 ### create Account
-POST localhost:5000/Account/createAccount
+POST {{baseUrl}}/Account/createAccount
 Content-Type: application/json
 
 {
@@ -23,7 +25,7 @@ Content-Type: application/json
 }
 
 ### Login
-POST localhost:5000/Login/login/
+POST {{baseUrl}}/Login/login/
 Content-Type: application/json
 
 {
@@ -32,20 +34,31 @@ Content-Type: application/json
 }
 
 ### GameEntry
-POST localhost:5000/Game/enter
+POST {{baseUrl}}/Game/enter
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiIxMjNAMTIzLmNvbSIsImp0aSI6ImJkZDQ2NDdlLTExODgtNDViNy1hMTZiLTliYTI2NTNmNzU1MiIsInJvbGUiOiJub3JtYWwiLCJuYmYiOjE3NTQwNTYyMzUsImV4cCI6MTc1NDA1ODAzNSwiaWF0IjoxNzU0MDU2MjM1LCJpc3MiOiJteS1hdXRoLXNlcnZlci5jb20iLCJhdWQiOiJteS1nYW1lLXNlcnZlci5jb20ifQ.hY8WY0xz9f8Jv3Cg_d4y3mCy_MdR9EfQgJaLHXOZUs4
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiR3VpZCI6IjRhNjZlZGFmLTBhZDEtNDM0NC1iNDg2LTUzOGVmMWI1OGM4NyIsImp0aSI6ImIzNzVhZjg0LTM1NWItNDQzZC1hNDVkLTFiZWQ4NWUwMDRlNCIsInJvbGUiOiJHdWVzdCIsIm5iZiI6MTc1NjMxMTcyOSwiZXhwIjoxNzU2MzEzNTI5LCJpYXQiOjE3NTYzMTE3MjksImlzcyI6Im15LWF1dGgtc2VydmVyLmNvbSIsImF1ZCI6Im15LWdhbWUtc2VydmVyLmNvbSJ9.QirsBe_KPG8RmgXqfWYKP6bxjnxK4asuLAco_UlFnxQ
 
 {
 
 }
 
 ### NickName
-POST localhost:5000/User/nickname
+POST {{baseUrl}}/User/nickname
 Content-Type: application/json
 
 {
     "userId": 2,
     "nickname": "새로운닉네임",
-    "authToken": "d16c921b-cb1e-4359-992f-0e054d598b91"
+    "authToken": "765730df-38fc-4982-bb56-220b0d5c74ac"
+}
+
+### Gacha
+POST {{baseUrl}}/Character/gacha
+Content-Type: application/json
+
+{
+    "userId" : 2,
+    "gachaType": 1,
+    "count": 1,
+    "authToken": "765730df-38fc-4982-bb56-220b0d5c74ac"
 }

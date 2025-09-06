@@ -2,13 +2,14 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# 프로젝트/의존 메타 먼저 복사(레이어 캐시 최적화)
+# 프로젝트 파일만 우선 복사 (캐시 최적화)
 COPY RTWWebServer/RTWWebServer.csproj RTWWebServer/
 COPY NetworkDefinition/NetworkDefinition.csproj NetworkDefinition/
 
+# 정확한 정보로 복원
 RUN dotnet restore RTWWebServer/RTWWebServer.csproj
 
-# 실제 소스 복사
+# 실제 소스를 나중에 복사 (bin/obj는 .dockerignore로 제외)
 COPY RTWWebServer/ RTWWebServer/
 COPY NetworkDefinition/ NetworkDefinition/
 
