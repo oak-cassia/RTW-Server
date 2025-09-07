@@ -68,14 +68,14 @@ RTW-Server/
 
 ASP.NET Core 기반의 RESTful API 서버로, 게임 클라이언트의 인증, 계정 관리, 비 실시간 게임 요소를 담당합니다. 실시간 서버와 독립적으로 작동하며, JWT 토큰과 커스텀 authToken을 조합한 인증 시스템으로 안전한 API 서비스를 제공합니다.
 
-#### 🏗️ 아키텍처 특징
+####  아키텍처 특징
 - **계층 분리**: Controller - Service - Provider/Repository
 - **다층 캐싱 시스템**: Redis 분산 캐싱 + 요청 스코프 로컬 캐싱
 - **커스텀 인증 시스템**: JWT 토큰 기반 + UserAuthenticationMiddleware
 - **동시성 제어**: RequestLockingMiddleware를 통한 사용자별 요청 잠금
 - **마스터 데이터 시스템**: JSON 파일 기반 게임 설정 데이터 관리
 
-#### 🚀 주요 API 엔드포인트
+#### 주요 API 엔드포인트
 
 **계정 관리 (AccountController)**
 - `POST /Account/createGuestAccount` - 게스트 계정 생성
@@ -86,7 +86,9 @@ ASP.NET Core 기반의 RESTful API 서버로, 게임 클라이언트의 인증, 
 - `POST /Login/guestLogin` - 게스트 로그인
 
 **게임 입장 (GameController)**
-- `POST /Game/enter` - 실시간 서버 입장을 위한 세션 생성 🔒
+- `POST /Game/enter` - 게임 입장을 위한 세션 생성
+- JWT Bearer 토큰 인증이 필요한 엔드포인트
+  - 이하 다른 엔드포인트는 요청 body의 authToken 필드로 인증
 
 **사용자 관리 (UserController)**
 - `POST /User/nickname` - 닉네임 변경 (authToken 기반)
@@ -94,8 +96,7 @@ ASP.NET Core 기반의 RESTful API 서버로, 게임 클라이언트의 인증, 
 **캐릭터 시스템 (CharacterController)**
 - `POST /Character/gacha` - 캐릭터 가챠 실행 (authToken 기반)
 
-*🔒 표시는 JWT Bearer 토큰 인증이 필요한 엔드포인트*
-*그 외 엔드포인트는 요청 body의 authToken 필드로 인증*
+
 
 **🔗 자세한 내용**: [웹 API 서버 Wiki](https://github.com/oak-cassia/RTW-Server/wiki)
 
