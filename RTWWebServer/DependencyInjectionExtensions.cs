@@ -26,6 +26,7 @@ public static class DependencyInjectionExtensions
         // IDistributedCache 어댑터 등록
         services.AddSingleton<IDistributedCacheAdapter, DistributedCacheAdapter>();
         services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
+        services.AddSingleton<IUserSessionProvider, UserSessionProvider>();
 
         // 기존 캐시 서비스들을 어댑터 기반으로 교체
         services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>(); // 요청 범위 캐시
@@ -33,7 +34,6 @@ public static class DependencyInjectionExtensions
 
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILoginService, LoginService>();
-        services.AddScoped<IUserSessionProvider, UserSessionProvider>();
         services.AddScoped<IGameEntryService, GameEntryService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICharacterGachaService, CharacterGachaService>();
@@ -146,6 +146,7 @@ public static class DependencyInjectionExtensions
         );
 
         return services;
+        
     }
 
     // Master Data 시스템을 위한 확장 메서드
