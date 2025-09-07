@@ -29,8 +29,13 @@ RTW-Server/
 │   └── Packet/                # 패킷 직렬화/역직렬화
 ├── RTWWebServer/              # 웹 API 서버
 │   ├── Controllers/           # REST API 컨트롤러
-│   ├── Database/              # 데이터베이스 관련
-│   └── Authentication/        # 커스텀 토큰 인증
+│   ├── Data/                  # 데이터베이스 컨텍스트 및 엔티티
+│   ├── Services/              # 비즈니스 로직 서비스
+│   ├── Providers/             # 인증 및 마스터 데이터 프로바이더
+│   ├── Cache/                 # 캐싱 시스템
+│   ├── Middlewares/           # 커스텀 미들웨어
+│   ├── DTOs/                  # 데이터 전송 객체
+│   └── MasterDatas/           # 게임 마스터 데이터
 ├── RTWClient/                 # 테스트용 클라이언트
 ├── RTWTest/                   # 유닛 테스트
 └── README.md
