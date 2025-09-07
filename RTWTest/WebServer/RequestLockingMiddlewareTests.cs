@@ -7,7 +7,7 @@ using RTWWebServer.Cache;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Middlewares;
 
-namespace RTWTest.Webserver;
+namespace RTWTest.WebServer;
 
 [TestFixture]
 public class RequestLockingMiddlewareTests

@@ -8,7 +8,7 @@ using RTWWebServer.Middlewares;
 using RTWWebServer.Exceptions;
 using NetworkDefinition.ErrorCode;
 
-namespace RTWTest.Webserver.Authentication;
+namespace RTWTest.WebServer.Authentication;
 
 [TestFixture]
 [TestOf(typeof(UserAuthenticationMiddleware))]

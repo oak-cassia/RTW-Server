@@ -7,7 +7,7 @@ using RTWWebServer.DTOs;
 using RTWWebServer.Enums;
 using RTWWebServer.Providers.Authentication;
 
-namespace RTWTest.Webserver.Authentication;
+namespace RTWTest.WebServer.Authentication;
 
 [TestFixture]
 public class JwtTokenProviderTests

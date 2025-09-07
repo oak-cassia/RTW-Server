@@ -1,6 +1,6 @@
 using RTWWebServer.Cache;
 
-namespace RTWTest.Webserver;
+namespace RTWTest.WebServer;
 
 public class RequestScopedLocalCacheTest
 {
