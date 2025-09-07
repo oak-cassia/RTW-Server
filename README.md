@@ -73,7 +73,7 @@ RTW-Server/
 
 ASP.NET Core 기반의 RESTful API 서버로, 게임 클라이언트의 인증, 계정 관리, 비 실시간 게임 요소를 담당합니다. 실시간 서버와 독립적으로 작동하며, JWT 토큰과 커스텀 authToken을 조합한 인증 시스템으로 안전한 API 서비스를 제공합니다.
 
-**🔗 자세한 내용**: [웹 API 서버 Wiki](https://github.com/oak-cassia/RTW-Server/wiki)
+> 🔗 자세한 내용: [웹 API 서버 Wiki](https://github.com/oak-cassia/RTW-Server/wiki)
 
 ####  아키텍처 특징
 - **계층 분리**: Controller - Service - Provider/Repository
@@ -107,7 +107,7 @@ ASP.NET Core 기반의 RESTful API 서버로, 게임 클라이언트의 인증, 
 
 C# .NET 환경에서 비동기 소켓 통신을 기반으로 하는 TCP 게임 서버입니다. Protocol Buffers를 이용한 데이터 직렬화와 파이프라인 기반의 I/O 처리를 통해 실시간 게임 서버를 쉽게 구축할 수 있는 기반을 제공합니다.
 
-**🔗 자세한 내용**: [실시간 게임 서버 Wiki](https://github.com/oak-cassia/RTW-Server/wiki/%EC%8B%A4%EC%8B%9C%EA%B0%84-%EA%B2%8C%EC%9E%84-%EC%84%9C%EB%B2%84)
+> 🔗 자세한 내용: [실시간 게임 서버 Wiki](https://github.com/oak-cassia/RTW-Server/wiki/%EC%8B%A4%EC%8B%9C%EA%B0%84-%EA%B2%8C%EC%9E%84-%EC%84%9C%EB%B2%84)
 
 ![Type Dependencies Diagram for GamePacketFactory and other elements](https://github.com/user-attachments/assets/9c010a40-339b-4ad0-8e1d-453437c08798)
 
