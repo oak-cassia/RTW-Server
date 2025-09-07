@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using RTWWebServer.MasterDatas.Models;
 
-namespace RTWTest.Webserver.MasterData;
+namespace RTWTest.WebServer.MasterData;
 
 [TestFixture]
 public class CharacterMasterTests

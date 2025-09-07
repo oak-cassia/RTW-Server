@@ -1,7 +1,7 @@
 using RTWWebServer.Configuration;
 using RTWWebServer.MasterDatas.Models;
 
-namespace RTWTest.Webserver.MasterData;
+namespace RTWTest.WebServer.MasterData;
 
 [TestFixture]
 public class MasterDataOptionsValidatorTests

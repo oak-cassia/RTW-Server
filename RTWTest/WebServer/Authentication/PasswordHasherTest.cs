@@ -1,6 +1,6 @@
 using RTWWebServer.Providers.Authentication;
 
-namespace RTWTest.Webserver.Authentication;
+namespace RTWTest.WebServer.Authentication;
 
 [TestFixture]
 [TestOf(typeof(PasswordHasher))]

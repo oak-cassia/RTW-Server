@@ -6,7 +6,7 @@ using RTWWebServer.Configuration;
 using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.MasterData;
 
-namespace RTWTest.Webserver.MasterData;
+namespace RTWTest.WebServer.MasterData;
 
 [TestFixture]
 public class MasterDataProviderTests
