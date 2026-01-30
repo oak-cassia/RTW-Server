@@ -14,6 +14,10 @@ enum PacketId {
 
   // Echo (Test)
   ECHO_MESSAGE = 9999; // C_ECHO_PACKET and S_ECHO_PACKET merged
+
+  // Social
+  C_CHAT = 10001;
+  S_CHAT = 10002;
 }
 
 // --- 시스템 및 연결 ---
@@ -32,4 +36,18 @@ message SAuthResult {
 // (EchoMessage는 PacketHeader 뒤에 오는 payload가 됩니다)
 message EchoMessage {
     string message = 1;
+}
+
+// --- Social ---
+message CChat {
+  uint32 chatType = 1;
+  string message = 2;
+  string targetName = 3;
+}
+
+message SChat {
+  uint32 chatType = 1;
+  int32 senderPlayerId = 2;
+  string senderName = 3;
+  string message = 4;
 }
