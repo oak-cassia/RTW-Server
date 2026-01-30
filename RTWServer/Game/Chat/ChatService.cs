@@ -4,11 +4,11 @@ namespace RTWServer.Game.Chat;
 
 public class ChatService : IChatService
 {
-    private readonly IClientSessionManager _sessionManager;
+    private readonly Func<string, IClientSession?> _sessionResolver;
 
-    public ChatService(IClientSessionManager sessionManager)
+    public ChatService(Func<string, IClientSession?> sessionResolver)
     {
-        _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+        _sessionResolver = sessionResolver ?? throw new ArgumentNullException(nameof(sessionResolver));
     }
 
     public async Task BroadcastToRoomAsync(IChatRoom room, IPacket packet, CancellationToken token = default)
@@ -37,7 +37,7 @@ public class ChatService : IChatService
                 break;
             }
 
-            var session = _sessionManager.GetClientSession(member.SessionId);
+            var session = _sessionResolver(member.SessionId);
             if (session != null)
             {
                 sendTasks.Add(session.SendAsync(packet));

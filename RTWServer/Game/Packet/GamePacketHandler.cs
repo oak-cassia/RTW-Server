@@ -1,14 +1,19 @@
 using Microsoft.Extensions.Logging;
 using NetworkDefinition.ErrorCode;
 using RTW.NetworkDefinition.Proto.Packet;
+using RTWServer.Game.Chat;
 using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game.Packet;
 
-public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
+public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHandler, string defaultChatRoomId) : IPacketHandler
 {
     private readonly ILogger _logger = loggerFactory.CreateLogger<GamePacketHandler>();
+    private readonly IChatHandler _chatHandler = chatHandler ?? throw new ArgumentNullException(nameof(chatHandler));
+    private readonly string _defaultChatRoomId = string.IsNullOrWhiteSpace(defaultChatRoomId)
+        ? throw new ArgumentException("Default room id cannot be null or whitespace.", nameof(defaultChatRoomId))
+        : defaultChatRoomId;
 
     public async Task HandlePacketAsync(IPacket packet, IClientSession clientSession)
     {
@@ -29,6 +34,17 @@ public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
                 {
                     _logger.LogWarning("Could not cast payload to CAuthToken for packet ID: {PacketPacketId}", packet.PacketId);
                     // Optionally, send an error response or close the session
+                }
+                break;
+
+            case PacketId.CChat:
+                if (packet.GetPayloadMessage() is CChat cChat)
+                {
+                    await HandleChat(cChat, clientSession);
+                }
+                else
+                {
+                    _logger.LogWarning("Could not cast payload to CChat for packet ID: {PacketPacketId}", packet.PacketId);
                 }
                 break;
 
@@ -70,5 +86,20 @@ public class GamePacketHandler(ILoggerFactory loggerFactory) : IPacketHandler
             };
             await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
         }
+    }
+
+    private async Task HandleChat(CChat cChat, IClientSession clientSession)
+    {
+        string message = cChat.Message ?? string.Empty;
+        var sChat = new SChat
+        {
+            ChatType = cChat.ChatType,
+            SenderPlayerId = clientSession.Id.GetHashCode(),
+            SenderName = clientSession.Id,
+            Message = message
+        };
+
+        await _chatHandler.HandleRoomBroadcastAsync(_defaultChatRoomId, new ProtoPacket(PacketId.SChat, sChat))
+            .ConfigureAwait(false);
     }
 }
