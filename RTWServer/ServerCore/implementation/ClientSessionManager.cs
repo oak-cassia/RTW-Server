@@ -25,7 +25,7 @@ public class ClientSessionManager : IClientSessionManager
     private IClientSession CreateClientSession(IClient client, ILoggerFactory loggerFactoryForSession)
     {
         string sessionId = Guid.NewGuid().ToString();
-        var session = new ClientSession(client, _packetHandler, _packetSerializer, this, loggerFactoryForSession, sessionId);
+        var session = new ClientSession(client, _packetHandler, _packetSerializer, loggerFactoryForSession, sessionId);
         _clientSessions[session.Id] = session;
         return session;
     }
@@ -40,21 +40,21 @@ public class ClientSessionManager : IClientSessionManager
             session = CreateClientSession(client, _loggerFactory);
             _logger.LogDebug("Session {SessionId} created and added to session manager", session.Id);
 
-            // StartSessionAsync가 내부에서 예외를 처리하고 수명 주기를 관리
+            // StartSessionAsync가 내부에서 예외를 처리하고 수명 주기를 관리하며,
+            // 종료 시 (정상 또는 예외) finally 블록에서 세션이 제거됩니다.
             await session.StartSessionAsync(token);
         }
         catch (Exception ex)
         {
-            // CreateClientSession에서 실패했거나, 
-            // StartSessionAsync 호출 '직전'에 예외가 발생한 경우 등 초기화 실패 처리
             string clientInfo = session?.Id ?? client.ToString() ?? "unknown";
-            _logger.LogError(ex, "Failed to initialize or start session for client {ClientInfo}", clientInfo);
-
-            // 세션이 생성되었지만 StartSessionAsync에 진입하지 못했거나
-            // StartSessionAsync 내부 로직이 돌기 전에 예외가 터진 경우 안전하게 제거
+            _logger.LogError(ex, "Exception occurred during session execution for client {ClientInfo}", clientInfo);
+        }
+        finally
+        {
             if (session != null)
             {
                 await RemoveClientSessionAsync(session.Id);
+                await session.DisposeAsync();
             }
         }
     }
@@ -63,15 +63,18 @@ public class ClientSessionManager : IClientSessionManager
     {
         if (_clientSessions.TryRemove(id, out var session))
         {
-            _logger.LogInformation("Client session {SessionId} removed from manager, sending internal cleanup packet.", id);
-            
+            _logger.LogDebug("Client session {SessionId} removed from manager, sending internal cleanup packet.", id);
+
             // 세션 종료를 알리는 내부 패킷 생성 및 처리
-            var cleanupPacket = new ProtoPacket(PacketId.ISessionClosed, new ISessionClosed());
-            await _packetHandler.HandlePacketAsync(cleanupPacket, session);
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to remove non-existent session {SessionId}.", id);
+            try
+            {
+                var cleanupPacket = new ProtoPacket(PacketId.ISessionClosed, new ISessionClosed());
+                await _packetHandler.HandlePacketAsync(cleanupPacket, session);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cleanup handler failed for session {SessionId}", id);
+            }
         }
     }
 
@@ -89,18 +92,13 @@ public class ClientSessionManager : IClientSessionManager
     {
         if (string.IsNullOrEmpty(sessionId))
         {
-            _logger.LogWarning("Attempted to disconnect a session with null or empty ID.");
             return;
         }
 
         if (_clientSessions.TryGetValue(sessionId, out IClientSession? session))
         {
-            _logger.LogInformation("Initiating disconnect for session {SessionId} due to: {Reason}", sessionId, reason);
-            await session.RequestShutdownAsync(reason); // RequestShutdownAsync를 await 처리
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to disconnect non-existent session {SessionId}.", sessionId);
+            _logger.LogDebug("Initiating disconnect for session {SessionId} due to: {Reason}", sessionId, reason);
+            await session.RequestShutdownAsync(reason);
         }
     }
 }

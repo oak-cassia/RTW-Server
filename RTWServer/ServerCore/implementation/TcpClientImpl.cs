@@ -4,11 +4,12 @@ using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
 
-public class TcpClientImpl : IClient
+public class TcpClientImpl : IClient, IDisposable
 {
     private readonly TcpClient _client;
     private readonly ILogger _logger;
     private readonly string _clientId;
+    private bool _disposed;
 
     public Stream Stream { get; }
     public bool IsConnected => _client.Connected;
@@ -28,7 +29,7 @@ public class TcpClientImpl : IClient
         try
         {
             _logger.LogTrace("Sending {ByteCount} bytes to client {ClientEndPoint}", buffer.Length, _clientId);
-            await _client.GetStream().WriteAsync(buffer, 0, buffer.Length, cancellationToken);;
+            await _client.GetStream().WriteAsync(buffer, 0, buffer.Length, cancellationToken);
         }
         catch (IOException ex)
         {
@@ -65,15 +66,33 @@ public class TcpClientImpl : IClient
 
     public void Close()
     {
+        Dispose();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
         try
         {
-            _logger.LogDebug("Closing connection to client {ClientEndPoint}", _clientId);
-            _client.Close();
-            _logger.LogInformation("TCP client {ClientEndPoint} closed.", _clientId);
+            _logger.LogDebug("Disposing stream for client {ClientEndPoint}", _clientId);
+            Stream.Dispose();
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error while closing connection to client {ClientEndPoint}", _clientId);
+            _logger.LogWarning(ex, "Error while disposing stream for client {ClientEndPoint}", _clientId);
+        }
+
+        try
+        {
+            _logger.LogDebug("Disposing TCP client {ClientEndPoint}", _clientId);
+            _client.Dispose();
+            _logger.LogInformation("TCP client {ClientEndPoint} disposed.", _clientId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error while disposing TCP client {ClientEndPoint}", _clientId);
         }
     }
 }

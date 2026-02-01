@@ -1,6 +1,6 @@
 namespace RTWServer.ServerCore.Interface;
 
-public interface IClient
+public interface IClient : IDisposable
 {
     Stream Stream { get; }
     bool IsConnected { get; }

@@ -19,7 +19,6 @@ public class ClientSession : IClientSession
     private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
-    private readonly IClientSessionManager _clientSessionManager;
     private readonly ILogger _logger;
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
@@ -28,6 +27,7 @@ public class ClientSession : IClientSession
 
     private bool _isSending;
     private int _connectionState;
+    private int _isDisposed;
 
     public string Id { get; private init; } // 세션 ID이며 플레이어 ID로도 사용됨
     public string? AuthToken { get; private set; }
@@ -37,7 +37,6 @@ public class ClientSession : IClientSession
         IClient client,
         IPacketHandler packetHandler,
         IPacketSerializer packetSerializer,
-        IClientSessionManager clientSessionManager,
         ILoggerFactory loggerFactory,
         string id)
     {
@@ -48,7 +47,6 @@ public class ClientSession : IClientSession
 
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
-        _clientSessionManager = clientSessionManager;
         _logger = loggerFactory.CreateLogger<ClientSession>();
 
         Id = id;
@@ -109,18 +107,15 @@ public class ClientSession : IClientSession
             // _connectionState 경합을 방지하기 위해 매니저에서 제거하기 전에 Disconnect를 호출합니다.
             await DisconnectAsync();
 
-            await _clientSessionManager.RemoveClientSessionAsync(Id);
             ArrayPool<byte>.Shared.Return(buffer);
-            _sessionCts.Dispose(); // CancellationTokenSource 해제
         }
     }
 
     public async Task SendAsync(IPacket packet)
     {
-        if (Interlocked.CompareExchange(ref _connectionState, CONNECTION_STATE_CONNECTED, CONNECTION_STATE_CONNECTED) == CONNECTION_STATE_DISCONNECTED)
+        if (Volatile.Read(ref _connectionState) == CONNECTION_STATE_DISCONNECTED)
         {
-            _logger.LogDebug("Attempted to send packet to disconnected client {ClientId}, requesting shutdown.", Id);
-            await RequestShutdownAsync("Attempted to send to disconnected client");
+            _logger.LogDebug("Attempted to send packet to disconnected client {ClientId}", Id);
             return;
         }
 
@@ -140,12 +135,31 @@ public class ClientSession : IClientSession
         }
 
         _logger.LogDebug("Disconnecting client {ClientId}", Id);
-        await _sessionCts.CancelAsync(); // 세션 루프 종료 신호
+        try
+        {
+            await _sessionCts.CancelAsync(); // 세션 루프 종료 신호
+        }
+        catch (ObjectDisposedException)
+        {
+            _logger.LogTrace("Session CTS already disposed for client {ClientId} during disconnect", Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error cancelling session CTS for client {ClientId}", Id);
+        }
 
         try
         {
             await _writer.CompleteAsync();
-            _client.Close();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error completing writer for client {ClientId}", Id);
+        }
+
+        try
+        {
+            _client.Dispose();
             _logger.LogInformation("Client {ClientId} disconnected successfully", Id);
         }
         catch (Exception ex)
@@ -221,8 +235,19 @@ public class ClientSession : IClientSession
         }
         catch (ObjectDisposedException)
         {
-            _logger.LogWarning("RequestShutdownAsync called on a disposed CancellationTokenSource for session {SessionId}. Session already shutting down.", Id);
+            // 이미 Disposed 상태면 추가 조치 불필요
         }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        _sessionCts.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private async Task FlushSendQueueAsync()
@@ -238,8 +263,23 @@ public class ClientSession : IClientSession
             _logger.LogTrace("Started sending packets for client {ClientId}", Id);
         }
 
+        void MarkSendingComplete()
+        {
+            lock (_sendLock)
+            {
+                _isSending = false;
+            }
+        }
+
         while (true)
         {
+            if (Volatile.Read(ref _connectionState) == CONNECTION_STATE_DISCONNECTED)
+            {
+                MarkSendingComplete();
+                _logger.LogTrace("Send loop exits because client {ClientId} is disconnected", Id);
+                return;
+            }
+
             if (!_sendQueue.TryDequeue(out IPacket? packet))
             {
                 lock (_sendLock)
@@ -256,23 +296,32 @@ public class ClientSession : IClientSession
             try
             {
                 _logger.LogTrace("Sending packet {PacketId} to client {ClientId}", packet.PacketId, Id);
-                await FlushAsync(packet);
+                await FlushAsync(packet, _sessionCts.Token);
             }
             catch (IOException ex)
             {
                 _logger.LogWarning(ex, "Network error while sending packet to client {ClientId}", Id);
+                MarkSendingComplete();
                 await RequestShutdownAsync($"Network error during send: {ex.GetType().Name}");
                 return;
             }
             catch (ObjectDisposedException ex)
             {
                 _logger.LogWarning(ex, "Connection already closed for client {ClientId}", Id);
+                MarkSendingComplete();
                 await RequestShutdownAsync($"Connection already closed during send: {ex.GetType().Name}");
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Send loop cancelled for client {ClientId}", Id);
+                MarkSendingComplete();
                 return;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while sending packet to client {ClientId}", Id);
+                MarkSendingComplete();
                 await RequestShutdownAsync($"Unexpected error during send: {ex.GetType().Name}");
                 return;
             }
@@ -281,7 +330,7 @@ public class ClientSession : IClientSession
         }
     }
 
-    private async Task FlushAsync(IPacket packet)
+    private async Task FlushAsync(IPacket packet, CancellationToken cancellationToken)
     {
         int headerSize = _packetSerializer.GetHeaderSize();
         int payloadSize = packet.GetPayloadSize();
@@ -292,7 +341,7 @@ public class ClientSession : IClientSession
 
         _writer.Advance(headerSize + payloadSize);
 
-        await _writer.FlushAsync();
+        await _writer.FlushAsync(cancellationToken);
     }
 
     public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken)
@@ -315,7 +364,9 @@ public class ClientSession : IClientSession
         }
 
         _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
-        this.IsAuthenticated = false;
+        IsAuthenticated = false;
+
+        await Task.CompletedTask;
         return (RTWErrorCode.AuthenticationFailed, 0);
     }
 }
