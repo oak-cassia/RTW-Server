@@ -32,10 +32,8 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 }
                 else
                 {
-                    _logger.LogWarning("Could not cast payload to CAuthToken for packet ID: {PacketPacketId}", packet.PacketId);
-                    // 필요하다면 오류 응답을 보내거나 세션을 종료합니다.
+                    _logger.LogWarning("Invalid payload for CAuthToken from client {ClientId}", clientSession.Id);
                 }
-
                 break;
 
             case PacketId.CChat:
@@ -45,9 +43,8 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 }
                 else
                 {
-                    _logger.LogWarning("Could not cast payload to CChat for packet ID: {PacketPacketId}", packet.PacketId);
+                    _logger.LogWarning("Invalid payload for CChat from client {ClientId}", clientSession.Id);
                 }
-
                 break;
 
             case PacketId.CChatChat:
@@ -57,9 +54,8 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 }
                 else
                 {
-                    _logger.LogWarning("Could not cast payload to CChatChat for packet ID: {PacketPacketId}", packet.PacketId);
+                    _logger.LogWarning("Invalid payload for CChatChat from client {ClientId}", clientSession.Id);
                 }
-
                 break;
 
             case PacketId.CChatJoin:
@@ -69,9 +65,8 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 }
                 else
                 {
-                    _logger.LogWarning("Could not cast payload to CChatJoin for packet ID: {PacketPacketId}", packet.PacketId);
+                    _logger.LogWarning("Invalid payload for CChatJoin from client {ClientId}", clientSession.Id);
                 }
-
                 break;
 
             case PacketId.CChatLeave:
@@ -81,9 +76,8 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 }
                 else
                 {
-                    _logger.LogWarning("Could not cast payload to CChatLeave for packet ID: {PacketPacketId}", packet.PacketId);
+                    _logger.LogWarning("Invalid payload for CChatLeave from client {ClientId}", clientSession.Id);
                 }
-
                 break;
 
             case PacketId.ISessionClosed:
@@ -91,58 +85,51 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 break;
 
             default:
-                _logger.LogWarning($"Unknown packet ID: {packet.PacketId}");
-                throw new ArgumentOutOfRangeException(nameof(packet.PacketId), packet.PacketId, null);
+                _logger.LogWarning("Unknown packet ID: {PacketId} from client {ClientId}. Requesting shutdown.", packet.PacketId, clientSession.Id);
+                await clientSession.RequestShutdownAsync($"Unknown packet ID: {packet.PacketId}");
+                break;
         }
     }
 
     private async Task HandleAuthToken(CAuthToken authTokenProtoPacket, IClientSession clientSession)
     {
         string authToken = authTokenProtoPacket.AuthToken;
-        _logger.LogDebug("Received authentication token: {AuthToken} from client {ClientId}",
-            authToken, clientSession.Id);
+        _logger.LogDebug("Received authentication token from client {ClientId}", clientSession.Id);
 
-        // ClientSession의 메서드를 통해 토큰을 검증합니다.
         var (errorCode, playerId) = await clientSession.ValidateAuthTokenAsync(authToken);
+
+        var sAuthResultProto = new SAuthResult
+        {
+            PlayerId = (errorCode == RTWErrorCode.Success) ? playerId : 0,
+            ErrorCode = (int)errorCode
+        };
 
         if (errorCode == RTWErrorCode.Success)
         {
-            _logger.LogInformation("Authentication successful for client {ClientId}, PlayerId: {PlayerId}",
-                clientSession.Id, playerId);
-
-            var sAuthResultProto = new SAuthResult
-            {
-                PlayerId = playerId,
-                ErrorCode = (int)RTWErrorCode.Success // proto 전송을 위해 int로 캐스팅
-            };
-            await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
+            _logger.LogInformation("Authentication successful for client {ClientId}, PlayerId: {PlayerId}", clientSession.Id, playerId);
         }
         else
         {
-            _logger.LogWarning("Authentication failed for client {ClientId}, ErrorCode: {ErrorCode}",
-                clientSession.Id, errorCode);
-
-            var sAuthResultProto = new SAuthResult
-            {
-                ErrorCode = (int)errorCode // proto 전송을 위해 int로 캐스팅
-            };
-            await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
+            _logger.LogWarning("Authentication failed for client {ClientId}, ErrorCode: {ErrorCode}", clientSession.Id, errorCode);
         }
+
+        await clientSession.SendAsync(new ProtoPacket(PacketId.SAuthResult, sAuthResultProto));
     }
 
     private async Task HandleChat(CChat cChat, IClientSession clientSession)
     {
-        string message = cChat.Message ?? string.Empty;
-        _logger.LogInformation("Chat received: client {ClientId} room {RoomId} type {ChatType} len {MessageLength}",
-            clientSession.Id, _defaultChatRoomId, cChat.ChatType, message.Length);
+        if (!clientSession.IsAuthenticated)
+        {
+            _logger.LogWarning("Chat rejected: client {ClientId} is not authenticated", clientSession.Id);
+            return;
+        }
 
-        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message, cChat.ChatType)
-            .ConfigureAwait(false);
+        string message = cChat.Message ?? string.Empty;
+        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message, cChat.ChatType);
 
         if (result != RTWErrorCode.Success)
         {
-            _logger.LogWarning("Chat failed: client {ClientId} room {RoomId} error {ErrorCode}",
-                clientSession.Id, _defaultChatRoomId, result);
+            _logger.LogWarning("Chat failed: client {ClientId} error {ErrorCode}", clientSession.Id, result);
         }
     }
 
@@ -155,16 +142,11 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         }
 
         string message = cChatChat.Message ?? string.Empty;
-        _logger.LogInformation("ChatChat received: client {ClientId} room {RoomId} len {MessageLength}",
-            clientSession.Id, _defaultChatRoomId, message.Length);
-
-        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message)
-            .ConfigureAwait(false);
+        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message);
 
         if (result != RTWErrorCode.Success)
         {
-            _logger.LogWarning("ChatChat failed: client {ClientId} room {RoomId} error {ErrorCode}",
-                clientSession.Id, _defaultChatRoomId, result);
+            _logger.LogWarning("ChatChat failed: client {ClientId} error {ErrorCode}", clientSession.Id, result);
         }
     }
 
@@ -173,20 +155,20 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         string roomId = cChatJoin.RoomId ?? string.Empty;
         if (!clientSession.IsAuthenticated)
         {
-            await SendChatJoinResult(clientSession, roomId, RTWErrorCode.AuthenticationFailed).ConfigureAwait(false);
+            await SendChatJoinResult(clientSession, roomId, RTWErrorCode.AuthenticationFailed);
             return;
         }
 
         var player = new GamePlayer(clientSession.Id.GetHashCode(), clientSession.Id, clientSession.Id);
-        var result = await _chatService.JoinRoomAsync(roomId, player).ConfigureAwait(false);
-        await SendChatJoinResult(clientSession, roomId, result).ConfigureAwait(false);
+        var result = await _chatService.JoinRoomAsync(roomId, player);
+        await SendChatJoinResult(clientSession, roomId, result);
     }
 
     private async Task HandleChatLeave(CChatLeave cChatLeave, IClientSession clientSession)
     {
         string roomId = cChatLeave.RoomId ?? string.Empty;
-        var result = await _chatService.LeaveRoomAsync(roomId, clientSession.Id).ConfigureAwait(false);
-        await SendChatLeaveResult(clientSession, roomId, result).ConfigureAwait(false);
+        var result = await _chatService.LeaveRoomAsync(roomId, clientSession.Id);
+        await SendChatLeaveResult(clientSession, roomId, result);
     }
 
     private async Task SendChatJoinResult(IClientSession clientSession, string roomId, RTWErrorCode errorCode)
@@ -197,7 +179,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
             RoomId = roomId
         };
 
-        await clientSession.SendAsync(new ProtoPacket(PacketId.SChatJoinResult, result)).ConfigureAwait(false);
+        await clientSession.SendAsync(new ProtoPacket(PacketId.SChatJoinResult, result));
     }
 
     private async Task SendChatLeaveResult(IClientSession clientSession, string roomId, RTWErrorCode errorCode)
@@ -208,7 +190,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
             RoomId = roomId
         };
 
-        await clientSession.SendAsync(new ProtoPacket(PacketId.SChatLeaveResult, result)).ConfigureAwait(false);
+        await clientSession.SendAsync(new ProtoPacket(PacketId.SChatLeaveResult, result));
     }
 
     private void HandleSessionClosed(IClientSession clientSession)
