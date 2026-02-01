@@ -6,7 +6,7 @@ namespace RTWServer.ServerCore.implementation;
 
 class AsyncAwaitServer
 {
-    // Maximum number of pending connection requests
+    // 대기 중인 연결 요청의 최대 수
     private const int MAX_PENDING_CONNECTIONS = 100;
 
     // 서버 상태를 기록하는 필드
