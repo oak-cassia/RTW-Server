@@ -2,6 +2,8 @@ namespace RTWWebServer.Cache;
 
 public interface IRemoteCacheKeyGenerator
 {
-    string GenerateUserLockKey(int userId);
-    string GenerateUserSessionKey(int userId);
+    string GenerateAccountLockKey(long accountId);
+    string GenerateUserSessionKey(long userId);
+    string GenerateUserKey(long userId);
+    string GeneratePlayerCharactersKey(long userId);
 }

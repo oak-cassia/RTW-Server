@@ -1,45 +1,25 @@
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
-using NetworkDefinition.ErrorCode;
-using RTWWebServer.DTO.response;
-using RTWWebServer.Service;
+using RTWWebServer.DTOs.Response;
+using RTWWebServer.Services;
 
 namespace RTWWebServer.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class AccountController(ILogger<AccountController> logger, IAccountService accountService) : ControllerBase
+public class AccountController(IAccountService accountService) : ControllerBase
 {
     [HttpPost("createGuestAccount")]
-    public async Task<CreateGuestAccountResponse> CreateGuestAccount()
+    public async Task<GameResponse<string>> CreateGuestAccount()
     {
-        try
-        {
-            string guestGuid = await accountService.CreateGuestAccountAsync();
-
-            return new CreateGuestAccountResponse(WebServerErrorCode.Success, guestGuid);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to register as guest");
-            return new CreateGuestAccountResponse(WebServerErrorCode.InternalServerError, string.Empty);
-        }
+        string guestGuid = await accountService.CreateGuestAccountAsync();
+        return GameResponse<string>.Ok(guestGuid);
     }
 
     [HttpPost("createAccount")]
-    public async Task<CreateAccountResponse> CreateAccount([FromBody] RegisterRequest request)
+    public async Task<GameResponse> CreateAccount([FromBody] RegisterRequest request)
     {
-        try
-        {
-            bool result = await accountService.CreateAccountAsync("", request.Email, request.Password);
-            return result
-                ? new CreateAccountResponse(WebServerErrorCode.Success)
-                : new CreateAccountResponse(WebServerErrorCode.InternalServerError);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to register");
-            return new CreateAccountResponse(WebServerErrorCode.InternalServerError);
-        }
+        await accountService.CreateAccountAsync(request.Email, request.Password);
+        return GameResponse.Ok();
     }
 }

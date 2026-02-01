@@ -1,3 +1,4 @@
+using Google.Protobuf;
 using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
@@ -25,5 +26,11 @@ public class GamePacketFactory : IPacketFactory
             PacketId.ISessionClosed => new ProtoPacket(packetId, ISessionClosed.Parser.ParseFrom(payloadBytes)),
             _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId, null)
         };
+    }
+
+    public IPacket CreatePacket(int packetIdNum, IMessage message)
+    {
+        PacketId packetId = (PacketId)packetIdNum;
+        return new ProtoPacket(packetId, message);
     }
 }

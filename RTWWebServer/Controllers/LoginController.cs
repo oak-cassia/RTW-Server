@@ -1,52 +1,25 @@
 using Microsoft.AspNetCore.Mvc;
-using NetworkDefinition.ErrorCode;
-using RTWWebServer.DTO.Request;
-using RTWWebServer.DTO.response;
-using RTWWebServer.Service;
+using RTWWebServer.DTOs.Request;
+using RTWWebServer.DTOs.Response;
+using RTWWebServer.Services;
 
 namespace RTWWebServer.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class LoginController(ILogger<LoginController> logger, ILoginService loginService) : ControllerBase
+public class LoginController(ILoginService loginService) : ControllerBase
 {
     [HttpPost("login")]
-    public async Task<LoginResponse> Login([FromBody] LoginRequest request)
+    public async Task<GameResponse<string>> Login([FromBody] LoginRequest request)
     {
-        try
-        {
-            (WebServerErrorCode errorCode, string authToken) = await loginService.LoginAsync(request.Email, request.Password);
-            if (errorCode != WebServerErrorCode.Success)
-            {
-                return new LoginResponse(errorCode, string.Empty);
-            }
-
-            return new LoginResponse(WebServerErrorCode.Success, authToken);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to login");
-            return new LoginResponse(WebServerErrorCode.InternalServerError, string.Empty);
-        }
+        string jwt = await loginService.LoginAsync(request.Email, request.Password);
+        return GameResponse<string>.Ok(jwt);
     }
 
     [HttpPost("guestLogin")]
-    public async Task<GuestLoginResponse> GuestLogin([FromBody] GuestLoginRequest request)
+    public async Task<GameResponse<string>> GuestLogin([FromBody] GuestLoginRequest request)
     {
-        try
-        {
-            (WebServerErrorCode errorCode, string authToken) = await loginService.GuestLoginAsync(request.GuestGuid);
-            if (errorCode != WebServerErrorCode.Success)
-            {
-                return new GuestLoginResponse(errorCode, string.Empty);
-            }
-
-            return new GuestLoginResponse(WebServerErrorCode.Success, authToken);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to login as guest");
-            return new GuestLoginResponse(WebServerErrorCode.InternalServerError, string.Empty);
-        }
+        string authToken = await loginService.GuestLoginAsync(request.GuestGuid);
+        return GameResponse<string>.Ok(authToken);
     }
 }
