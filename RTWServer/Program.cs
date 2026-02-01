@@ -6,11 +6,11 @@ using RTWServer.Packet;
 using RTWServer.ServerCore.implementation;
 using RTWServer.ServerCore.Interface;
 
-// TODO : 설정 파일에서 IP 주소와 포트 번호를 읽어와서 사용하도록 수정
+// 할 일: 설정 파일에서 IP 주소와 포트 번호를 읽어오도록 수정
 string ipAddress = "127.0.0.1";
 int port = 5000;
 
-// Create logger factory and logger
+// 로거 팩토리와 로거 생성
 ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
 {
     builder.AddConsole()
@@ -24,12 +24,10 @@ try
 
     const string defaultChatRoomId = "global";
     const string defaultChatRoomName = "Global";
-    IChatRoomManager chatRoomManager = new ChatRoomManager();
-    chatRoomManager.CreateRoom(defaultChatRoomId, defaultChatRoomName);
-
     IClientSessionManager? clientSessionManager = null;
-    IChatService chatService = new ChatService(sessionId => clientSessionManager?.GetClientSession(sessionId));
-    IChatHandler chatHandler = new ChatHandler(chatRoomManager, chatService);
+    IChatRoomManager chatRoomManager = new ChatRoomManager(sessionId => clientSessionManager?.GetClientSession(sessionId));
+    chatRoomManager.CreateRoom(defaultChatRoomId, defaultChatRoomName);
+    IChatHandler chatHandler = new ChatHandler(chatRoomManager);
 
     GamePacketFactory packetFactory = new GamePacketFactory();
     // IPacketHandler와 IPacketSerializer 인스턴스 생성
@@ -38,13 +36,13 @@ try
     GamePacketHandler packetHandler = new GamePacketHandler(loggerFactory, chatHandler, defaultChatRoomId);
 
     // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
-    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer);
+    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer, chatHandler);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
-        // packetHandler와 packetSerializer는 AsyncAwaitServer 생성자에서 제거되었으므로 여기서도 제거
+        // AsyncAwaitServer 생성자에서 제거되었으므로 여기서도 전달하지 않음
         loggerFactory,
-        clientSessionManager // Pass the initialized clientSessionManager
+        clientSessionManager // 초기화된 clientSessionManager 전달
     );
 
     logger.LogInformation("Server running at {IpAddress}:{Port}", ipAddress, port);
