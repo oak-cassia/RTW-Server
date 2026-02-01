@@ -2,20 +2,17 @@ namespace RTWServer.ServerCore.Interface;
 
 public interface IClientSessionManager
 {
-    // Method to handle a new client connection, including session creation and starting the session.
+    // 새 클라이언트 연결을 처리하며 세션 생성과 시작을 포함
     Task HandleNewClientAsync(IClient client, CancellationToken token);
 
-    void RemoveClientSession(string id);
+    Task RemoveClientSessionAsync(string id);
 
     IClientSession? GetClientSession(string id);
 
     IEnumerable<IClientSession> GetAllClientSessions();
 
     /// <summary>
-    ///     Initiates a graceful disconnect for the specified client session.
+    /// 지정한 클라이언트 세션에 대해 정상 종료를 요청
     /// </summary>
-    /// <param name="sessionId">The ID of the session to disconnect.</param>
-    /// <param name="reason">The reason for the disconnection.</param>
-    /// <returns>A task that represents the asynchronous disconnect operation.</returns>
     Task InitiateClientDisconnectAsync(string sessionId, string reason);
 }

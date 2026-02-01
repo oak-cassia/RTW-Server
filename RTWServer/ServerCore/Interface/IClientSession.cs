@@ -1,10 +1,8 @@
-using NetworkDefinition.ErrorCode;
-
 namespace RTWServer.ServerCore.Interface;
 
-public interface IClientSession
+public interface IClientSession : IAsyncDisposable
 {
-    string Id { get; } // Session ID, will also serve as Player ID after authentication
+    string Id { get; } // 인증 후 플레이어 ID로도 사용되는 세션 ID
     string? AuthToken { get; }
     bool IsAuthenticated { get; }
 
@@ -12,12 +10,12 @@ public interface IClientSession
 
     Task SendAsync(IPacket packet);
 
-    // PlayerId in the return tuple now refers to the authenticated Session ID (or a mapping if needed)
-    Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken);
+    // 반환 튜플의 PlayerId는 인증된 세션 ID(또는 필요 시 매핑된 값)를 의미합니다.
+    Task<(NetworkDefinition.ErrorCode.RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken);
 
     /// <summary>
-    ///     Requests the session to start its shutdown procedure.
+    /// 세션의 종료 절차를 시작하도록 요청합니다.
     /// </summary>
-    /// <param name="reason">The reason for the shutdown request.</param>
+    /// <param name="reason">종료 요청 사유</param>
     Task RequestShutdownAsync(string reason);
 }
