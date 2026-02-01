@@ -70,14 +70,10 @@ class AsyncAwaitServer
 
         try
         {
-            // ClientSessionManager의 HandleNewClientAsync를 호출하여 클라이언트 처리 위임
-            // ClientSessionManager와 ClientSession이 연결 종료 및 정리를 담당합니다.
             await _clientSessionManager.HandleNewClientAsync(client, token);
         }
-        catch (Exception ex) // ClientSessionManager.HandleNewClientAsync에서 처리되지 않은 최상위 예외
+        catch (Exception ex)
         {
-            // HandleNewClientAsync 또는 그 내부에서 발생한 예외는 해당 위치에서 로깅 및 처리가 우선되어야 합니다.
-            // 이 catch 블록은 정말 예외적인 상황(예: HandleNewClientAsync 자체가 throw)을 위한 것입니다.
             _logger.LogError(ex, "Unhandled exception during client handoff to ClientSessionManager for client: {ClientIdentifier}", client.ToString());
             // client.Close()는 ClientSession의 Disconnect 메서드 또는 ClientSessionManager의 정리 로직에서 담당합니다.
             // 여기서 직접 client.Close()를 호출하면 이중 해제 시도가 발생할 수 있습니다.
