@@ -57,13 +57,12 @@ public class ClientSession : IClientSession
 
     public async Task StartSessionAsync(CancellationToken token)
     {
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(NETWORK_BUFFER_SIZE);
         _logger.LogDebug("Session started for client {ClientId}", Id);
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, _sessionCts.Token);
-
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(NETWORK_BUFFER_SIZE);
         try
         {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, _sessionCts.Token);
             while (!linkedCts.Token.IsCancellationRequested)
             {
                 IPacket? packet = await ReadPacketAsync(buffer, linkedCts.Token);
@@ -239,15 +238,16 @@ public class ClientSession : IClientSession
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
+        // 세션이 아직 종료되지 않은 경우 연결을 확실히 끊고 리소스를 정리합니다.
+        await DisconnectAsync();
         _sessionCts.Dispose();
-        return ValueTask.CompletedTask;
     }
 
     private async Task FlushSendQueueAsync()
