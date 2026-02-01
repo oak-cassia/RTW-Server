@@ -8,10 +8,10 @@ using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game.Packet;
 
-public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHandler, string defaultChatRoomId) : IPacketHandler
+public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatService, string defaultChatRoomId) : IPacketHandler
 {
     private readonly ILogger _logger = loggerFactory.CreateLogger<GamePacketHandler>();
-    private readonly IChatHandler _chatHandler = chatHandler ?? throw new ArgumentNullException(nameof(chatHandler));
+    private readonly IChatService _chatService = chatService ?? throw new ArgumentNullException(nameof(chatService));
 
     private readonly string _defaultChatRoomId = string.IsNullOrWhiteSpace(defaultChatRoomId)
         ? throw new ArgumentException("Default room id cannot be null or whitespace.", nameof(defaultChatRoomId))
@@ -86,6 +86,10 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHa
 
                 break;
 
+            case PacketId.ISessionClosed:
+                HandleSessionClosed(clientSession);
+                break;
+
             default:
                 _logger.LogWarning($"Unknown packet ID: {packet.PacketId}");
                 throw new ArgumentOutOfRangeException(nameof(packet.PacketId), packet.PacketId, null);
@@ -128,25 +132,18 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHa
 
     private async Task HandleChat(CChat cChat, IClientSession clientSession)
     {
-        if (!_chatHandler.IsMember(_defaultChatRoomId, clientSession.Id))
-        {
-            _logger.LogWarning("Chat rejected: client {ClientId} is not in room {RoomId}", clientSession.Id, _defaultChatRoomId);
-            return;
-        }
-
         string message = cChat.Message ?? string.Empty;
         _logger.LogInformation("Chat received: client {ClientId} room {RoomId} type {ChatType} len {MessageLength}",
             clientSession.Id, _defaultChatRoomId, cChat.ChatType, message.Length);
-        var sChat = new SChat
-        {
-            ChatType = cChat.ChatType,
-            SenderPlayerId = clientSession.Id.GetHashCode(),
-            SenderName = clientSession.Id,
-            Message = message
-        };
 
-        await _chatHandler.HandleRoomBroadcastAsync(_defaultChatRoomId, new ProtoPacket(PacketId.SChat, sChat))
+        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message, cChat.ChatType)
             .ConfigureAwait(false);
+
+        if (result != RTWErrorCode.Success)
+        {
+            _logger.LogWarning("Chat failed: client {ClientId} room {RoomId} error {ErrorCode}",
+                clientSession.Id, _defaultChatRoomId, result);
+        }
     }
 
     private async Task HandleChatChat(CChatChat cChatChat, IClientSession clientSession)
@@ -157,25 +154,18 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHa
             return;
         }
 
-        if (!_chatHandler.IsMember(_defaultChatRoomId, clientSession.Id))
-        {
-            _logger.LogWarning("ChatChat rejected: client {ClientId} is not in room {RoomId}", clientSession.Id, _defaultChatRoomId);
-            return;
-        }
-
         string message = cChatChat.Message ?? string.Empty;
         _logger.LogInformation("ChatChat received: client {ClientId} room {RoomId} len {MessageLength}",
             clientSession.Id, _defaultChatRoomId, message.Length);
-        var sChat = new SChat
-        {
-            ChatType = 0,
-            SenderPlayerId = clientSession.Id.GetHashCode(),
-            SenderName = clientSession.Id,
-            Message = message
-        };
 
-        await _chatHandler.HandleRoomBroadcastAsync(_defaultChatRoomId, new ProtoPacket(PacketId.SChat, sChat))
+        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message)
             .ConfigureAwait(false);
+
+        if (result != RTWErrorCode.Success)
+        {
+            _logger.LogWarning("ChatChat failed: client {ClientId} room {RoomId} error {ErrorCode}",
+                clientSession.Id, _defaultChatRoomId, result);
+        }
     }
 
     private async Task HandleChatJoin(CChatJoin cChatJoin, IClientSession clientSession)
@@ -188,14 +178,14 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHa
         }
 
         var player = new GamePlayer(clientSession.Id.GetHashCode(), clientSession.Id, clientSession.Id);
-        var result = await _chatHandler.JoinRoomAsync(roomId, player).ConfigureAwait(false);
+        var result = await _chatService.JoinRoomAsync(roomId, player).ConfigureAwait(false);
         await SendChatJoinResult(clientSession, roomId, result).ConfigureAwait(false);
     }
 
     private async Task HandleChatLeave(CChatLeave cChatLeave, IClientSession clientSession)
     {
         string roomId = cChatLeave.RoomId ?? string.Empty;
-        var result = await _chatHandler.LeaveRoomAsync(roomId, clientSession.Id).ConfigureAwait(false);
+        var result = await _chatService.LeaveRoomAsync(roomId, clientSession.Id).ConfigureAwait(false);
         await SendChatLeaveResult(clientSession, roomId, result).ConfigureAwait(false);
     }
 
@@ -204,7 +194,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHa
         var result = new SChatJoinResult
         {
             ErrorCode = (int)errorCode,
-            RoomId = roomId ?? string.Empty
+            RoomId = roomId
         };
 
         await clientSession.SendAsync(new ProtoPacket(PacketId.SChatJoinResult, result)).ConfigureAwait(false);
@@ -215,9 +205,15 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatHandler chatHa
         var result = new SChatLeaveResult
         {
             ErrorCode = (int)errorCode,
-            RoomId = roomId ?? string.Empty
+            RoomId = roomId
         };
 
         await clientSession.SendAsync(new ProtoPacket(PacketId.SChatLeaveResult, result)).ConfigureAwait(false);
+    }
+
+    private void HandleSessionClosed(IClientSession clientSession)
+    {
+        _logger.LogInformation("Handling internal session closed for client {ClientId}", clientSession.Id);
+        _chatService.CleanupSession(clientSession.Id);
     }
 }

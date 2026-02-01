@@ -5,7 +5,7 @@ public interface IClientSessionManager
     // 새 클라이언트 연결을 처리하며 세션 생성과 시작을 포함
     Task HandleNewClientAsync(IClient client, CancellationToken token);
 
-    void RemoveClientSession(string id);
+    Task RemoveClientSessionAsync(string id);
 
     IClientSession? GetClientSession(string id);
 

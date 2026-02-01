@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using RTWServer.Game.Chat;
+using RTW.NetworkDefinition.Proto.Packet;
+using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
@@ -12,14 +13,12 @@ public class ClientSessionManager : IClientSessionManager
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
     private readonly ILogger<ClientSessionManager> _logger;
-    private readonly IChatHandler? _chatHandler;
 
-    public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer, IChatHandler? chatHandler = null)
+    public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer)
     {
         _loggerFactory = loggerFactory;
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
-        _chatHandler = chatHandler;
         _logger = _loggerFactory.CreateLogger<ClientSessionManager>();
     }
 
@@ -55,17 +54,20 @@ public class ClientSessionManager : IClientSessionManager
             // StartSessionAsync 내부 로직이 돌기 전에 예외가 터진 경우 안전하게 제거
             if (session != null)
             {
-                RemoveClientSession(session.Id);
+                await RemoveClientSessionAsync(session.Id);
             }
         }
     }
 
-    public void RemoveClientSession(string id)
+    public async Task RemoveClientSessionAsync(string id)
     {
-        _chatHandler?.CleanupSession(id);
-        if (_clientSessions.TryRemove(id, out _))
+        if (_clientSessions.TryRemove(id, out var session))
         {
-            _logger.LogInformation("Client session {SessionId} removed.", id);
+            _logger.LogInformation("Client session {SessionId} removed from manager, sending internal cleanup packet.", id);
+            
+            // 세션 종료를 알리는 내부 패킷 생성 및 처리
+            var cleanupPacket = new ProtoPacket(PacketId.ISessionClosed, new ISessionClosed());
+            await _packetHandler.HandlePacketAsync(cleanupPacket, session);
         }
         else
         {

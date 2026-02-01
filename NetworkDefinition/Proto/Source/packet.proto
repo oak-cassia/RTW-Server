@@ -23,6 +23,9 @@ enum PacketId {
   C_CHAT_LEAVE = 10005;
   S_CHAT_LEAVE_RESULT = 10006;
   C_CHAT_CHAT = 10007;
+
+  // Internal
+  I_SESSION_CLOSED = 90001;
 }
 
 // --- 시스템 및 연결 ---
@@ -81,4 +84,7 @@ message CChatLeave {
 message SChatLeaveResult {
   int32 errorCode = 1;
   string roomId = 2;
+}
+
+message ISessionClosed {
 }

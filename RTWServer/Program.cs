@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿﻿using System.Net;
 using Microsoft.Extensions.Logging;
 using RTWServer.Game.Chat;
 using RTWServer.Game.Packet;
@@ -27,16 +27,17 @@ try
     IClientSessionManager? clientSessionManager = null;
     IChatRoomManager chatRoomManager = new ChatRoomManager(sessionId => clientSessionManager?.GetClientSession(sessionId));
     chatRoomManager.CreateRoom(defaultChatRoomId, defaultChatRoomName);
-    IChatHandler chatHandler = new ChatHandler(chatRoomManager);
+    IChatService chatService = new ChatService(chatRoomManager);
 
     GamePacketFactory packetFactory = new GamePacketFactory();
     // IPacketHandler와 IPacketSerializer 인스턴스 생성
     IPacketSerializer packetSerializer = new PacketSerializer(packetFactory);
 
-    GamePacketHandler packetHandler = new GamePacketHandler(loggerFactory, chatHandler, defaultChatRoomId);
+    GamePacketHandler packetHandler = new GamePacketHandler(loggerFactory, chatService, defaultChatRoomId);
 
     // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
-    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer, chatHandler);
+    // ChatService 참조를 제거했습니다 (이제 내부 패킷을 통해 정리 처리를 수행합니다)
+    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
