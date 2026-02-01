@@ -1,19 +1,46 @@
 using NetworkDefinition.ErrorCode;
+using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Game.Player;
+using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.Game.Chat;
 
-public class ChatHandler : IChatHandler
+public class ChatService : IChatService
 {
     private readonly IChatRoomManager _roomManager;
 
-    public ChatHandler(IChatRoomManager roomManager)
+    public ChatService(IChatRoomManager roomManager)
     {
         _roomManager = roomManager ?? throw new ArgumentNullException(nameof(roomManager));
     }
 
-    public async Task<bool> HandleRoomBroadcastAsync(string roomId, IPacket packet, CancellationToken token = default)
+    public async Task<RTWErrorCode> SendChatMessageAsync(string roomId, string sessionId, string senderName, string message, uint chatType = 0, CancellationToken token = default)
+    {
+        if (string.IsNullOrWhiteSpace(roomId))
+        {
+            return RTWErrorCode.InvalidRequest;
+        }
+
+        if (!IsMember(roomId, sessionId))
+        {
+            return RTWErrorCode.InvalidOperation;
+        }
+
+        var sChat = new SChat
+        {
+            ChatType = chatType,
+            SenderPlayerId = sessionId.GetHashCode(),
+            SenderName = senderName ?? sessionId,
+            Message = message ?? string.Empty
+        };
+
+        var packet = new ProtoPacket(PacketId.SChat, sChat);
+        var success = await BroadcastPacketAsync(roomId, packet, token).ConfigureAwait(false);
+        return success ? RTWErrorCode.Success : RTWErrorCode.InvalidOperation;
+    }
+
+    public async Task<bool> BroadcastPacketAsync(string roomId, IPacket packet, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(roomId))
         {
@@ -47,12 +74,9 @@ public class ChatHandler : IChatHandler
             throw new ArgumentNullException(nameof(player));
         }
 
-        var room = _roomManager.GetRoom(roomId);
-        if (room == null)
-        {
-            _roomManager.CreateRoom(roomId, roomId);
-        }
-
+        // CreateRoom은 GetOrAdd를 사용하므로 이미 존재하면 기존 방 반환
+        // 방 생성과 참가를 연속으로 수행하여 race condition 최소화
+        _roomManager.CreateRoom(roomId, roomId);
         bool joined = _roomManager.JoinRoom(roomId, player);
         return Task.FromResult(joined ? RTWErrorCode.Success : RTWErrorCode.InvalidOperation);
     }

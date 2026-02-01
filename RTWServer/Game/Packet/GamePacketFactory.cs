@@ -22,6 +22,7 @@ public class GamePacketFactory : IPacketFactory
             PacketId.SChat => new ProtoPacket(packetId, SChat.Parser.ParseFrom(payloadBytes)),
             PacketId.SChatJoinResult => new ProtoPacket(packetId, SChatJoinResult.Parser.ParseFrom(payloadBytes)),
             PacketId.SChatLeaveResult => new ProtoPacket(packetId, SChatLeaveResult.Parser.ParseFrom(payloadBytes)),
+            PacketId.ISessionClosed => new ProtoPacket(packetId, ISessionClosed.Parser.ParseFrom(payloadBytes)),
             _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId, null)
         };
     }

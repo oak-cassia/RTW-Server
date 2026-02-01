@@ -109,7 +109,7 @@ public class ClientSession : IClientSession
             // _connectionState 경합을 방지하기 위해 매니저에서 제거하기 전에 Disconnect를 호출합니다.
             await DisconnectAsync();
 
-            _clientSessionManager.RemoveClientSession(Id);
+            await _clientSessionManager.RemoveClientSessionAsync(Id);
             ArrayPool<byte>.Shared.Return(buffer);
             _sessionCts.Dispose(); // CancellationTokenSource 해제
         }
