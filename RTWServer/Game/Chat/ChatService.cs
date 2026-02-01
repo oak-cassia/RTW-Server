@@ -36,7 +36,7 @@ public class ChatService : IChatService
         };
 
         var packet = new ProtoPacket(PacketId.SChat, sChat);
-        var success = await BroadcastPacketAsync(roomId, packet, token).ConfigureAwait(false);
+        var success = await BroadcastPacketAsync(roomId, packet, token);
         return success ? RTWErrorCode.Success : RTWErrorCode.InvalidOperation;
     }
 
@@ -58,7 +58,7 @@ public class ChatService : IChatService
             return false;
         }
 
-        await room.BroadcastAsync(packet, token).ConfigureAwait(false);
+        await room.BroadcastAsync(packet, token);
         return true;
     }
 

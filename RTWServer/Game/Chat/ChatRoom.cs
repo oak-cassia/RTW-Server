@@ -73,7 +73,7 @@ public class ChatRoom : IChatRoom
 
         if (sendTasks.Count > 0)
         {
-            await Task.WhenAll(sendTasks).ConfigureAwait(false);
+            await Task.WhenAll(sendTasks);
         }
     }
 
@@ -81,7 +81,7 @@ public class ChatRoom : IChatRoom
     {
         try
         {
-            await session.SendAsync(packet).ConfigureAwait(false);
+            await session.SendAsync(packet);
         }
         catch (Exception ex)
         {
