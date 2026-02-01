@@ -18,6 +18,11 @@ enum PacketId {
   // Social
   C_CHAT = 10001;
   S_CHAT = 10002;
+  C_CHAT_JOIN = 10003;
+  S_CHAT_JOIN_RESULT = 10004;
+  C_CHAT_LEAVE = 10005;
+  S_CHAT_LEAVE_RESULT = 10006;
+  C_CHAT_CHAT = 10007;
 }
 
 // --- 시스템 및 연결 ---
@@ -45,9 +50,35 @@ message CChat {
   string targetName = 3;
 }
 
+message CChatChat {
+  string message = 1;
+}
+
 message SChat {
   uint32 chatType = 1;
   int32 senderPlayerId = 2;
   string senderName = 3;
   string message = 4;
+}
+
+// (CChatJoin는 PacketHeader 뒤에 오는 payload가 됩니다)
+message CChatJoin {
+  string roomId = 1;
+}
+
+// (SChatJoinResult는 PacketHeader 뒤에 오는 payload가 됩니다)
+message SChatJoinResult {
+  int32 errorCode = 1;
+  string roomId = 2;
+}
+
+// (CChatLeave는 PacketHeader 뒤에 오는 payload가 됩니다)
+message CChatLeave {
+  string roomId = 1;
+}
+
+// (SChatLeaveResult는 PacketHeader 뒤에 오는 payload가 됩니다)
+message SChatLeaveResult {
+  int32 errorCode = 1;
+  string roomId = 2;
 }
