@@ -9,10 +9,9 @@ namespace RTWServer.ServerCore.implementation;
 
 public class ClientSession : IClientSession
 {
-    // Network buffer size for packet reading
+    // 패킷 읽기용 네트워크 버퍼 크기
     private const int NETWORK_BUFFER_SIZE = 4096;
-    
-    // Connection state constants
+
     private const int CONNECTION_STATE_DISCONNECTED = 0;
     private const int CONNECTION_STATE_CONNECTED = 1;
 
@@ -25,20 +24,20 @@ public class ClientSession : IClientSession
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
     private readonly Lock _sendLock = new();
-    private readonly CancellationTokenSource _sessionCts = new(); // CancellationTokenSource for session-specific cancellation
+    private readonly CancellationTokenSource _sessionCts = new(); // 세션 전용 취소 토큰 소스
 
     private bool _isSending;
-    private int _connectionState; // CONNECTION_STATE_CONNECTED or CONNECTION_STATE_DISCONNECTED
+    private int _connectionState;
 
-    public string Id { get; private init; } // Session ID, will also serve as Player ID
+    public string Id { get; private init; } // 세션 ID이며 플레이어 ID로도 사용됨
     public string? AuthToken { get; private set; }
     public bool IsAuthenticated { get; private set; }
 
     public ClientSession(
-        IClient client, 
-        IPacketHandler packetHandler, 
+        IClient client,
+        IPacketHandler packetHandler,
         IPacketSerializer packetSerializer,
-        IClientSessionManager clientSessionManager, 
+        IClientSessionManager clientSessionManager,
         ILoggerFactory loggerFactory,
         string id)
     {
@@ -55,7 +54,7 @@ public class ClientSession : IClientSession
         Id = id;
         _isSending = false;
         Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
-        IsAuthenticated = false; // Initialize as not authenticated
+        IsAuthenticated = false; // 인증되지 않은 상태로 초기화
     }
 
     public async Task StartSessionAsync(CancellationToken token)
@@ -82,7 +81,7 @@ public class ClientSession : IClientSession
         }
         catch (OperationCanceledException)
         {
-            // Log if cancellation was due to external token or session's own RequestShutdown
+            // 외부 토큰 또는 세션 자체의 RequestShutdown으로 취소되었는지 로깅
             if (token.IsCancellationRequested)
             {
                 _logger.LogInformation("Session cancelled for client {ClientId} due to server shutdown.", Id);
@@ -93,7 +92,7 @@ public class ClientSession : IClientSession
             }
             else
             {
-                _logger.LogInformation("Session cancelled for client {ClientId}.", Id); // General cancellation
+                _logger.LogInformation("Session cancelled for client {ClientId}.", Id); // 일반 취소
             }
         }
         catch (IOException ex)
@@ -102,18 +101,17 @@ public class ClientSession : IClientSession
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error in session for client {ClientId}", Id);
-            throw;
+            _logger.LogError(ex, "Unexpected error in session for client {ClientId}. Session will assume disconnected.", Id);
         }
         finally
         {
             _logger.LogDebug("Cleaning up session for client {ClientId}", Id);
-            // Ensure Disconnect is called before removing from manager to avoid race conditions on _connectionState
-            await DisconnectAsync(); 
+            // _connectionState 경합을 방지하기 위해 매니저에서 제거하기 전에 Disconnect를 호출합니다.
+            await DisconnectAsync();
 
             _clientSessionManager.RemoveClientSession(Id);
             ArrayPool<byte>.Shared.Return(buffer);
-            _sessionCts.Dispose(); // Dispose the CancellationTokenSource
+            _sessionCts.Dispose(); // CancellationTokenSource 해제
         }
     }
 
@@ -142,7 +140,7 @@ public class ClientSession : IClientSession
         }
 
         _logger.LogDebug("Disconnecting client {ClientId}", Id);
-        await _sessionCts.CancelAsync(); // Signal session loop to stop
+        await _sessionCts.CancelAsync(); // 세션 루프 종료 신호
 
         try
         {
@@ -198,7 +196,7 @@ public class ClientSession : IClientSession
         // 남은 데이터를 모두 읽을 때까지 반복
         while (sizeToRead > 0)
         {
-            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead, cancellationToken); 
+            int sizeReceived = await _client.ReceiveAsync(buffer, offset, sizeToRead, cancellationToken);
             if (sizeReceived == 0)
             {
                 return false;
@@ -278,7 +276,7 @@ public class ClientSession : IClientSession
                 await RequestShutdownAsync($"Unexpected error during send: {ex.GetType().Name}");
                 return;
             }
-            
+
             // 연결이 끊긴 경우 isSending을 false로 변경할 필요 없음
         }
     }
@@ -301,9 +299,9 @@ public class ClientSession : IClientSession
     {
         _logger.LogDebug("Validating auth token {AuthToken} for session {SessionId}", authToken, Id);
 
-        // 1. Check the authToken against a persistent store (e.g., Redis cache, database)
-        // 2. If valid, the Session ID (this.Id) can be used as the PlayerId or mapped to one.
-        // 3. Store relevant user/player data in the session.
+        // 1. authToken을 영속 저장소(예: Redis, DB)에서 검증
+        // 2. 유효하면 세션 ID(this.Id)를 PlayerId로 사용하거나 매핑
+        // 3. 필요한 사용자/플레이어 데이터를 세션에 저장
 
         if (!string.IsNullOrEmpty(authToken))
         {
@@ -311,7 +309,7 @@ public class ClientSession : IClientSession
 
             AuthToken = authToken;
             IsAuthenticated = true;
-            
+
             _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, playerIdForPacket);
             return (RTWErrorCode.Success, playerIdForPacket);
         }

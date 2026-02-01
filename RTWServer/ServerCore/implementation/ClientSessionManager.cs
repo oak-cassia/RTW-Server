@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using RTWServer.Game.Chat;
 using RTWServer.ServerCore.Interface;
 
 namespace RTWServer.ServerCore.implementation;
@@ -11,12 +12,14 @@ public class ClientSessionManager : IClientSessionManager
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
     private readonly ILogger<ClientSessionManager> _logger;
+    private readonly IChatHandler? _chatHandler;
 
-    public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer)
+    public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer, IChatHandler? chatHandler = null)
     {
         _loggerFactory = loggerFactory;
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
+        _chatHandler = chatHandler;
         _logger = _loggerFactory.CreateLogger<ClientSessionManager>();
     }
 
@@ -38,31 +41,20 @@ public class ClientSessionManager : IClientSessionManager
             session = CreateClientSession(client, _loggerFactory);
             _logger.LogDebug("Session {SessionId} created and added to session manager", session.Id);
 
-            // StartSessionAsync will now handle its own lifecycle, including removal on completion/error.
-            await session.StartSessionAsync(token); 
+            // StartSessionAsync가 내부에서 예외를 처리하고 수명 주기를 관리
+            await session.StartSessionAsync(token);
         }
-        catch (OperationCanceledException)
+        catch (Exception ex)
         {
-            // This catch block might only be hit if CreateClientSession itself is cancelled 
-            // or if StartSessionAsync rethrows OperationCanceledException before its own finally block runs.
-            // ClientSession.StartSessionAsync should handle its own cancellation logging and cleanup.
-            string sessionId = session?.Id ?? client.ToString() ?? "unknown"; // Use client.ToString() as a fallback if session is null
-            _logger.LogInformation("Handling of new client {SessionId} was cancelled.", sessionId);
-            // If session was created but StartSessionAsync didn't run or complete its finally block, 
-            // ensure it's removed. However, primary removal responsibility is now with ClientSession.
-            if (session != null && _clientSessions.ContainsKey(session.Id)) 
+            // CreateClientSession에서 실패했거나, 
+            // StartSessionAsync 호출 '직전'에 예외가 발생한 경우 등 초기화 실패 처리
+            string clientInfo = session?.Id ?? client.ToString() ?? "unknown";
+            _logger.LogError(ex, "Failed to initialize or start session for client {ClientInfo}", clientInfo);
+
+            // 세션이 생성되었지만 StartSessionAsync에 진입하지 못했거나
+            // StartSessionAsync 내부 로직이 돌기 전에 예외가 터진 경우 안전하게 제거
+            if (session != null)
             {
-                // This is a fallback, ideally ClientSession.StartSessionAsync().finally handles this.
-                RemoveClientSession(session.Id); 
-            }
-        }
-        catch (Exception ex) // Catch all other exceptions during session creation or initial handling
-        {
-            string sessionId = session?.Id ?? client.ToString() ?? "unknown";
-            _logger.LogError(ex, "Unexpected error while handling new client {SessionId}", sessionId);
-            if (session != null && _clientSessions.ContainsKey(session.Id))
-            {
-                // Fallback removal
                 RemoveClientSession(session.Id);
             }
         }
@@ -70,6 +62,7 @@ public class ClientSessionManager : IClientSessionManager
 
     public void RemoveClientSession(string id)
     {
+        _chatHandler?.CleanupSession(id);
         if (_clientSessions.TryRemove(id, out _))
         {
             _logger.LogInformation("Client session {SessionId} removed.", id);
@@ -100,19 +93,8 @@ public class ClientSessionManager : IClientSessionManager
 
         if (_clientSessions.TryGetValue(sessionId, out IClientSession? session))
         {
-            if (session != null)
-            {
-                _logger.LogInformation("Initiating disconnect for session {SessionId} due to: {Reason}", sessionId, reason);
-                await session.RequestShutdownAsync(reason); // Changed to await session.RequestShutdownAsync
-            }
-            else
-            {
-                // This case should ideally not happen if TryGetValue returns true and session is null.
-                // Logging it defensively.
-                _logger.LogWarning("Found a null session entry for ID {SessionId} while trying to disconnect.", sessionId);
-                // Attempt to remove it anyway, as it's an invalid state.
-                RemoveClientSession(sessionId);
-            }
+            _logger.LogInformation("Initiating disconnect for session {SessionId} due to: {Reason}", sessionId, reason);
+            await session.RequestShutdownAsync(reason); // RequestShutdownAsync를 await 처리
         }
         else
         {
