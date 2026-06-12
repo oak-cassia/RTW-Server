@@ -20,7 +20,8 @@ public class UserSessionProvider(
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
         await distributedCache.SetAsync(sessionKey, userSession, SessionExpiration);
 
-        logger.LogInformation($"User session created for userId: {userId}, authToken: {authToken}");
+        // authToken은 자격 증명이므로 로그에 남기지 않는다
+        logger.LogInformation("User session created for userId: {UserId}", userId);
         return userSession;
     }
 
@@ -31,7 +32,7 @@ public class UserSessionProvider(
 
         if (session == null)
         {
-            logger.LogDebug($"User session not found or expired for userId: {userId}");
+            logger.LogDebug("User session not found or expired for userId: {UserId}", userId);
             return null;
         }
 
@@ -43,7 +44,7 @@ public class UserSessionProvider(
         string sessionKey = keyGenerator.GenerateUserSessionKey(userId);
         await distributedCache.RemoveAsync(sessionKey);
 
-        logger.LogInformation($"Session removed for userId: {userId}");
+        logger.LogInformation("Session removed for userId: {UserId}", userId);
         return true;
     }
 
@@ -53,13 +54,13 @@ public class UserSessionProvider(
         if (session == null)
         {
             // Redis TTL로 자동 만료되었거나 세션이 없는 경우
-            logger.LogDebug($"Session not found or expired for userId: {userId}");
+            logger.LogDebug("Session not found or expired for userId: {UserId}", userId);
             return false;
         }
 
         if (session.Token != token)
         {
-            logger.LogWarning($"Token mismatch for userId: {userId}");
+            logger.LogWarning("Token mismatch for userId: {UserId}", userId);
             return false;
         }
 
