@@ -1,21 +1,23 @@
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Exceptions;
-using System.Text.Json;
+using RTWWebServer.Extensions;
 
 namespace RTWWebServer.Middlewares;
 
 public class UserAuthenticationMiddleware(
     IUserSessionProvider userSessionProvider,
-    ILogger<UserAuthenticationMiddleware> logger,
     RequestDelegate next)
 {
-    private static readonly HashSet<string> JWT_AUTHENTICATED_PATHS =
+    public const string UserIdHeader = "X-User-Id";
+    public const string AuthTokenHeader = "X-Auth-Token";
+
+    private static readonly string[] JWT_AUTHENTICATED_PATHS =
     [
         "/Game/enter"
     ];
 
-    private static readonly HashSet<string> EXCLUDED_PATHS =
+    private static readonly string[] EXCLUDED_PATHS =
     [
         "/Login",
         "/Account"
@@ -23,86 +25,50 @@ public class UserAuthenticationMiddleware(
 
     public async Task InvokeAsync(HttpContext context)
     {
-        context.Request.EnableBuffering();
-
         string path = context.Request.Path.Value ?? string.Empty;
-        
+
         // 인증이 필요 없는 경로나 JWT로 인증되는 경로는 건너뛰기
-        if (IsExcludedPath(path) || IsJwtAuthenticatedPath(path))
+        if (MatchesAny(EXCLUDED_PATHS, path) || MatchesAny(JWT_AUTHENTICATED_PATHS, path))
         {
             await next(context);
             return;
         }
 
-        // 세션 기반 인증
-        string requestBody = await ReadRequestBodyAsync(context);
-        if (string.IsNullOrEmpty(requestBody))
-            throw new GameException("Failed to read request body", WebServerErrorCode.InvalidRequestHttpBody);
+        // 세션 기반 인증: X-User-Id / X-Auth-Token 헤더 사용
+        if (!long.TryParse(context.Request.Headers[UserIdHeader], out long userId) || userId <= 0)
+        {
+            throw new GameException($"Missing or invalid {UserIdHeader} header", WebServerErrorCode.InvalidAuthToken);
+        }
 
-        (long userId, string authToken) = ExtractUserIdAndAuthToken(requestBody);
-        if (userId <= 0 || string.IsNullOrEmpty(authToken))
-            throw new GameException("Failed to extract user id and auth token from request body", WebServerErrorCode.InvalidRequestHttpBody);
+        string? authToken = context.Request.Headers[AuthTokenHeader];
+        if (string.IsNullOrEmpty(authToken))
+        {
+            throw new GameException($"Missing {AuthTokenHeader} header", WebServerErrorCode.InvalidAuthToken);
+        }
 
         if (!await userSessionProvider.IsValidSessionAsync(userId, authToken))
+        {
             throw new GameException($"Invalid or expired auth token for userId: {userId}", WebServerErrorCode.InvalidAuthToken);
+        }
 
-        context.Items["UserId"] = userId;
+        context.Items[HttpContextExtensions.UserIdItemKey] = userId;
 
         await next(context);
     }
 
-    private bool IsExcludedPath(string path) => EXCLUDED_PATHS.Any(path.StartsWith);
-
-    private bool IsJwtAuthenticatedPath(string path) => JWT_AUTHENTICATED_PATHS.Any(path.StartsWith);
-
-    private async Task<string> ReadRequestBodyAsync(HttpContext context)
+    private static bool MatchesAny(string[] prefixes, string path)
     {
-        try
-        {
-            using var bodyReader = new StreamReader(context.Request.Body, leaveOpen: true);
-            string body = await bodyReader.ReadToEndAsync();
-            context.Request.Body.Position = 0;
-            return body;
-        }
-        catch
-        {
-            return string.Empty;
-        }
+        return prefixes.Any(prefix => IsPathSegmentPrefix(path, prefix));
     }
 
-    private (long, string) ExtractUserIdAndAuthToken(string requestBody)
+    // "/Account"가 "/Accountxyz"에는 매칭되지 않도록 세그먼트 경계까지 확인
+    private static bool IsPathSegmentPrefix(string path, string prefix)
     {
-        try
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
-            using var bodyDocument = JsonDocument.Parse(requestBody);
-            var root = bodyDocument.RootElement;
-
-            if (!root.TryGetProperty("authToken", out var authTokenEl) ||
-                !root.TryGetProperty("userId", out var userIdEl))
-            {
-                return (0, string.Empty);
-            }
-
-            // JSON이 숫자면 GetInt64, 문자열이면 TryParse
-            long userId = 0;
-
-            switch (userIdEl.ValueKind)
-            {
-                case JsonValueKind.String:
-                    long.TryParse(userIdEl.GetString(), out userId);
-                    break;
-
-                case JsonValueKind.Number:
-                    userId = userIdEl.GetInt64();
-                    break;
-            }
-
-            string authToken = authTokenEl.GetString() ?? string.Empty;
-            return (userId, authToken);
+            return false;
         }
-        catch
-        {
-            return (0, string.Empty);
-        }
+
+        return path.Length == prefix.Length || path[prefix.Length] == '/';
     }
 }

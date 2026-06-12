@@ -1,11 +1,9 @@
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Moq;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Middlewares;
 using RTWWebServer.Exceptions;
+using RTWWebServer.Extensions;
 using NetworkDefinition.ErrorCode;
 
 namespace RTWTest.WebServer.Authentication;
@@ -15,24 +13,32 @@ namespace RTWTest.WebServer.Authentication;
 public class UserAuthenticationMiddlewareTest
 {
     private Mock<IUserSessionProvider> _mockUserSessionProvider;
-    private Mock<ILogger<UserAuthenticationMiddleware>> _mockLogger;
     private Mock<RequestDelegate> _mockNext;
+    private UserAuthenticationMiddleware _middleware;
 
     [SetUp]
     public void Setup()
     {
         _mockUserSessionProvider = new Mock<IUserSessionProvider>();
-        _mockLogger = new Mock<ILogger<UserAuthenticationMiddleware>>();
         _mockNext = new Mock<RequestDelegate>();
+        _middleware = new UserAuthenticationMiddleware(_mockUserSessionProvider.Object, _mockNext.Object);
     }
 
-    private HttpContext CreateHttpContext(string path, string bodyContent)
+    private static HttpContext CreateHttpContext(string path, string? userId = null, string? authToken = null)
     {
         var context = new DefaultHttpContext();
         context.Request.Path = path;
-        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(bodyContent));
-        context.Request.ContentLength = bodyContent.Length;
-        context.Request.EnableBuffering();
+
+        if (userId != null)
+        {
+            context.Request.Headers[UserAuthenticationMiddleware.UserIdHeader] = userId;
+        }
+
+        if (authToken != null)
+        {
+            context.Request.Headers[UserAuthenticationMiddleware.AuthTokenHeader] = authToken;
+        }
+
         return context;
     }
 
@@ -40,14 +46,10 @@ public class UserAuthenticationMiddlewareTest
     public async Task ShouldSkipExcludedPath()
     {
         // Arrange
-        var middleware = new UserAuthenticationMiddleware(
-            _mockUserSessionProvider.Object,
-            _mockLogger.Object,
-            _mockNext.Object);
-        var context = CreateHttpContext("/Login", "");
+        var context = CreateHttpContext("/Login/login");
 
         // Act
-        await middleware.InvokeAsync(context);
+        await _middleware.InvokeAsync(context);
 
         // Assert
         _mockNext.Verify(next => next(context), Times.Once);
@@ -55,42 +57,69 @@ public class UserAuthenticationMiddlewareTest
     }
 
     [Test]
-    public void ShouldReturnInvalidRequestHttpBody_WhenBodyIsEmpty()
+    public async Task ShouldSkipJwtAuthenticatedPath()
     {
         // Arrange
-        var middleware = new UserAuthenticationMiddleware(
-            _mockUserSessionProvider.Object,
-            _mockLogger.Object,
-            _mockNext.Object);
-        var context = CreateHttpContext("/secure", "");
+        var context = CreateHttpContext("/Game/enter");
+
+        // Act
+        await _middleware.InvokeAsync(context);
+
+        // Assert
+        _mockNext.Verify(next => next(context), Times.Once);
+        _mockUserSessionProvider.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public void ShouldNotSkipPathWithSimilarPrefix()
+    {
+        // Arrange: "/Account"로 시작하지만 다른 세그먼트인 경로는 제외 대상이 아니다
+        var context = CreateHttpContext("/Accountxyz/something");
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<GameException>(async () => await middleware.InvokeAsync(context));
-        Assert.Multiple(() => 
-        {
-            Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidRequestHttpBody));
-            Assert.That(exception.Message, Does.Contain("Failed to read request body"));
-        });
+        var exception = Assert.ThrowsAsync<GameException>(async () => await _middleware.InvokeAsync(context));
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidAuthToken));
+        _mockNext.Verify(next => next(It.IsAny<HttpContext>()), Times.Never);
+    }
+
+    [Test]
+    public void ShouldThrow_WhenUserIdHeaderIsMissing()
+    {
+        // Arrange
+        var context = CreateHttpContext("/Character/gacha", userId: null, authToken: "some-token");
+
+        // Act & Assert
+        var exception = Assert.ThrowsAsync<GameException>(async () => await _middleware.InvokeAsync(context));
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidAuthToken));
         _mockUserSessionProvider.VerifyNoOtherCalls();
         _mockNext.Verify(next => next(It.IsAny<HttpContext>()), Times.Never);
     }
 
     [Test]
-    public void ShouldReturnInvalidAuthToken_WhenAuthTokenIsInvalid()
+    public void ShouldThrow_WhenAuthTokenHeaderIsMissing()
     {
         // Arrange
-        var middleware = new UserAuthenticationMiddleware(
-            _mockUserSessionProvider.Object,
-            _mockLogger.Object,
-            _mockNext.Object);
-        var context = CreateHttpContext("/secure", "{\"userId\":1,\"authToken\":\"invalid-token\"}");
+        var context = CreateHttpContext("/Character/gacha", userId: "1");
+
+        // Act & Assert
+        var exception = Assert.ThrowsAsync<GameException>(async () => await _middleware.InvokeAsync(context));
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidAuthToken));
+        _mockUserSessionProvider.VerifyNoOtherCalls();
+        _mockNext.Verify(next => next(It.IsAny<HttpContext>()), Times.Never);
+    }
+
+    [Test]
+    public void ShouldThrow_WhenAuthTokenIsInvalid()
+    {
+        // Arrange
+        var context = CreateHttpContext("/Character/gacha", userId: "1", authToken: "invalid-token");
 
         _mockUserSessionProvider
             .Setup(provider => provider.IsValidSessionAsync(1, "invalid-token"))
             .ReturnsAsync(false);
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<GameException>(async () => await middleware.InvokeAsync(context));
+        var exception = Assert.ThrowsAsync<GameException>(async () => await _middleware.InvokeAsync(context));
         Assert.Multiple(() =>
         {
             Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidAuthToken));
@@ -100,23 +129,20 @@ public class UserAuthenticationMiddlewareTest
     }
 
     [Test]
-    public async Task ShouldProceedWithValidAuthToken()
+    public async Task ShouldProceedAndSetUserId_WithValidAuthToken()
     {
         // Arrange
-        var middleware = new UserAuthenticationMiddleware(
-            _mockUserSessionProvider.Object,
-            _mockLogger.Object,
-            _mockNext.Object);
-        var context = CreateHttpContext("/secure", "{\"userId\":1,\"authToken\":\"valid-token\"}");
+        var context = CreateHttpContext("/Character/gacha", userId: "1", authToken: "valid-token");
 
         _mockUserSessionProvider
             .Setup(provider => provider.IsValidSessionAsync(1, "valid-token"))
             .ReturnsAsync(true);
 
         // Act
-        await middleware.InvokeAsync(context);
+        await _middleware.InvokeAsync(context);
 
         // Assert
         _mockNext.Verify(next => next(context), Times.Once);
+        Assert.That(context.Items[HttpContextExtensions.UserIdItemKey], Is.EqualTo(1L));
     }
 }
