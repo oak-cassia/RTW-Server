@@ -1,5 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
 using NetworkDefinition.ErrorCode;
-using RTWWebServer.Cache;
 using RTWWebServer.Data.Entities;
 using RTWWebServer.Data.Repositories;
 using RTWWebServer.Exceptions;
@@ -11,9 +12,7 @@ namespace RTWWebServer.Services;
 public class LoginService(
     IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
-    ICacheManager cacheManager,
-    IJwtTokenProvider jwtTokenProvider,
-    ILogger<LoginService> logger
+    IJwtTokenProvider jwtTokenProvider
 ) : ILoginService
 {
     public async Task<string> LoginAsync(string email, string password)
@@ -24,16 +23,21 @@ public class LoginService(
             throw new GameException("Email and password are required", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
+        // 이메일 존재 여부와 비밀번호 불일치를 구분해서 응답하면 계정 열거(enumeration)가 가능하므로
+        // 모든 실패 경로에서 동일한 에러 코드를 반환한다.
+        // Password/Salt가 null인 계정(게스트 계정)은 이메일/비밀번호 로그인 대상이 아니다.
         Account? account = await accountRepository.FindByEmailAsync(email);
-        if (account == null)
+        if (account?.Password == null || account.Salt == null || account.Email == null)
         {
-            throw new GameException("Invalid email", WebServerErrorCode.InvalidEmail);
+            throw new GameException("Invalid email or password", WebServerErrorCode.InvalidCredentials);
         }
 
         string hashedPassword = passwordHasher.CalcHashedPassword(password, account.Salt);
-        if (hashedPassword != account.Password)
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(hashedPassword),
+                Encoding.UTF8.GetBytes(account.Password)))
         {
-            throw new GameException("Invalid password", WebServerErrorCode.InvalidPassword);
+            throw new GameException("Invalid email or password", WebServerErrorCode.InvalidCredentials);
         }
 
         // Account의 role에 따라 JWT 생성 (email 포함)

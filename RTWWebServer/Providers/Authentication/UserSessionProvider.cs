@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using RTWWebServer.Cache;
 using RTWWebServer.DTOs;
 
@@ -58,7 +60,10 @@ public class UserSessionProvider(
             return false;
         }
 
-        if (session.Token != token)
+        // 타이밍 공격으로 토큰을 한 글자씩 추측할 수 없도록 상수 시간 비교를 사용한다
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(session.Token),
+                Encoding.UTF8.GetBytes(token)))
         {
             logger.LogWarning("Token mismatch for userId: {UserId}", userId);
             return false;
