@@ -8,8 +8,10 @@ using RTWWebServer.Configuration;
 using RTWWebServer.Exceptions;
 using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using RTWWebServer.Authentication;
 using RTWWebServer.Providers.MasterData;
 
 namespace RTWWebServer;
@@ -118,9 +120,19 @@ public static class DependencyInjectionExtensions
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
-            });
+            })
+            .AddScheme<SessionAuthenticationOptions, SessionAuthenticationHandler>(SessionAuthenticationDefaults.SchemeName, null);
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            // [Authorize]/[AllowAnonymous]가 없는 엔드포인트는 기본적으로 인증을 요구한다 (deny by default).
+            // 새 컨트롤러를 추가할 때 인증 등록을 잊어도 공개 API가 되지 않는다.
+            options.FallbackPolicy = new AuthorizationPolicyBuilder(
+                    JwtBearerDefaults.AuthenticationScheme,
+                    SessionAuthenticationDefaults.SchemeName)
+                .RequireAuthenticatedUser()
+                .Build();
+        });
 
         return services;
     }

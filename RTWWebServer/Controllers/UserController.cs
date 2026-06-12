@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RTWWebServer.Authentication;
 using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
@@ -9,6 +11,7 @@ namespace RTWWebServer.Controllers;
 
 [ApiController]
 [Route("[controller]")]
+[Authorize(AuthenticationSchemes = SessionAuthenticationDefaults.SchemeName)]
 public class UserController(IUserService userService) : ControllerBase
 {
     [HttpPost("nickname")]

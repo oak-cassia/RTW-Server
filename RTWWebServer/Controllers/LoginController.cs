@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
@@ -7,6 +8,7 @@ namespace RTWWebServer.Controllers;
 
 [ApiController]
 [Route("[controller]")]
+[AllowAnonymous]
 public class LoginController(ILoginService loginService) : ControllerBase
 {
     [HttpPost("login")]

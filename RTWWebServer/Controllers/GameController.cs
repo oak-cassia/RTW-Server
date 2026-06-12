@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.DTOs;
@@ -14,7 +15,7 @@ namespace RTWWebServer.Controllers;
 public class GameController(IGameEntryService gameEntryService) : ControllerBase
 {
     [HttpPost("enter")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public async Task<GameResponse<UserSession>> EnterGame()
     {
         if (!User.TryGetSubjectId(out long accountId))
