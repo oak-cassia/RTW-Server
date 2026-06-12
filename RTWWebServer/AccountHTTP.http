@@ -76,3 +76,8 @@ X-Auth-Token: {{authToken}}
 GET {{baseUrl}}/Character/owned
 X-User-Id: {{userId}}
 X-Auth-Token: {{authToken}}
+
+### Logout (세션 무효화)
+POST {{baseUrl}}/User/logout
+X-User-Id: {{userId}}
+X-Auth-Token: {{authToken}}
