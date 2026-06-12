@@ -3,6 +3,7 @@ namespace RTWServer.ServerCore.Interface;
 public interface IClientSession : IAsyncDisposable
 {
     string Id { get; } // 인증 후 플레이어 ID로도 사용되는 세션 ID
+    int PlayerId { get; } // 프로세스 내에서 유일한 플레이어 ID (세션 생성 시 발급)
     string? AuthToken { get; }
     bool IsAuthenticated { get; }
 

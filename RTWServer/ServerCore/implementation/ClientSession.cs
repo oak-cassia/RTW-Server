@@ -12,8 +12,14 @@ public class ClientSession : IClientSession
     // 패킷 읽기용 네트워크 버퍼 크기
     private const int NETWORK_BUFFER_SIZE = 4096;
 
+    // 수신 측이 느려 송신 큐가 이 크기를 넘으면 무한정 메모리가 쌓이지 않도록 세션을 종료한다
+    private const int SEND_QUEUE_LIMIT = 256;
+
     private const int CONNECTION_STATE_DISCONNECTED = 0;
     private const int CONNECTION_STATE_CONNECTED = 1;
+
+    // 프로세스 내에서 충돌 없는 PlayerId 발급용 카운터 (string.GetHashCode는 충돌 가능 + 프로세스마다 값이 달라짐)
+    private static int _lastPlayerId;
 
     private readonly IClient _client;
     private readonly PipeWriter _writer;
@@ -30,6 +36,7 @@ public class ClientSession : IClientSession
     private int _isDisposed;
 
     public string Id { get; private init; } // 세션 ID이며 플레이어 ID로도 사용됨
+    public int PlayerId { get; }
     public string? AuthToken { get; private set; }
     public bool IsAuthenticated { get; private set; }
 
@@ -50,6 +57,7 @@ public class ClientSession : IClientSession
         _logger = loggerFactory.CreateLogger<ClientSession>();
 
         Id = id;
+        PlayerId = Interlocked.Increment(ref _lastPlayerId);
         _isSending = false;
         Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
         IsAuthenticated = false; // 인증되지 않은 상태로 초기화
@@ -121,7 +129,18 @@ public class ClientSession : IClientSession
         _logger.LogTrace("Enqueueing packet {PacketId} for client {ClientId}", packet.PacketId, Id);
         _sendQueue.Enqueue(packet);
 
-        await FlushSendQueueAsync();
+        // 수신이 막힌 클라이언트의 큐가 무한정 커지지 않도록 상한을 둔다
+        if (_sendQueue.Count > SEND_QUEUE_LIMIT)
+        {
+            _logger.LogWarning("Send queue overflow for client {ClientId}, requesting shutdown", Id);
+            await RequestShutdownAsync("Send queue overflow (slow consumer)");
+            return;
+        }
+
+        // 전송 완료를 기다리지 않는다. 느린 수신자의 TCP 백프레셔가 호출자(브로드캐스트,
+        // 발신자 세션의 수신 루프)를 막지 않도록 큐 적재와 실제 IO를 분리한다.
+        // FlushSendQueueAsync는 내부에서 모든 예외를 처리하고 실패 시 세션 종료를 요청한다.
+        _ = FlushSendQueueAsync();
     }
 
     private async Task DisconnectAsync()
@@ -346,21 +365,19 @@ public class ClientSession : IClientSession
 
     public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken)
     {
-        _logger.LogDebug("Validating auth token {AuthToken} for session {SessionId}", authToken, Id);
+        // authToken은 자격 증명이므로 로그에 원문을 남기지 않는다
+        _logger.LogDebug("Validating auth token for session {SessionId}", Id);
 
-        // 1. authToken을 영속 저장소(예: Redis, DB)에서 검증
-        // 2. 유효하면 세션 ID(this.Id)를 PlayerId로 사용하거나 매핑
-        // 3. 필요한 사용자/플레이어 데이터를 세션에 저장
-
+        // TODO: authToken을 영속 저장소(예: Redis, DB)에서 검증해야 한다.
+        // 현재는 비어 있지 않은 토큰을 모두 통과시키는 스텁이다. 웹 서버 세션(session_{userId})과
+        // 대조하려면 CAuthToken에 userId 필드가 필요하다 (proto 변경 필요).
         if (!string.IsNullOrEmpty(authToken))
         {
-            int playerIdForPacket = Id.GetHashCode();
-
             AuthToken = authToken;
             IsAuthenticated = true;
 
-            _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, playerIdForPacket);
-            return (RTWErrorCode.Success, playerIdForPacket);
+            _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, PlayerId);
+            return (RTWErrorCode.Success, PlayerId);
         }
 
         _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);

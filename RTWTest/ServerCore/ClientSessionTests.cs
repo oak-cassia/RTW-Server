@@ -33,7 +33,8 @@ public class ClientSessionTests
         var (errorCode, playerId) = await session.ValidateAuthTokenAsync("token");
 
         Assert.That(errorCode, Is.EqualTo(RTWErrorCode.Success));
-        Assert.That(playerId, Is.EqualTo("session1".GetHashCode()));
+        Assert.That(playerId, Is.EqualTo(session.PlayerId));
+        Assert.That(playerId, Is.GreaterThan(0));
         Assert.That(session.AuthToken, Is.EqualTo("token"));
         Assert.That(session.IsAuthenticated, Is.True);
     }
