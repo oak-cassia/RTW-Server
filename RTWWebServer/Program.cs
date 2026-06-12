@@ -15,7 +15,7 @@ builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddCustomServices();
 builder.Services.AddRepositories();
 builder.Services.AddConfigurations(configuration);
-builder.Services.AddEntityFramework(configuration);
+builder.Services.AddEntityFramework(configuration, builder.Environment.IsDevelopment());
 builder.Services.AddMasterDataSystem(configuration);
 
 WebApplication app = builder.Build();

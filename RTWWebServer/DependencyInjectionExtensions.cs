@@ -126,7 +126,7 @@ public static class DependencyInjectionExtensions
     }
 
     // EF Core를 위한 확장 메서드
-    public static IServiceCollection AddEntityFramework(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddEntityFramework(this IServiceCollection services, IConfiguration configuration, bool isDevelopment)
     {
         // 데이터베이스 연결 문자열 설정
         services.AddDbContext<AccountDbContext>(options =>
@@ -137,17 +137,21 @@ public static class DependencyInjectionExtensions
 
         // GameDbContext 추가
         services.AddDbContext<GameDbContext>(options =>
-                options.UseMySql(
-                        configuration["DatabaseConfiguration:GameDatabase"],
-                        ServerVersion.AutoDetect(configuration["DatabaseConfiguration:GameDatabase"])
-                    )
-                    // 아래 로깅 코드를 추가합니다.
-                    .LogTo(Console.WriteLine, LogLevel.Information)
-                    .EnableSensitiveDataLogging() // 개발 중에만 사용
-        );
+        {
+            options.UseMySql(
+                configuration["DatabaseConfiguration:GameDatabase"],
+                ServerVersion.AutoDetect(configuration["DatabaseConfiguration:GameDatabase"])
+            );
+
+            // SQL 콘솔 출력과 민감 데이터(파라미터 값) 로깅은 개발 환경에서만 사용
+            if (isDevelopment)
+            {
+                options.LogTo(Console.WriteLine, LogLevel.Information)
+                    .EnableSensitiveDataLogging();
+            }
+        });
 
         return services;
-        
     }
 
     // Master Data 시스템을 위한 확장 메서드
