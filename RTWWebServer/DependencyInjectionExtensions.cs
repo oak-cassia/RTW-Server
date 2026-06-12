@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using RTWWebServer.Authentication;
 using RTWWebServer.Providers.MasterData;
@@ -81,7 +82,37 @@ public static class DependencyInjectionExtensions
     {
         services.AddControllers();
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+        services.AddSwaggerGen(options =>
+        {
+            // Swagger UI에서 인증이 필요한 API를 테스트할 수 있도록 보안 스킴을 정의한다
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Description = "JWT 토큰 (/Login/login 또는 /Login/guestLogin에서 발급)"
+            });
+            options.AddSecurityDefinition("SessionUserId", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                In = ParameterLocation.Header,
+                Name = SessionAuthenticationDefaults.UserIdHeaderName,
+                Description = "세션 인증 사용자 ID (/Game/enter에서 발급)"
+            });
+            options.AddSecurityDefinition("SessionAuthToken", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                In = ParameterLocation.Header,
+                Name = SessionAuthenticationDefaults.AuthTokenHeaderName,
+                Description = "세션 인증 토큰 (/Game/enter에서 발급)"
+            });
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }] = [],
+                [new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "SessionUserId" } }] = [],
+                [new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "SessionAuthToken" } }] = []
+            });
+        });
         services.AddExceptionHandler<GlobalGameExceptionHandler>();
 
         return services;
