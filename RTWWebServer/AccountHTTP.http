@@ -1,21 +1,31 @@
 @baseUrl = localhost:8080
 
-### Post create Guest
+### 인증 흐름
+# 1. createGuestAccount(또는 createAccount) → guestGuid(또는 email/password) 획득
+# 2. guestLogin(또는 login) → JWT 획득 → @jwt에 입력
+# 3. Game/enter (JWT 인증) → userId, token(세션 토큰) 획득 → @userId, @authToken에 입력
+# 4. 이후 게임 API는 X-User-Id / X-Auth-Token 헤더로 인증
+
+@jwt = PASTE_JWT_FROM_LOGIN_RESPONSE
+@userId = PASTE_USER_ID_FROM_GAME_ENTER_RESPONSE
+@authToken = PASTE_TOKEN_FROM_GAME_ENTER_RESPONSE
+
+### Create Guest Account
 POST {{baseUrl}}/Account/createGuestAccount
 Content-Type: application/json
 
 {
 }
 
-### Login Guest
+### Guest Login (응답 data = JWT)
 POST {{baseUrl}}/Login/guestLogin
 Content-Type: application/json
 
 {
-    "GuestGuid": "4a66edaf-0ad1-4344-b486-538ef1b58c87"
+    "guestGuid": "4a66edaf-0ad1-4344-b486-538ef1b58c87"
 }
 
-### create Account
+### Create Account
 POST {{baseUrl}}/Account/createAccount
 Content-Type: application/json
 
@@ -24,8 +34,8 @@ Content-Type: application/json
     "password": "123"
 }
 
-### Login
-POST {{baseUrl}}/Login/login/
+### Login (응답 data = JWT)
+POST {{baseUrl}}/Login/login
 Content-Type: application/json
 
 {
@@ -33,32 +43,36 @@ Content-Type: application/json
     "password": "123"
 }
 
-### GameEntry
+### Game Entry (JWT 인증, 응답 data = { userId, token })
 POST {{baseUrl}}/Game/enter
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiR3VpZCI6IjRhNjZlZGFmLTBhZDEtNDM0NC1iNDg2LTUzOGVmMWI1OGM4NyIsImp0aSI6ImIzNzVhZjg0LTM1NWItNDQzZC1hNDVkLTFiZWQ4NWUwMDRlNCIsInJvbGUiOiJHdWVzdCIsIm5iZiI6MTc1NjMxMTcyOSwiZXhwIjoxNzU2MzEzNTI5LCJpYXQiOjE3NTYzMTE3MjksImlzcyI6Im15LWF1dGgtc2VydmVyLmNvbSIsImF1ZCI6Im15LWdhbWUtc2VydmVyLmNvbSJ9.QirsBe_KPG8RmgXqfWYKP6bxjnxK4asuLAco_UlFnxQ
+Authorization: Bearer {{jwt}}
 
 {
-
 }
 
-### NickName
+### Update Nickname (세션 인증)
 POST {{baseUrl}}/User/nickname
 Content-Type: application/json
+X-User-Id: {{userId}}
+X-Auth-Token: {{authToken}}
 
 {
-    "userId": 2,
-    "nickname": "새로운닉네임",
-    "authToken": "765730df-38fc-4982-bb56-220b0d5c74ac"
+    "nickname": "새로운닉네임"
 }
 
-### Gacha
+### Character Gacha (세션 인증)
 POST {{baseUrl}}/Character/gacha
 Content-Type: application/json
+X-User-Id: {{userId}}
+X-Auth-Token: {{authToken}}
 
 {
-    "userId" : 2,
     "gachaType": 1,
-    "count": 1,
-    "authToken": "765730df-38fc-4982-bb56-220b0d5c74ac"
+    "count": 1
 }
+
+### Owned Characters (세션 인증)
+GET {{baseUrl}}/Character/owned
+X-User-Id: {{userId}}
+X-Auth-Token: {{authToken}}
