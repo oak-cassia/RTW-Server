@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
@@ -40,9 +41,6 @@ public class CharacterGachaServiceTests
 
         // Cache Key 생성 기본 설정
         _mockRemoteCacheKeyGenerator
-            .Setup(x => x.GenerateUserKey(It.IsAny<long>()))
-            .Returns<long>(id => $"user:{id}");
-        _mockRemoteCacheKeyGenerator
             .Setup(x => x.GeneratePlayerCharactersKey(It.IsAny<long>()))
             .Returns<long>(id => $"playerchars:{id}");
 
@@ -51,19 +49,20 @@ public class CharacterGachaServiceTests
             .Setup(x => x.GetAsync<List<PlayerCharacter>>(It.IsAny<string>()))
             .ReturnsAsync((List<PlayerCharacter>)null);
         _mockCacheManager
-            .Setup(x => x.GetAsync<User>(It.IsAny<string>()))
-            .ReturnsAsync((User)null);
-        _mockCacheManager
             .Setup(x => x.CommitAllChangesAsync())
+            .Returns(Task.CompletedTask);
+        _mockCacheManager
+            .Setup(x => x.DeleteAsync(It.IsAny<string>()))
             .Returns(Task.CompletedTask);
 
         _service = new CharacterGachaService(
-            _dbContext, 
+            _dbContext,
             _mockUserRepository.Object,
             _mockPlayerCharacterRepository.Object,
             _mockMasterDataProvider.Object,
             _mockCacheManager.Object,
-            _mockRemoteCacheKeyGenerator.Object);
+            _mockRemoteCacheKeyGenerator.Object,
+            Mock.Of<ILogger<CharacterGachaService>>());
     }
 
     [TearDown]
@@ -84,7 +83,7 @@ public class CharacterGachaServiceTests
         var exception = Assert.ThrowsAsync<GameException>(async () =>
             await _service.PerformGachaAsync(userId, 1, 1));
 
-        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.AccountNotFound));
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.UserNotFound));
         Assert.That(exception.Message, Is.EqualTo("User not found"));
     }
 
@@ -190,6 +189,9 @@ public class CharacterGachaServiceTests
         _mockPlayerCharacterRepository.Verify(x => x.AddAsync(It.IsAny<PlayerCharacter>()), Times.Exactly(count));
         _mockUserRepository.Verify(x => x.Update(user), Times.Once);
         // Note: DbContext.SaveChangesAsync verification removed as it's complex to mock
+
+        // 쓰기 성공 후 조회 캐시가 무효화되어야 한다
+        _mockCacheManager.Verify(x => x.DeleteAsync("playerchars:1"), Times.Once);
     }
 
     [Test]

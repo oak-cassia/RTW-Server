@@ -16,7 +16,8 @@ public class CharacterGachaService(
     IPlayerCharacterRepository playerCharacterRepository,
     IMasterDataProvider masterDataProvider,
     ICacheManager cacheManager,
-    IRemoteCacheKeyGenerator remoteCacheKeyGenerator
+    IRemoteCacheKeyGenerator remoteCacheKeyGenerator,
+    ILogger<CharacterGachaService> logger
 ) : ICharacterGachaService
 {
     const int COST_PER_GACHA = 300;
@@ -28,10 +29,11 @@ public class CharacterGachaService(
             throw new GameException("Invalid gacha count", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        var user = await GetCachedUser(userId) ?? throw new GameException("User not found", WebServerErrorCode.AccountNotFound);
+        // 재화 차감과 소유 판정은 DB를 기준으로 한다. 캐시를 기준으로 하면 캐시 히트 시
+        // 차감 결과가 캐시에 반영되지 않아, 다음 요청이 stale 잔액으로 계산한 값을 DB에 덮어쓴다.
+        var user = await userRepository.GetByIdAsync(userId) ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
 
-        var playerCharacters = await GetCachedPlayerCharactersAsync(userId);
-        var ownedCharacterIds = playerCharacters
+        var ownedCharacterIds = (await playerCharacterRepository.GetByUserIdAsync(userId))
             .Select(pc => pc.CharacterMasterId)
             .ToHashSet();
 
@@ -60,8 +62,6 @@ public class CharacterGachaService(
             );
 
             await playerCharacterRepository.AddAsync(newCharacter);
-
-            playerCharacters.Add(newCharacter);
         }
 
         user.PremiumCurrency -= actualCost;
@@ -69,8 +69,7 @@ public class CharacterGachaService(
 
         await dbContext.SaveChangesAsync();
 
-        cacheManager.Set(remoteCacheKeyGenerator.GeneratePlayerCharactersKey(userId), playerCharacters);
-        await cacheManager.CommitAllChangesAsync();
+        await InvalidatePlayerCharactersCacheAsync(userId);
 
         return new CharacterGachaResult
         {
@@ -78,6 +77,20 @@ public class CharacterGachaService(
             RemainingPremiumCurrency = user.PremiumCurrency,
             RemainingFreeCurrency = user.FreeCurrency
         };
+    }
+
+    // 쓰기 후에는 캐시를 갱신(write-through)하지 않고 무효화한다. DB 커밋 후 Redis 쓰기가 실패하면
+    // stale 데이터가 TTL까지 남기 때문. 무효화 실패는 조회 캐시에만 영향을 주므로 요청을 실패시키지 않는다.
+    private async Task InvalidatePlayerCharactersCacheAsync(long userId)
+    {
+        try
+        {
+            await cacheManager.DeleteAsync(remoteCacheKeyGenerator.GeneratePlayerCharactersKey(userId));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to invalidate player characters cache for userId: {UserId}", userId);
+        }
     }
 
     public async Task<PlayerCharacterInfo[]> GetPlayerCharactersAsync(long userId)
@@ -111,24 +124,6 @@ public class CharacterGachaService(
         cacheManager.Set(cacheKey, characters);
 
         return characters;
-    }
-
-    private async Task<User?> GetCachedUser(long userId)
-    {
-        var cacheKey = remoteCacheKeyGenerator.GenerateUserKey(userId);
-        var user = await cacheManager.GetAsync<User>(cacheKey);
-        if (user is not null)
-        {
-            return user;
-        }
-
-        user = await userRepository.GetByIdAsync(userId);
-        if (user is not null)
-        {
-            cacheManager.Set(cacheKey, user);
-        }
-
-        return user;
     }
 
     private static List<int> PickRandomIdsWithoutReplacement(IEnumerable<int> allCharacterIds, HashSet<int> ownedCharacterIds, int requestedCount)
