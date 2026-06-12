@@ -29,10 +29,6 @@ public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAda
 
             await next(context);
         }
-        catch (Exception ex) when (ex is not GameException)
-        {
-            throw;
-        }
         finally
         {
             if (lockAcquired)
@@ -44,6 +40,14 @@ public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAda
 
     private string? ResolveLockKey(HttpContext context)
     {
+        // 세션 인증 경로(/Character, /User 등): UserAuthenticationMiddleware가 먼저 실행되어
+        // 검증된 userId를 Items에 설정하므로 이를 기준으로 락을 건다.
+        if (context.TryGetAuthenticatedUserId(out long userId))
+        {
+            return keyGenerator.GenerateUserLockKey(userId);
+        }
+
+        // JWT 인증 경로(/Game/enter 등): account 기준으로 락을 건다.
         if (context.User.Identity?.IsAuthenticated == true &&
             context.User.TryGetSubjectId(out var accountId))
         {

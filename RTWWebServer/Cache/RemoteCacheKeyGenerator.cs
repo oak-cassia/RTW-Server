@@ -7,6 +7,11 @@ public class RemoteCacheKeyGenerator : IRemoteCacheKeyGenerator
         return $"lock:account:{accountId}";
     }
 
+    public string GenerateUserLockKey(long userId)
+    {
+        return $"lock:user:{userId}";
+    }
+
     public string GenerateUserSessionKey(long userId)
     {
         return $"session_{userId}";

@@ -126,6 +126,31 @@ public class RequestLockingMiddlewareTests
     }
 
     [Test]
+    public async Task InvokeAsync_WhenSessionAuthenticated_ShouldLockWithUserId()
+    {
+        // Arrange
+        const long userId = 67890;
+        const string lockKey = "lock:user:67890";
+
+        // 세션 인증: UserAuthenticationMiddleware가 설정하는 Items["UserId"]
+        _httpContext.Items["UserId"] = userId;
+
+        _mockKeyGenerator.Setup(kg => kg.GenerateUserLockKey(userId)).Returns(lockKey);
+        _mockDistributedCacheAdapter.Setup(cache => cache.LockAsync(lockKey, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await _middleware.InvokeAsync(_httpContext);
+
+        // Assert
+        _mockNext.Verify(next => next(_httpContext), Times.Once);
+        _mockKeyGenerator.Verify(kg => kg.GenerateUserLockKey(userId), Times.Once);
+        _mockKeyGenerator.Verify(kg => kg.GenerateAccountLockKey(It.IsAny<long>()), Times.Never);
+        _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(lockKey, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(lockKey, It.IsAny<string>()), Times.Once);
+    }
+
+    [Test]
     public async Task InvokeAsync_WhenUsingSubClaim_ShouldWork()
     {
         // Arrange
