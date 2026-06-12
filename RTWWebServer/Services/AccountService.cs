@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
@@ -15,19 +18,45 @@ public class AccountService(
     IGuidGenerator guidGenerator
 ) : IAccountService
 {
+    private const int MAX_EMAIL_LENGTH = 64; // AccountDbContext의 Email HasMaxLength와 일치해야 함
+    private const int MIN_PASSWORD_LENGTH = 8;
+
     public async Task CreateAccountAsync(string email, string password)
     {
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
-        {
-            throw new GameException("Email and password are required", WebServerErrorCode.InvalidRequestHttpBody);
-        }
+        ValidateCredentials(email, password);
 
         string salt = passwordHasher.GenerateSaltValue();
         string hashedPassword = passwordHasher.CalcHashedPassword(password, salt);
 
         Account account = new Account(email, hashedPassword, salt, UserRole.Normal, DateTime.UtcNow, DateTime.UtcNow);
 
-        await SaveAccountAndValidateAsync(account);
+        try
+        {
+            await SaveAccountAndValidateAsync(account);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is MySqlException { ErrorCode: MySqlErrorCode.DuplicateKeyEntry })
+        {
+            // Email unique 인덱스 위반 - 이미 가입된 이메일
+            throw new GameException($"Email already in use", WebServerErrorCode.DuplicateEmail);
+        }
+    }
+
+    private static void ValidateCredentials(string email, string password)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            throw new GameException("Email and password are required", WebServerErrorCode.InvalidRequestHttpBody);
+        }
+
+        if (email.Length > MAX_EMAIL_LENGTH || !new EmailAddressAttribute().IsValid(email))
+        {
+            throw new GameException("Invalid email format", WebServerErrorCode.InvalidRequestHttpBody);
+        }
+
+        if (password.Length < MIN_PASSWORD_LENGTH)
+        {
+            throw new GameException($"Password must be at least {MIN_PASSWORD_LENGTH} characters", WebServerErrorCode.InvalidRequestHttpBody);
+        }
     }
 
     public async Task<string> CreateGuestAccountAsync()
