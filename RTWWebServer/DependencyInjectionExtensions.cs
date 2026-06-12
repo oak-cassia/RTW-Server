@@ -9,6 +9,7 @@ using RTWWebServer.Exceptions;
 using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using RTWWebServer.Authentication;
@@ -174,8 +175,9 @@ public static class DependencyInjectionExtensions
             .Bind(configuration)
             .ValidateOnStart();
 
-        // Services 등록
-        services.AddSingleton<MasterDataOptionsValidator>();
+        // 옵션 시스템이 검증기를 인식하려면 IValidateOptions<T>로 등록해야 한다.
+        // 구체 타입으로만 등록하면 ValidateOnStart()가 아무것도 검증하지 않는다.
+        services.AddSingleton<IValidateOptions<MasterDataOptions>, MasterDataOptionsValidator>();
         services.AddSingleton<IMasterDataProvider, MasterDataProvider>();
 
         return services;

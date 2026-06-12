@@ -15,8 +15,22 @@ public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
     {
         _logger = logger;
 
+        // 시작 시에는 실패를 그대로 던져 기동을 중단시킨다 (fail fast)
         BuildSnapshot(monitor.CurrentValue);
-        _reloader = monitor.OnChange(BuildSnapshot);
+
+        // 런타임 리로드 실패는 프로세스를 죽이는 대신 기존 스냅샷을 유지한다
+        // (파일 워처 콜백에서 던진 예외는 처리되지 않으면 프로세스를 종료시킬 수 있음)
+        _reloader = monitor.OnChange(options =>
+        {
+            try
+            {
+                BuildSnapshot(options);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to rebuild master data snapshot on reload. Keeping previous snapshot.");
+            }
+        });
     }
 
     public bool TryGetCharacter(int id, out CharacterMaster character)
