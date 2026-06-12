@@ -8,8 +8,9 @@ public interface IChatService
 {
     /// <summary>
     /// 채팅 메시지를 처리하고 해당 방에 브로드캐스트합니다.
+    /// 발신자 정보(PlayerId, Name)는 방에 저장된 멤버 정보를 사용합니다.
     /// </summary>
-    Task<RTWErrorCode> SendChatMessageAsync(string roomId, string sessionId, string senderName, string message, uint chatType = 0, CancellationToken token = default);
+    Task<RTWErrorCode> SendChatMessageAsync(string roomId, string sessionId, string message, uint chatType = 0, CancellationToken token = default);
     
     /// <summary>
     /// 이미 생성된 패킷을 방에 브로드캐스트합니다.

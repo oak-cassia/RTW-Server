@@ -107,6 +107,15 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         if (errorCode == RTWErrorCode.Success)
         {
             _logger.LogInformation("Authentication successful for client {ClientId}, PlayerId: {PlayerId}", clientSession.Id, playerId);
+
+            // CChat/CChatChat은 RoomId 없이 기본 방으로 라우팅되므로, 인증 직후 기본 방에
+            // 자동 입장시켜 두지 않으면 멤버십 검사에 걸려 메시지가 조용히 버려진다.
+            var player = new GamePlayer(playerId, clientSession.Id, clientSession.Id);
+            var joinResult = await _chatService.JoinRoomAsync(_defaultChatRoomId, player);
+            if (joinResult != RTWErrorCode.Success)
+            {
+                _logger.LogDebug("Default room join skipped for client {ClientId}: {ErrorCode}", clientSession.Id, joinResult);
+            }
         }
         else
         {
@@ -125,7 +134,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         }
 
         string message = cChat.Message ?? string.Empty;
-        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message, cChat.ChatType);
+        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, message, cChat.ChatType);
 
         if (result != RTWErrorCode.Success)
         {
@@ -142,7 +151,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         }
 
         string message = cChatChat.Message ?? string.Empty;
-        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, clientSession.Id, message);
+        var result = await _chatService.SendChatMessageAsync(_defaultChatRoomId, clientSession.Id, message);
 
         if (result != RTWErrorCode.Success)
         {
@@ -159,7 +168,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
             return;
         }
 
-        var player = new GamePlayer(clientSession.Id.GetHashCode(), clientSession.Id, clientSession.Id);
+        var player = new GamePlayer(clientSession.PlayerId, clientSession.Id, clientSession.Id);
         var result = await _chatService.JoinRoomAsync(roomId, player);
         await SendChatJoinResult(clientSession, roomId, result);
     }

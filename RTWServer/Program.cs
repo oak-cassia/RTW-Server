@@ -26,7 +26,7 @@ try
     const string defaultChatRoomName = "Global";
     IClientSessionManager? clientSessionManager = null;
     IChatRoomManager chatRoomManager = new ChatRoomManager(sessionId => clientSessionManager?.GetClientSession(sessionId));
-    chatRoomManager.CreateRoom(defaultChatRoomId, defaultChatRoomName);
+    chatRoomManager.GetOrCreateRoom(defaultChatRoomId, defaultChatRoomName, isPersistent: true);
     IChatService chatService = new ChatService(chatRoomManager);
 
     GamePacketFactory packetFactory = new GamePacketFactory();

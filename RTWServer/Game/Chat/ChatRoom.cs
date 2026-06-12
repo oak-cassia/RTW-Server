@@ -45,6 +45,15 @@ public class ChatRoom : IChatRoom
         return _members.ContainsKey(sessionId);
     }
 
+    public bool TryGetMember(string sessionId, out IPlayer? player)
+    {
+        player = null;
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return false;
+
+        return _members.TryGetValue(sessionId, out player);
+    }
+
     public IReadOnlyCollection<IPlayer> GetMembers() => _members.Values.ToArray();
 
     public async Task BroadcastAsync(IPacket packet, CancellationToken token = default)

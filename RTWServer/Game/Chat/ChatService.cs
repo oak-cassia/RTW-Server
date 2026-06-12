@@ -15,14 +15,15 @@ public class ChatService : IChatService
         _roomManager = roomManager ?? throw new ArgumentNullException(nameof(roomManager));
     }
 
-    public async Task<RTWErrorCode> SendChatMessageAsync(string roomId, string sessionId, string senderName, string message, uint chatType = 0, CancellationToken token = default)
+    public async Task<RTWErrorCode> SendChatMessageAsync(string roomId, string sessionId, string message, uint chatType = 0, CancellationToken token = default)
     {
-        if (string.IsNullOrWhiteSpace(roomId))
+        if (string.IsNullOrWhiteSpace(roomId) || string.IsNullOrWhiteSpace(sessionId))
         {
             return RTWErrorCode.InvalidRequest;
         }
 
-        if (!IsMember(roomId, sessionId))
+        var room = _roomManager.GetRoom(roomId);
+        if (room == null || !room.TryGetMember(sessionId, out var sender) || sender == null)
         {
             return RTWErrorCode.InvalidOperation;
         }
@@ -30,14 +31,14 @@ public class ChatService : IChatService
         var sChat = new SChat
         {
             ChatType = chatType,
-            SenderPlayerId = sessionId.GetHashCode(),
-            SenderName = senderName ?? sessionId,
+            SenderPlayerId = sender.PlayerId,
+            SenderName = sender.Name,
             Message = message ?? string.Empty
         };
 
         var packet = new ProtoPacket(PacketId.SChat, sChat);
-        var success = await BroadcastPacketAsync(roomId, packet, token);
-        return success ? RTWErrorCode.Success : RTWErrorCode.InvalidOperation;
+        await room.BroadcastAsync(packet, token);
+        return RTWErrorCode.Success;
     }
 
     public async Task<bool> BroadcastPacketAsync(string roomId, IPacket packet, CancellationToken token = default)
@@ -74,9 +75,13 @@ public class ChatService : IChatService
             throw new ArgumentNullException(nameof(player));
         }
 
-        // CreateRoom은 GetOrAdd를 사용하므로 이미 존재하면 기존 방 반환
-        // 방 생성과 참가를 연속으로 수행하여 race condition 최소화
-        _roomManager.CreateRoom(roomId, roomId);
+        // 이미 존재하면 기존 방 반환. roomId가 너무 길거나 방 개수 제한을 넘으면 null.
+        var room = _roomManager.GetOrCreateRoom(roomId, roomId);
+        if (room == null)
+        {
+            return Task.FromResult(RTWErrorCode.InvalidRequest);
+        }
+
         bool joined = _roomManager.JoinRoom(roomId, player);
         return Task.FromResult(joined ? RTWErrorCode.Success : RTWErrorCode.InvalidOperation);
     }

@@ -12,6 +12,7 @@ public interface IChatRoom
     bool TryAddMember(IPlayer player);
     bool RemoveMember(string sessionId);
     bool ContainsMember(string sessionId);
+    bool TryGetMember(string sessionId, out IPlayer? player);
     IReadOnlyCollection<IPlayer> GetMembers();
 
     Task BroadcastAsync(IPacket packet, CancellationToken token = default);
