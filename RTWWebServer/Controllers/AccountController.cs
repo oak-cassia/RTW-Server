@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
 using RTWWebServer.Services;
 
@@ -17,7 +17,7 @@ public class AccountController(IAccountService accountService) : ControllerBase
     }
 
     [HttpPost("createAccount")]
-    public async Task<GameResponse> CreateAccount([FromBody] RegisterRequest request)
+    public async Task<GameResponse> CreateAccount([FromBody] CreateAccountRequest request)
     {
         await accountService.CreateAccountAsync(request.Email, request.Password);
         return GameResponse.Ok();

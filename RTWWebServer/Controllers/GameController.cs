@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using NetworkDefinition.ErrorCode;
 using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Response;
+using RTWWebServer.Exceptions;
 using RTWWebServer.Services;
 using RTWWebServer.Extensions;
 
@@ -15,8 +17,10 @@ public class GameController(IGameEntryService gameEntryService) : ControllerBase
     [Authorize]
     public async Task<GameResponse<UserSession>> EnterGame()
     {
-        // 컨트롤러에서 인증된 사용자 정보를 추출
-        User.TryGetSubjectId(out var accountId);
+        if (!User.TryGetSubjectId(out long accountId))
+        {
+            throw new GameException("Subject claim not found in JWT", WebServerErrorCode.InvalidAuthToken);
+        }
 
         var userSession = await gameEntryService.EnterGameAsync(accountId);
         return GameResponse<UserSession>.Ok(userSession);

@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using RTWWebServer.Data.Entities;
+using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
+using RTWWebServer.Extensions;
 using RTWWebServer.Services;
 
 namespace RTWWebServer.Controllers;
@@ -11,9 +12,11 @@ namespace RTWWebServer.Controllers;
 public class UserController(IUserService userService) : ControllerBase
 {
     [HttpPost("nickname")]
-    public async Task<GameResponse<User>> UpdateNicknameAsync([FromBody] UpdateNicknameRequest request)
+    public async Task<GameResponse<UserInfo>> UpdateNicknameAsync([FromBody] UpdateNicknameRequest request)
     {
-        var user = await userService.UpdateNicknameAsync(request.UserId, request.Nickname);
-        return GameResponse<User>.Ok(user);
+        long userId = HttpContext.GetAuthenticatedUserId();
+
+        var user = await userService.UpdateNicknameAsync(userId, request.Nickname);
+        return GameResponse<UserInfo>.Ok(user);
     }
 }

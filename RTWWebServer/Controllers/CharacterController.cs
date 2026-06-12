@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RTWWebServer.DTOs;
 using RTWWebServer.DTOs.Request;
 using RTWWebServer.DTOs.Response;
+using RTWWebServer.Extensions;
 using RTWWebServer.Services;
 
 namespace RTWWebServer.Controllers;
@@ -13,7 +14,7 @@ public class CharacterController(ICharacterGachaService characterGachaService) :
     [HttpPost("gacha")]
     public async Task<GameResponse<CharacterGachaResult>> PerformGachaAsync([FromBody] CharacterGachaRequest request)
     {
-        var userId = (long)HttpContext.Items["UserId"]!;
+        long userId = HttpContext.GetAuthenticatedUserId();
 
         var result = await characterGachaService.PerformGachaAsync(userId, request.GachaType, request.Count);
         return GameResponse<CharacterGachaResult>.Ok(result);
@@ -22,7 +23,7 @@ public class CharacterController(ICharacterGachaService characterGachaService) :
     [HttpGet("owned")]
     public async Task<GameResponse<PlayerCharacterInfo[]>> GetOwnedCharactersAsync()
     {
-        var userId = (long)HttpContext.Items["UserId"]!;
+        long userId = HttpContext.GetAuthenticatedUserId();
 
         var characters = await characterGachaService.GetPlayerCharactersAsync(userId);
         return GameResponse<PlayerCharacterInfo[]>.Ok(characters);

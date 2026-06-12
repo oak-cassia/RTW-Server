@@ -12,6 +12,8 @@ public enum WebServerErrorCode
     InvalidAuthToken = 1006,
     InsufficientCurrency = 1007,
     InvalidArgument = 1008,
+    UserNotFound = 1009,
+    DuplicateNickname = 1010,
     DatabaseError = 1100,
     RemoteCacheError = 1200,
     RemoteCacheLockFailed = 1201, 

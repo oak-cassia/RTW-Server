@@ -1,8 +1,8 @@
-using RTWWebServer.Data.Entities;
+using RTWWebServer.DTOs;
 
 namespace RTWWebServer.Services;
 
 public interface IUserService
 {
-    Task<User> UpdateNicknameAsync(long userId, string nickname);
+    Task<UserInfo> UpdateNicknameAsync(long userId, string nickname);
 }
