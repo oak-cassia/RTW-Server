@@ -55,9 +55,12 @@ try
     while (true)
     {
         string? input = Console.ReadLine();
-        if (input == "quit")
+
+        // null은 stdin EOF(파이프 종료, 데몬/컨테이너 환경)를 의미한다.
+        // 계속 루프를 돌면 busy-loop로 CPU를 소모하므로 종료 처리한다.
+        if (input == null || input == "quit")
         {
-            logger.LogInformation("Shutdown command received, stopping server...");
+            logger.LogInformation("Shutdown requested ({Reason}), stopping server...", input == null ? "stdin closed" : "quit command");
             cts.Cancel();
             break;
         }
