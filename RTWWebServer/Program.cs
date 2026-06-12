@@ -11,7 +11,7 @@ IConfiguration configuration = builder.Configuration;
 
 builder.Services.AddRedisCache(configuration);
 builder.Services.AddWebApiServices();
-builder.Services.AddJwtAuthentication(configuration);
+builder.Services.AddJwtAuthentication(configuration, builder.Environment.IsDevelopment());
 builder.Services.AddCustomServices();
 builder.Services.AddRepositories();
 builder.Services.AddConfigurations(configuration);

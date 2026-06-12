@@ -118,7 +118,7 @@ public static class DependencyInjectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration, bool isDevelopment)
     {
         var jwtSettings = configuration.GetSection("Jwt");
         var secretKey = jwtSettings["Secret"];
@@ -139,7 +139,7 @@ public static class DependencyInjectionExtensions
             .AddJwtBearer(options =>
             {
                 options.MapInboundClaims = false;
-                options.RequireHttpsMetadata = false; // 개발 환경에서는 false
+                options.RequireHttpsMetadata = !isDevelopment; // 개발 환경에서만 false
                 options.SaveToken = true;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
