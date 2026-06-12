@@ -126,6 +126,23 @@ public class RequestLockingMiddlewareTests
     }
 
     [Test]
+    public async Task InvokeAsync_WhenGetRequest_ShouldCallNextWithoutLocking()
+    {
+        // Arrange
+        // 세션 인증된 사용자라도 읽기 요청(GET)은 락을 걸지 않는다
+        _httpContext.Items["UserId"] = 67890L;
+        _httpContext.Request.Method = HttpMethods.Get;
+
+        // Act
+        await _middleware.InvokeAsync(_httpContext);
+
+        // Assert
+        _mockNext.Verify(next => next(_httpContext), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
     public async Task InvokeAsync_WhenSessionAuthenticated_ShouldLockWithUserId()
     {
         // Arrange
