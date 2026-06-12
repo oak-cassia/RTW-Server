@@ -94,7 +94,8 @@ public static class DependencyInjectionExtensions
             throw new InvalidOperationException("JWT Secret is not configured.");
         }
 
-        var key = Encoding.ASCII.GetBytes(secretKey);
+        // JwtTokenProvider(토큰 발급)와 동일하게 UTF8 사용 — 인코딩 불일치 방지
+        var key = Encoding.UTF8.GetBytes(secretKey);
 
         services.AddAuthentication(options =>
             {
