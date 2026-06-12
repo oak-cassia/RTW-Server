@@ -37,21 +37,28 @@ class AsyncAwaitServer
         {
             while (!token.IsCancellationRequested)
             {
-                IClient client = await _serverListener.AcceptClientAsync(token);
+                IClient client;
+                try
+                {
+                    client = await _serverListener.AcceptClientAsync(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Server shutdown requested via cancellation token");
+                    break;
+                }
+                catch (SocketException ex)
+                {
+                    // 개별 연결의 일시적 오류(핸드셰이크 중 리셋 등)로 accept 루프 전체가 죽으면 안 된다
+                    _logger.LogWarning(ex, "Socket error while accepting client connection, continuing to accept");
+                    continue;
+                }
 
                 int currentCount = Interlocked.Increment(ref _acceptCount);
                 _logger.LogDebug("Client connection accepted. Total accepted: {AcceptCount}", currentCount);
 
                 _ = HandleClient(client, token);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("Server shutdown requested via cancellation token");
-        }
-        catch (SocketException ex)
-        {
-            _logger.LogError(ex, "Socket error while accepting client connection");
         }
         catch (Exception ex)
         {
