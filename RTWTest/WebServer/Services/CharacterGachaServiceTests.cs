@@ -22,8 +22,7 @@ public class CharacterGachaServiceTests
     private Mock<IMasterDataProvider> _mockMasterDataProvider;
     private Mock<IUserRepository> _mockUserRepository;
     private Mock<IPlayerCharacterRepository> _mockPlayerCharacterRepository;
-    private Mock<ICacheManager> _mockCacheManager;
-    private Mock<IRemoteCacheKeyGenerator> _mockRemoteCacheKeyGenerator;
+    private Mock<IPlayerCharacterCache> _mockPlayerCharacterCache;
     private CharacterGachaService _service;
 
     [SetUp]
@@ -40,23 +39,17 @@ public class CharacterGachaServiceTests
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
         _mockUserRepository = new Mock<IUserRepository>();
         _mockPlayerCharacterRepository = new Mock<IPlayerCharacterRepository>();
-        _mockCacheManager = new Mock<ICacheManager>();
-        _mockRemoteCacheKeyGenerator = new Mock<IRemoteCacheKeyGenerator>();
-
-        // Cache Key 생성 기본 설정
-        _mockRemoteCacheKeyGenerator
-            .Setup(x => x.GeneratePlayerCharactersKey(It.IsAny<long>()))
-            .Returns<long>(id => $"playerchars:{id}");
+        _mockPlayerCharacterCache = new Mock<IPlayerCharacterCache>();
 
         // 캐시 조회는 기본적으로 미스 처리하여 리포지토리 경로를 타도록 설정
-        _mockCacheManager
-            .Setup(x => x.GetAsync<List<PlayerCharacter>>(It.IsAny<string>()))
-            .ReturnsAsync((List<PlayerCharacter>)null);
-        _mockCacheManager
-            .Setup(x => x.CommitAllChangesAsync())
+        _mockPlayerCharacterCache
+            .Setup(x => x.GetAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((List<PlayerCharacter>?)null);
+        _mockPlayerCharacterCache
+            .Setup(x => x.SetAsync(It.IsAny<long>(), It.IsAny<List<PlayerCharacter>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _mockCacheManager
-            .Setup(x => x.DeleteAsync(It.IsAny<string>()))
+        _mockPlayerCharacterCache
+            .Setup(x => x.InvalidateAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         _service = new CharacterGachaService(
@@ -64,8 +57,7 @@ public class CharacterGachaServiceTests
             _mockUserRepository.Object,
             _mockPlayerCharacterRepository.Object,
             _mockMasterDataProvider.Object,
-            _mockCacheManager.Object,
-            _mockRemoteCacheKeyGenerator.Object,
+            _mockPlayerCharacterCache.Object,
             Mock.Of<ILogger<CharacterGachaService>>());
     }
 
@@ -207,7 +199,7 @@ public class CharacterGachaServiceTests
         _mockPlayerCharacterRepository.Verify(x => x.AddAsync(It.IsAny<PlayerCharacter>()), Times.Exactly(count));
 
         // 쓰기 성공 후 조회 캐시가 무효화되어야 한다
-        _mockCacheManager.Verify(x => x.DeleteAsync("playerchars:1"), Times.Once);
+        _mockPlayerCharacterCache.Verify(x => x.InvalidateAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

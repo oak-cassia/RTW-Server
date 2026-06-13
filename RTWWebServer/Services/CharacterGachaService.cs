@@ -17,8 +17,7 @@ public class CharacterGachaService(
     IUserRepository userRepository,
     IPlayerCharacterRepository playerCharacterRepository,
     IMasterDataProvider masterDataProvider,
-    ICacheManager cacheManager,
-    IRemoteCacheKeyGenerator remoteCacheKeyGenerator,
+    IPlayerCharacterCache playerCharacterCache,
     ILogger<CharacterGachaService> logger
 ) : ICharacterGachaService
 {
@@ -100,7 +99,7 @@ public class CharacterGachaService(
     {
         try
         {
-            await cacheManager.DeleteAsync(remoteCacheKeyGenerator.GeneratePlayerCharactersKey(userId));
+            await playerCharacterCache.InvalidateAsync(userId);
         }
         catch (Exception ex)
         {
@@ -121,22 +120,19 @@ public class CharacterGachaService(
             UpdatedAt = pc.UpdatedAt
         }).ToArray();
 
-        await cacheManager.CommitAllChangesAsync();
-
         return result;
     }
 
     private async Task<List<PlayerCharacter>> GetCachedPlayerCharactersAsync(long userId)
     {
-        var cacheKey = remoteCacheKeyGenerator.GeneratePlayerCharactersKey(userId);
-        var cachedCharacters = await cacheManager.GetAsync<List<PlayerCharacter>>(cacheKey);
+        var cachedCharacters = await playerCharacterCache.GetAsync(userId);
         if (cachedCharacters is not null)
         {
             return cachedCharacters;
         }
 
         var characters = (await playerCharacterRepository.GetByUserIdAsync(userId)).ToList();
-        cacheManager.Set(cacheKey, characters);
+        await playerCharacterCache.SetAsync(userId, characters);
 
         return characters;
     }

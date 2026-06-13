@@ -32,9 +32,8 @@ public static class DependencyInjectionExtensions
         services.AddSingleton<IRemoteCacheKeyGenerator, RemoteCacheKeyGenerator>();
         services.AddSingleton<IUserSessionProvider, UserSessionProvider>();
 
-        // 기존 캐시 서비스들을 어댑터 기반으로 교체
-        services.AddScoped<IRequestScopedLocalCache, RequestScopedLocalCache>(); // 요청 범위 캐시
-        services.AddScoped<ICacheManager, CacheManager>(); // 캐시 관리자, 요청 범위 캐시 의존
+        // 분산 캐시 위 얇은 cache-aside 레이어(짧은 TTL)
+        services.AddSingleton<IPlayerCharacterCache, PlayerCharacterCache>();
 
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILoginService, LoginService>();
