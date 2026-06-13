@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkDefinition.ErrorCode;
@@ -30,6 +31,9 @@ public class CharacterGachaServiceTests
     {
         var options = new DbContextOptionsBuilder<GameDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            // InMemory는 트랜잭션을 지원하지 않으므로 서비스의 BeginTransaction을 무시(no-op) 처리한다.
+            // 차감+INSERT의 실제 원자성은 P4의 관계형 DB 통합 테스트에서 검증한다.
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         _dbContext = new GameDbContext(options);
         
@@ -72,11 +76,23 @@ public class CharacterGachaServiceTests
     }
 
     [Test]
-    public void PerformGachaAsync_UserNotFound_ThrowsGameException()
+    public void PerformGachaAsync_UserMissingAfterCommit_ThrowsGameException()
     {
-        // Arrange
+        // 차감은 성공했으나 커밋 후 응답용 재조회에서 유저가 사라진(사실상 발생 불가) 방어 경로
         const long userId = 1;
-        _mockUserRepository.Setup(x => x.GetByIdAsync(userId))
+        var allCharacters = new Dictionary<int, CharacterMaster>
+        {
+            { 1, new CharacterMaster { Id = 1, Name = "Char1", Portfolio = 10, Development = 10, JobSearching = 10 } },
+            { 2, new CharacterMaster { Id = 2, Name = "Char2", Portfolio = 20, Development = 20, JobSearching = 20 } },
+        }.ToImmutableDictionary();
+
+        _mockPlayerCharacterRepository.Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new List<PlayerCharacter>());
+        _mockMasterDataProvider.Setup(x => x.GetAllCharacters())
+            .Returns(allCharacters);
+        _mockUserRepository.Setup(x => x.TryDeductPremiumCurrencyAsync(userId, It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
             .ReturnsAsync(null as User);
 
         // Act & Assert
@@ -84,7 +100,6 @@ public class CharacterGachaServiceTests
             await _service.PerformGachaAsync(userId, 1, 1));
 
         Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.UserNotFound));
-        Assert.That(exception.Message, Is.EqualTo("User not found"));
     }
 
     [Test]
@@ -93,21 +108,20 @@ public class CharacterGachaServiceTests
         // Arrange
         const long userId = 1;
         const int count = 2;
-        const long initialCurrency = 500; // 600 needed for 2 gachas (300 each)
 
-        var user = CreateUser(userId, initialCurrency, 0);
         var allCharacters = new Dictionary<int, CharacterMaster>
         {
             { 1, new CharacterMaster { Id = 1, Name = "Char1", Portfolio = 10, Development = 10, JobSearching = 10 } },
             { 2, new CharacterMaster { Id = 2, Name = "Char2", Portfolio = 20, Development = 20, JobSearching = 20 } },
         }.ToImmutableDictionary();
 
-        _mockUserRepository.Setup(x => x.GetByIdAsync(userId))
-            .ReturnsAsync(user);
         _mockPlayerCharacterRepository.Setup(x => x.GetByUserIdAsync(userId))
             .ReturnsAsync(new List<PlayerCharacter>());
         _mockMasterDataProvider.Setup(x => x.GetAllCharacters())
             .Returns(allCharacters);
+        // 잔액 부족 시 조건부 UPDATE가 0행을 영향 → false
+        _mockUserRepository.Setup(x => x.TryDeductPremiumCurrencyAsync(userId, It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
         // Act & Assert
         var exception = Assert.ThrowsAsync<GameException>(async () =>
@@ -115,6 +129,8 @@ public class CharacterGachaServiceTests
 
         Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InsufficientCurrency));
         Assert.That(exception.Message, Is.EqualTo("Insufficient premium currency"));
+        // 차감 실패 시 캐릭터를 지급하지 않아야 한다
+        _mockPlayerCharacterRepository.Verify(x => x.AddAsync(It.IsAny<PlayerCharacter>()), Times.Never);
     }
 
     [Test]
@@ -155,10 +171,8 @@ public class CharacterGachaServiceTests
         // Arrange
         const long userId = 1;
         const int count = 2;
-        const long initialCurrency = 1000;
         const long expectedRemainingCurrency = 400; // 1000 - (2 * 300)
 
-        var user = CreateUser(userId, initialCurrency, 500);
         var allCharacters = new Dictionary<int, CharacterMaster>
         {
             { 1, new CharacterMaster { Id = 1, Name = "Char1", Portfolio = 10, Development = 10, JobSearching = 10 } },
@@ -168,12 +182,15 @@ public class CharacterGachaServiceTests
         }.ToImmutableDictionary();
         List<PlayerCharacter> ownedCharacters = [CreatePlayerCharacter(userId, 1)];
 
-        _mockUserRepository.Setup(x => x.GetByIdAsync(userId))
-            .ReturnsAsync(user);
         _mockPlayerCharacterRepository.Setup(x => x.GetByUserIdAsync(userId))
             .ReturnsAsync(ownedCharacters);
         _mockMasterDataProvider.Setup(x => x.GetAllCharacters())
             .Returns(allCharacters);
+        _mockUserRepository.Setup(x => x.TryDeductPremiumCurrencyAsync(userId, It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        // 차감은 체인지 트래커를 우회하므로, 응답 잔액은 커밋 후 재조회한 DB 상태에서 온다
+        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
+            .ReturnsAsync(CreateUser(userId, expectedRemainingCurrency, 500));
 
         // Act
         var result = await _service.PerformGachaAsync(userId, 1, count);
@@ -185,10 +202,9 @@ public class CharacterGachaServiceTests
         Assert.That(result.RemainingPremiumCurrency, Is.EqualTo(expectedRemainingCurrency));
         Assert.That(result.RemainingFreeCurrency, Is.EqualTo(500));
 
-        // Verify repository calls
+        // 정확한 비용(개수 × 300)으로 한 번만 차감을 시도해야 한다
+        _mockUserRepository.Verify(x => x.TryDeductPremiumCurrencyAsync(userId, count * 300L, It.IsAny<CancellationToken>()), Times.Once);
         _mockPlayerCharacterRepository.Verify(x => x.AddAsync(It.IsAny<PlayerCharacter>()), Times.Exactly(count));
-        _mockUserRepository.Verify(x => x.Update(user), Times.Once);
-        // Note: DbContext.SaveChangesAsync verification removed as it's complex to mock
 
         // 쓰기 성공 후 조회 캐시가 무효화되어야 한다
         _mockCacheManager.Verify(x => x.DeleteAsync("playerchars:1"), Times.Once);
@@ -200,28 +216,31 @@ public class CharacterGachaServiceTests
         // Arrange
         const long userId = 1;
         const int requestedCount = 5; // Request more than available
-        const long initialCurrency = 2000;
+        const long expectedRemainingCurrency = 1400; // 2000 - (2 * 300)
 
-        var user = CreateUser(userId, initialCurrency, 0);
         var allCharacters = new Dictionary<int, CharacterMaster>
         {
             { 1, new CharacterMaster { Id = 1, Name = "Char1", Portfolio = 10, Development = 10, JobSearching = 10 } },
             { 2, new CharacterMaster { Id = 2, Name = "Char2", Portfolio = 20, Development = 20, JobSearching = 20 } }
         }.ToImmutableDictionary(); // Only 2 characters
 
-        _mockUserRepository.Setup(x => x.GetByIdAsync(userId))
-            .ReturnsAsync(user);
         _mockPlayerCharacterRepository.Setup(x => x.GetByUserIdAsync(userId))
             .ReturnsAsync(new List<PlayerCharacter>()); // None owned
         _mockMasterDataProvider.Setup(x => x.GetAllCharacters())
             .Returns(allCharacters);
+        _mockUserRepository.Setup(x => x.TryDeductPremiumCurrencyAsync(userId, It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
+            .ReturnsAsync(CreateUser(userId, expectedRemainingCurrency, 0));
 
         // Act
         var result = await _service.PerformGachaAsync(userId, 1, requestedCount);
 
         // Assert
         Assert.That(result.CharacterMasterIds, Has.Count.EqualTo(2)); // Only 2 available
-        Assert.That(result.RemainingPremiumCurrency, Is.EqualTo(1400)); // 2000 - (2 * 300)
+        Assert.That(result.RemainingPremiumCurrency, Is.EqualTo(expectedRemainingCurrency));
+        // 요청(5)이 아니라 실제 지급 개수(2)만큼만 차감해야 한다
+        _mockUserRepository.Verify(x => x.TryDeductPremiumCurrencyAsync(userId, 2 * 300L, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

@@ -16,6 +16,7 @@ public enum WebServerErrorCode
     DuplicateNickname = 1010,
     DuplicateEmail = 1011,
     InvalidCredentials = 1012, // 이메일/비밀번호 불일치 (어느 쪽이 틀렸는지 노출하지 않음)
+    DuplicateCharacter = 1013, // 동시 가챠가 같은 캐릭터를 뽑아 uk_user_character를 위반 (재시도 가능)
     DatabaseError = 1100,
     RemoteCacheError = 1200,
     RemoteCacheLockFailed = 1201, 

@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
 using RTWWebServer.Data;
@@ -29,10 +31,7 @@ public class CharacterGachaService(
             throw new GameException("Invalid gacha count", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
-        // 재화 차감과 소유 판정은 DB를 기준으로 한다. 캐시를 기준으로 하면 캐시 히트 시
-        // 차감 결과가 캐시에 반영되지 않아, 다음 요청이 stale 잔액으로 계산한 값을 DB에 덮어쓴다.
-        var user = await userRepository.GetByIdAsync(userId) ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
-
+        // 소유 캐릭터를 기준으로 뽑을 대상과 비용을 먼저 정한다 (읽기 전용, 트랜잭션 밖).
         var ownedCharacterIds = (await playerCharacterRepository.GetByUserIdAsync(userId))
             .Select(pc => pc.CharacterMasterId)
             .ToHashSet();
@@ -44,38 +43,54 @@ public class CharacterGachaService(
         }
 
         var selectedCharacterIds = PickRandomIdsWithoutReplacement(allCharacters.Keys, ownedCharacterIds, count);
-        var actualCost = selectedCharacterIds.Count * COST_PER_GACHA;
+        var actualCost = (long)selectedCharacterIds.Count * COST_PER_GACHA;
 
-        if (user.PremiumCurrency < actualCost)
+        // 재화 차감과 캐릭터 지급을 한 트랜잭션으로 묶는다. 차감은 조건부 UPDATE로 DB가 직접
+        // 수행하므로, 분산락이 풀리거나 페일오버해도 잔액 정확성(음수·중복 차감 방지)이 보장된다.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        try
         {
-            throw new GameException("Insufficient premium currency", WebServerErrorCode.InsufficientCurrency);
-        }
+            if (await userRepository.TryDeductPremiumCurrencyAsync(userId, actualCost) == false)
+            {
+                await transaction.RollbackAsync();
+                throw new GameException("Insufficient premium currency", WebServerErrorCode.InsufficientCurrency);
+            }
 
-        foreach (var characterId in selectedCharacterIds)
+            foreach (var characterId in selectedCharacterIds)
+            {
+                var newCharacter = new PlayerCharacter(
+                    userId: userId,
+                    characterMasterId: characterId,
+                    level: 1,
+                    currentExp: 0,
+                    obtainedAt: DateTime.UtcNow
+                );
+
+                await playerCharacterRepository.AddAsync(newCharacter);
+            }
+
+            await dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is MySqlException { ErrorCode: MySqlErrorCode.DuplicateKeyEntry })
         {
-            var newCharacter = new PlayerCharacter(
-                userId: userId,
-                characterMasterId: characterId,
-                level: 1,
-                currentExp: 0,
-                obtainedAt: DateTime.UtcNow
-            );
-
-            await playerCharacterRepository.AddAsync(newCharacter);
+            // 동시 가챠가 같은 캐릭터를 뽑아 uk_user_character를 위반한 경우. 차감을 포함한
+            // 트랜잭션 전체가 롤백되므로 재화 손실은 없다. 클라이언트는 재시도하면 된다.
+            await transaction.RollbackAsync();
+            throw new GameException("Character already obtained, please retry", WebServerErrorCode.DuplicateCharacter);
         }
-
-        user.PremiumCurrency -= actualCost;
-        userRepository.Update(user);
-
-        await dbContext.SaveChangesAsync();
 
         await InvalidatePlayerCharactersCacheAsync(userId);
+
+        // ExecuteUpdateAsync는 체인지 트래커를 우회하므로, 응답용 잔액은 커밋 후 새로 읽는다.
+        var updatedUser = await userRepository.GetByIdAsNoTrackingAsync(userId)
+            ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
 
         return new CharacterGachaResult
         {
             CharacterMasterIds = selectedCharacterIds,
-            RemainingPremiumCurrency = user.PremiumCurrency,
-            RemainingFreeCurrency = user.FreeCurrency
+            RemainingPremiumCurrency = updatedUser.PremiumCurrency,
+            RemainingFreeCurrency = updatedUser.FreeCurrency
         };
     }
 
