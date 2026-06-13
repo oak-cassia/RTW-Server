@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Data;
 using RTWWebServer.Data.Entities;
@@ -20,6 +22,7 @@ public class GameEntryService(
 ) : IGameEntryService
 {
     private const int DEFAULT_CHARACTER_ID = 1001;
+
     public async Task<UserSession> EnterGameAsync(long accountId)
     {
         if (accountId <= 0)
@@ -27,10 +30,21 @@ public class GameEntryService(
             throw new GameException("Invalid account ID", WebServerErrorCode.InvalidArgument);
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        var user = await GetOrCreateUserAsync(accountId);
 
+        // 세션 생성(Redis)은 DB 트랜잭션 밖에서 수행한다. 커밋 이후의 Redis 작업을 같은 try 안에
+        // 두면, Redis 장애 시 이미 커밋된 트랜잭션에 RollbackAsync가 호출되어 원래 예외가 가려진다.
+        return await userSessionProvider.CreateSessionAsync(user.Id);
+    }
+
+    private async Task<User> GetOrCreateUserAsync(long accountId)
+    {
         try
         {
+            // 트랜잭션을 try 안에서 열어, 예외 시 catch 진입 전에 await using이 dispose(자동 롤백)하도록 한다.
+            // 그래야 catch의 재조회 쿼리가 완료된 트랜잭션에 묶이지 않는다.
+            await using var transaction = await dbContext.Database.BeginTransactionAsync();
+
             var user = await userRepository.GetByAccountIdAsync(accountId);
             if (user == null)
             {
@@ -42,19 +56,22 @@ public class GameEntryService(
                 {
                     throw new GameException("Failed to create user - ID not generated", WebServerErrorCode.DatabaseError);
                 }
-                
+
                 await CreateDefaultCharacterForNewUserAsync(user.Id);
             }
 
             await transaction.CommitAsync();
-
-            var userSession = await userSessionProvider.CreateSessionAsync(user.Id);
-            return userSession;
+            return user;
         }
-        catch
+        catch (DbUpdateException ex) when (ex.InnerException is MySqlException { ErrorCode: MySqlErrorCode.DuplicateKeyEntry })
         {
-            await transaction.RollbackAsync();
-            throw;
+            // 락 TTL 만료/failover로 같은 account의 동시 생성이 일어난 경우(uk_account_id) → 재조회해 사용.
+            // 기본 닉네임(User_{accountId})의 충돌은 발생하지 않는다: accountId가 유일하고,
+            // UserService의 예약 검증(^User_\d+$)이 다른 계정의 선점을 차단하므로 전역 유일성이 보장된다.
+            dbContext.ChangeTracker.Clear(); // 실패한 추적 엔티티를 비운 뒤 재조회
+
+            var concurrentlyCreated = await userRepository.GetByAccountIdAsync(accountId);
+            return concurrentlyCreated ?? throw new GameException("Failed to create user", WebServerErrorCode.DatabaseError);
         }
     }
 
