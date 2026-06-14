@@ -108,22 +108,28 @@ namespace RTWClient
                 var stream = client.GetStream();
                 _ = Task.Run(() => ReceiveAuthMessagesAsync(stream));
 
-                Console.WriteLine("🔐 Auth Token Test - Enter auth tokens to test (type 'quit' to exit):");
-                Console.WriteLine("💡 Try tokens like: 'valid-token-123', 'invalid-token', 'test-auth-456'");
+                Console.WriteLine("🔐 Auth Token Test - Enter '<userId> <token>' to test (type 'quit' to exit):");
+                Console.WriteLine("💡 Example: '42 valid-token-123' (userId must match the web-server session)");
 
                 while (true)
                 {
-                    Console.Write("Auth Token> ");
-                    var authToken = Console.ReadLine();
+                    Console.Write("Auth (userId token)> ");
+                    var line = Console.ReadLine();
 
-                    if (string.IsNullOrEmpty(authToken)) continue;
-                    if (authToken.ToLower() == "quit") break;
+                    if (string.IsNullOrEmpty(line)) continue;
+                    if (line.ToLower() == "quit") break;
+
+                    if (!TryParseAuth(line, out var userId, out var authToken))
+                    {
+                        Console.WriteLine("⚠️  Usage: <userId> <token>  (e.g. '42 valid-token-123')");
+                        continue;
+                    }
 
                     // CAuthToken 패킷 생성
-                    var authTokenMessage = new CAuthToken { AuthToken = authToken };
+                    var authTokenMessage = new CAuthToken { UserId = userId, AuthToken = authToken };
                     var packet = new ProtoPacket(PacketId.CAuthToken, authTokenMessage);
 
-                    Console.WriteLine($"📤 Sending auth token: {authToken}");
+                    Console.WriteLine($"📤 Sending auth for userId {userId}");
 
                     // 직렬화 후 전송
                     await SendPacketAsync(stream, packet);
@@ -153,7 +159,7 @@ namespace RTWClient
                 _ = Task.Run(() => ReceiveChatMessagesAsync(stream));
 
                 Console.WriteLine("💬 Chat Room Test - Commands:");
-                Console.WriteLine("   /auth <token>");
+                Console.WriteLine("   /auth <userId> <token>");
                 Console.WriteLine("   /join <roomId>");
                 Console.WriteLine("   /leave <roomId>");
                 Console.WriteLine("   /msg <message>");
@@ -183,8 +189,13 @@ namespace RTWClient
 
                     if (input.StartsWith("/auth ", StringComparison.OrdinalIgnoreCase))
                     {
-                        var token = input.Substring(6).Trim();
-                        var auth = new CAuthToken { AuthToken = token };
+                        if (!TryParseAuth(input.Substring(6), out var userId, out var token))
+                        {
+                            Console.WriteLine("⚠️  Usage: /auth <userId> <token>  (e.g. '/auth 42 valid-token-123')");
+                            continue;
+                        }
+
+                        var auth = new CAuthToken { UserId = userId, AuthToken = token };
                         await SendPacketAsync(stream, new ProtoPacket(PacketId.CAuthToken, auth));
                         continue;
                     }
@@ -216,6 +227,28 @@ namespace RTWClient
             {
                 Console.WriteLine("🔌 Disconnected from server.");
             }
+        }
+
+        // 콘솔 입력 '<userId> <token>'을 파싱한다. 토큰에 공백이 있어도 첫 공백 이후 전체를 토큰으로 본다.
+        private static bool TryParseAuth(string input, out long userId, out string token)
+        {
+            userId = 0;
+            token = string.Empty;
+
+            var trimmed = input.Trim();
+            var spaceIndex = trimmed.IndexOf(' ');
+            if (spaceIndex <= 0)
+            {
+                return false;
+            }
+
+            if (!long.TryParse(trimmed.Substring(0, spaceIndex), out userId))
+            {
+                return false;
+            }
+
+            token = trimmed.Substring(spaceIndex + 1).Trim();
+            return !string.IsNullOrEmpty(token);
         }
 
         private async Task SendPacketAsync(NetworkStream stream, ProtoPacket packet)
