@@ -21,38 +21,46 @@ public class ClientSessionTests
     }
 
     [Test]
-    public async Task ValidateAuthTokenAsync_WithValidToken_SetsPropertiesAndReturnsSuccess()
+    public async Task ValidateAuthTokenAsync_WhenValidatorAccepts_SetsPropertiesAndReturnsSuccess()
     {
+        const long userId = 42;
         var loggerFactory = LoggerFactory.Create(builder => { });
         var client = new DummyClient();
         var packetHandler = new Mock<IPacketHandler>().Object;
         var packetSerializer = new Mock<IPacketSerializer>().Object;
+        var validator = new Mock<ISessionValidator>();
+        validator.Setup(v => v.ValidateAsync(userId, "token", It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
-        var session = new ClientSession(client, packetHandler, packetSerializer, loggerFactory, "session1");
+        var session = new ClientSession(client, packetHandler, packetSerializer, validator.Object, loggerFactory, "session1");
 
-        var (errorCode, playerId) = await session.ValidateAuthTokenAsync("token");
+        var (errorCode, playerId) = await session.ValidateAuthTokenAsync(userId, "token");
 
         Assert.That(errorCode, Is.EqualTo(RTWErrorCode.Success));
         Assert.That(playerId, Is.EqualTo(session.PlayerId));
         Assert.That(playerId, Is.GreaterThan(0));
+        Assert.That(session.UserId, Is.EqualTo(userId));
         Assert.That(session.AuthToken, Is.EqualTo("token"));
         Assert.That(session.IsAuthenticated, Is.True);
     }
 
     [Test]
-    public async Task ValidateAuthTokenAsync_WithEmptyToken_ReturnsAuthenticationFailed()
+    public async Task ValidateAuthTokenAsync_WhenValidatorRejects_ReturnsAuthenticationFailed()
     {
+        const long userId = 42;
         var loggerFactory = LoggerFactory.Create(builder => { });
         var client = new DummyClient();
         var packetHandler = new Mock<IPacketHandler>().Object;
         var packetSerializer = new Mock<IPacketSerializer>().Object;
+        var validator = new Mock<ISessionValidator>();
+        validator.Setup(v => v.ValidateAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var session = new ClientSession(client, packetHandler, packetSerializer, loggerFactory, "session1");
+        var session = new ClientSession(client, packetHandler, packetSerializer, validator.Object, loggerFactory, "session1");
 
-        var (errorCode, playerId) = await session.ValidateAuthTokenAsync(string.Empty);
+        var (errorCode, playerId) = await session.ValidateAuthTokenAsync(userId, "stale-token");
 
         Assert.That(errorCode, Is.EqualTo(RTWErrorCode.AuthenticationFailed));
         Assert.That(playerId, Is.EqualTo(0));
+        Assert.That(session.UserId, Is.EqualTo(0));
         Assert.That(session.IsAuthenticated, Is.False);
     }
 
@@ -61,7 +69,8 @@ public class ClientSessionTests
         var loggerFactory = LoggerFactory.Create(builder => { });
         var client = new DummyClient();
         var packetHandler = new Mock<IPacketHandler>().Object;
-        return new ClientSession(client, packetHandler, serializerMock.Object, loggerFactory, "session-disconnected");
+        var validator = new Mock<ISessionValidator>().Object;
+        return new ClientSession(client, packetHandler, serializerMock.Object, validator, loggerFactory, "session-disconnected");
     }
 
     private static void SetPrivateField<T>(object target, string fieldName, T value)

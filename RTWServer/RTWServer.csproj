@@ -10,6 +10,8 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0-rc.2.24473.5"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0-rc.2.24473.5"/>
+        <!-- 웹 서버와 동일한 RedisCache(IDistributedCache) 구현으로 session_{userId} 저장 포맷(Redis hash)을 맞춘다 -->
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.6"/>
     </ItemGroup>
 
     <ItemGroup>

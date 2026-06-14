@@ -25,6 +25,7 @@ public class ClientSession : IClientSession
     private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
+    private readonly ISessionValidator _sessionValidator;
     private readonly ILogger _logger;
 
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
@@ -37,6 +38,7 @@ public class ClientSession : IClientSession
 
     public string Id { get; private init; } // 세션 ID이며 플레이어 ID로도 사용됨
     public int PlayerId { get; }
+    public long UserId { get; private set; }
     public string? AuthToken { get; private set; }
     public bool IsAuthenticated { get; private set; }
 
@@ -44,6 +46,7 @@ public class ClientSession : IClientSession
         IClient client,
         IPacketHandler packetHandler,
         IPacketSerializer packetSerializer,
+        ISessionValidator sessionValidator,
         ILoggerFactory loggerFactory,
         string id)
     {
@@ -54,6 +57,7 @@ public class ClientSession : IClientSession
 
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
+        _sessionValidator = sessionValidator;
         _logger = loggerFactory.CreateLogger<ClientSession>();
 
         Id = id;
@@ -363,27 +367,27 @@ public class ClientSession : IClientSession
         await _writer.FlushAsync(cancellationToken);
     }
 
-    public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(string authToken)
+    public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(long userId, string authToken)
     {
         // authToken은 자격 증명이므로 로그에 원문을 남기지 않는다
-        _logger.LogDebug("Validating auth token for session {SessionId}", Id);
+        _logger.LogDebug("Validating auth token for session {SessionId}, userId {UserId}", Id, userId);
 
-        // TODO: authToken을 영속 저장소(예: Redis, DB)에서 검증해야 한다.
-        // 현재는 비어 있지 않은 토큰을 모두 통과시키는 스텁이다. 웹 서버 세션(session_{userId})과
-        // 대조하려면 CAuthToken에 userId 필드가 필요하다 (proto 변경 필요).
-        if (!string.IsNullOrEmpty(authToken))
+        // 웹 서버가 Redis에 저장한 session_{userId}와 대조한다. 토큰이 일치해야만 통과하므로
+        // 클라이언트가 보낸 userId를 그대로 신뢰해도 다른 사용자로 위장할 수 없다.
+        bool isValid = await _sessionValidator.ValidateAsync(userId, authToken, _sessionCts.Token);
+        if (isValid)
         {
+            UserId = userId;
             AuthToken = authToken;
             IsAuthenticated = true;
 
-            _logger.LogInformation("Auth token validated successfully for session {SessionId}. Effective PlayerId for packet: {PlayerId}", Id, PlayerId);
+            _logger.LogInformation("Auth token validated for session {SessionId}, userId {UserId}, PlayerId {PlayerId}", Id, userId, PlayerId);
             return (RTWErrorCode.Success, PlayerId);
         }
 
-        _logger.LogWarning("Auth token validation failed for session {SessionId}. Token was null or empty.", Id);
+        _logger.LogWarning("Auth token validation failed for session {SessionId}, userId {UserId}", Id, userId);
         IsAuthenticated = false;
 
-        await Task.CompletedTask;
         return (RTWErrorCode.AuthenticationFailed, 0);
     }
 }

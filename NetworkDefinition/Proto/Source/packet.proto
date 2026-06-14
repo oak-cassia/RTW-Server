@@ -32,6 +32,7 @@ enum PacketId {
 // (CAuthToken은 PacketHeader 뒤에 오는 payload가 됩니다)
 message CAuthToken {
   string authToken = 1;
+  int64 userId = 2; // 웹 서버 세션(session_{userId})을 조회하기 위한 키. 토큰이 일치해야 통과하므로 위조 불가.
 }
 
 // (SAuthResult는 PacketHeader 뒤에 오는 payload가 됩니다)

@@ -99,9 +99,10 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
     private async Task HandleAuthToken(CAuthToken authTokenProtoPacket, IClientSession clientSession)
     {
         string authToken = authTokenProtoPacket.AuthToken;
-        _logger.LogDebug("Received authentication token from client {ClientId}", clientSession.Id);
+        long userId = authTokenProtoPacket.UserId;
+        _logger.LogDebug("Received authentication token from client {ClientId} for userId {UserId}", clientSession.Id, userId);
 
-        var (errorCode, playerId) = await clientSession.ValidateAuthTokenAsync(authToken);
+        var (errorCode, playerId) = await clientSession.ValidateAuthTokenAsync(userId, authToken);
 
         var sAuthResultProto = new SAuthResult
         {

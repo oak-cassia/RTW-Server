@@ -12,20 +12,22 @@ public class ClientSessionManager : IClientSessionManager
     private readonly ILoggerFactory _loggerFactory;
     private readonly IPacketHandler _packetHandler;
     private readonly IPacketSerializer _packetSerializer;
+    private readonly ISessionValidator _sessionValidator;
     private readonly ILogger<ClientSessionManager> _logger;
 
-    public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer)
+    public ClientSessionManager(ILoggerFactory loggerFactory, IPacketHandler packetHandler, IPacketSerializer packetSerializer, ISessionValidator sessionValidator)
     {
         _loggerFactory = loggerFactory;
         _packetHandler = packetHandler;
         _packetSerializer = packetSerializer;
+        _sessionValidator = sessionValidator;
         _logger = _loggerFactory.CreateLogger<ClientSessionManager>();
     }
 
     private IClientSession CreateClientSession(IClient client, ILoggerFactory loggerFactoryForSession)
     {
         string sessionId = Guid.NewGuid().ToString();
-        var session = new ClientSession(client, _packetHandler, _packetSerializer, loggerFactoryForSession, sessionId);
+        var session = new ClientSession(client, _packetHandler, _packetSerializer, _sessionValidator, loggerFactoryForSession, sessionId);
         _clientSessions[session.Id] = session;
         return session;
     }

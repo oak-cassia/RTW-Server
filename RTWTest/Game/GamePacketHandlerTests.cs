@@ -4,6 +4,7 @@ using NetworkDefinition.ErrorCode;
 using RTW.NetworkDefinition.Proto.Packet;
 using RTWServer.Game.Chat;
 using RTWServer.Game.Packet;
+using RTWServer.Game.Player;
 using RTWServer.Packet;
 using RTWServer.ServerCore.Interface;
 
@@ -91,5 +92,33 @@ public class GamePacketHandlerTests
         await handler.HandlePacketAsync(packet, session.Object);
 
         chatService.Verify(c => c.LeaveRoomAsync("r1", "c1"), Times.Once);
+    }
+
+    [Test]
+    public async Task AuthToken_PassesProtoUserIdToSession_AndRepliesWithResult()
+    {
+        var chatService = new Mock<IChatService>();
+        chatService.Setup(c => c.JoinRoomAsync(It.IsAny<string>(), It.IsAny<IPlayer>())).ReturnsAsync(RTWErrorCode.Success);
+        var handler = CreateHandler(chatService.Object);
+
+        var session = CreateSession(authenticated: false);
+        session.Setup(s => s.ValidateAuthTokenAsync(7L, "tok")).ReturnsAsync((RTWErrorCode.Success, 123));
+
+        IPacket? sent = null;
+        session.Setup(s => s.SendAsync(It.IsAny<IPacket>()))
+            .Callback<IPacket>(p => sent = p)
+            .Returns(Task.CompletedTask);
+
+        var packet = new ProtoPacket(PacketId.CAuthToken, new CAuthToken { UserId = 7, AuthToken = "tok" });
+
+        await handler.HandlePacketAsync(packet, session.Object);
+
+        // 핸들러가 클라이언트 본문의 userId를 그대로 세션 검증에 전달해야 한다
+        session.Verify(s => s.ValidateAuthTokenAsync(7L, "tok"), Times.Once);
+        Assert.That(sent, Is.Not.Null);
+        Assert.That(sent!.PacketId, Is.EqualTo(PacketId.SAuthResult));
+        var payload = (SAuthResult)((ProtoPacket)sent).GetPayloadMessage();
+        Assert.That((RTWErrorCode)payload.ErrorCode, Is.EqualTo(RTWErrorCode.Success));
+        Assert.That(payload.PlayerId, Is.EqualTo(123));
     }
 }

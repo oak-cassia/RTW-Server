@@ -1,5 +1,7 @@
 ﻿﻿using System.Net;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Logging;
+using RTWServer.Authentication;
 using RTWServer.Game.Chat;
 using RTWServer.Game.Packet;
 using RTWServer.Packet;
@@ -9,6 +11,10 @@ using RTWServer.ServerCore.Interface;
 // 할 일: 설정 파일에서 IP 주소와 포트 번호를 읽어오도록 수정
 string ipAddress = "127.0.0.1";
 int port = 5000;
+
+// 웹 서버 세션(session_{userId})을 조회하기 위한 Redis 연결. 웹 서버와 동일한 인스턴스를 가리켜야 한다.
+// (웹 서버 env: DatabaseConfiguration__Redis 와 동일한 규칙을 따른다)
+string redisConnection = Environment.GetEnvironmentVariable("DatabaseConfiguration__Redis") ?? "127.0.0.1:6379";
 
 // 로거 팩토리와 로거 생성
 ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
@@ -35,9 +41,13 @@ try
 
     GamePacketHandler packetHandler = new GamePacketHandler(loggerFactory, chatService, defaultChatRoomId);
 
+    // 웹 서버와 동일한 RedisCache(IDistributedCache) 구현으로 세션 저장 포맷(Redis hash)을 맞춘다
+    using RedisCache distributedCache = new RedisCache(new RedisCacheOptions { Configuration = redisConnection });
+    ISessionValidator sessionValidator = new RedisSessionValidator(distributedCache, loggerFactory.CreateLogger<RedisSessionValidator>());
+
     // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
     // ChatService 참조를 제거했습니다 (이제 내부 패킷을 통해 정리 처리를 수행합니다)
-    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer);
+    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer, sessionValidator);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
