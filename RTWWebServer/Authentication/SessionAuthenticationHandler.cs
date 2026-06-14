@@ -17,7 +17,7 @@ public class SessionAuthenticationHandler(
     IUserSessionProvider userSessionProvider)
     : AuthenticationHandler<SessionAuthenticationOptions>(options, loggerFactory, encoder)
 {
-    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected async override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         string? userIdHeader = Request.Headers[SessionAuthenticationDefaults.UserIdHeaderName];
         string? authToken = Request.Headers[SessionAuthenticationDefaults.AuthTokenHeaderName];
