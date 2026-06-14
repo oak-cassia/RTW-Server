@@ -1,24 +1,19 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using RTWWebServer.DTOs;
 using RTWWebServer.Enums;
 using RTWWebServer.Providers.Authentication;
 
 namespace RTWTest.WebServer.Authentication;
 
+// 토큰 '검증'은 운영에서 JwtBearer 미들웨어가 담당하므로, 여기서는 발급(GenerateJwt)이
+// 올바른 클레임·만료시각을 박는지만 가드한다. 검증 경로는 더 이상 JwtTokenProvider에 없다.
 [TestFixture]
 public class JwtTokenProviderTests
 {
     [SetUp]
     public void SetUp()
     {
-        // JWT 클레임 타입 자동 매핑 비활성화 (테스트 환경에서 일관성 보장)
-        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-        
-        Dictionary<string, string?> configurationData = new Dictionary<string, string?>
+        Dictionary<string, string?> configurationData = new()
         {
             ["Jwt:Secret"] = TEST_SECRET,
             ["Jwt:Issuer"] = TEST_ISSUER,
@@ -33,110 +28,63 @@ public class JwtTokenProviderTests
     }
 
     private IJwtTokenProvider _jwtTokenProvider;
+    private readonly JwtSecurityTokenHandler _tokenHandler = new();
     private const string TEST_SECRET = "this-is-a-very-secure-secret-key-for-testing-purposes-that-is-long-enough";
     private const string TEST_ISSUER = "RTWServer";
     private const string TEST_AUDIENCE = "RTWClient";
 
     [Test]
-    public void GenerateAndParseJwt_WithEmail_ShouldWork()
+    public void GenerateJwt_WithEmail_EmbedsExpectedClaims()
     {
-        // Arrange
         long accountId = 12345;
         var email = "test@example.com";
 
-        // Act
         string jwt = _jwtTokenProvider.GenerateJwt(accountId, UserRole.Normal, email);
-        JwtTokenInfo? tokenInfo = _jwtTokenProvider.ParseJwtToken(jwt);
 
-        // Assert
         Assert.That(jwt, Is.Not.Null.And.Not.Empty);
-        Assert.That(tokenInfo?.IsValid, Is.True);
-        Assert.That(tokenInfo?.AccountId, Is.EqualTo(accountId));
-        Assert.That(tokenInfo?.UserRole, Is.EqualTo(UserRole.Normal));
-        Assert.That(tokenInfo?.Email, Is.EqualTo(email));
+        JwtSecurityToken token = _tokenHandler.ReadJwtToken(jwt);
+        Assert.Multiple(() =>
+        {
+            Assert.That(GetClaim(token, JwtRegisteredClaimNames.Sub), Is.EqualTo(accountId.ToString()));
+            Assert.That(GetClaim(token, JwtRegisteredClaimNames.Email), Is.EqualTo(email));
+            Assert.That(GetClaim(token, "role"), Is.EqualTo(UserRole.Normal.ToString()));
+            Assert.That(token.Issuer, Is.EqualTo(TEST_ISSUER));
+            Assert.That(token.Audiences, Does.Contain(TEST_AUDIENCE));
+        });
     }
 
     [Test]
-    public void GenerateAndParseJwt_WithGuid_ShouldWork()
+    public void GenerateJwt_WithGuid_EmbedsExpectedClaims()
     {
-        // Arrange
         long accountId = 12345;
         Guid guid = Guid.NewGuid();
 
-        // Act
         string jwt = _jwtTokenProvider.GenerateJwt(accountId, UserRole.Guest, guid);
-        JwtTokenInfo? tokenInfo = _jwtTokenProvider.ParseJwtToken(jwt);
 
-        // Assert
-        Assert.That(tokenInfo?.IsValid, Is.True);
-        Assert.That(tokenInfo?.AccountId, Is.EqualTo(accountId));
-        Assert.That(tokenInfo?.UserRole, Is.EqualTo(UserRole.Guest));
-        Assert.That(tokenInfo?.Guid, Is.EqualTo(guid));
-    }
-
-    [Test]
-    public void InvalidToken_ShouldReturnFalseAndNull()
-    {
-        // Act & Assert
-        Assert.That(_jwtTokenProvider.ValidateJwt("invalid.jwt.token"), Is.False);
-        Assert.That(_jwtTokenProvider.ParseJwtToken("invalid.jwt.token"), Is.Null);
-    }
-
-    [Test]
-    public void JwtTokenExpiration_ShouldBeValid()
-    {
-        // Arrange
-        long accountId = 12345;
-        var email = "test@example.com";
-
-        // Act
-        string jwt = _jwtTokenProvider.GenerateJwt(accountId, UserRole.Normal, email);
-        JwtTokenInfo? tokenInfo = _jwtTokenProvider.ParseJwtToken(jwt);
-
-        // Assert
-        Assert.That(tokenInfo?.ExpiresAt, Is.Not.Null);
-        Assert.That(tokenInfo?.ExpiresAt, Is.GreaterThan(DateTime.UtcNow));
-        Assert.That(tokenInfo?.ExpiresAt, Is.LessThan(DateTime.UtcNow.AddMinutes(31))); // 30분 + 여유시간
-    }
-
-    [Test]
-    public void ExpiredToken_ShouldFailValidation()
-    {
-        // Arrange - 만료된 토큰 생성
-        string expiredJwt = CreateExpiredToken(12345, "test@example.com");
-
-        // Act & Assert
-        Assert.That(_jwtTokenProvider.ValidateJwt(expiredJwt), Is.False);
-    }
-
-    private string CreateExpiredToken(long accountId, string email)
-    {
-        DateTime pastTime = DateTime.UtcNow.AddMinutes(-15);
-        DateTime expiredTime = pastTime.AddMinutes(5);
-
-        List<Claim> claims = new List<Claim>
+        JwtSecurityToken token = _tokenHandler.ReadJwtToken(jwt);
+        Assert.Multiple(() =>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, email), // 원본 클레임 타입 사용
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim("role", "Normal") // 원본 클레임 타입 사용
-        };
+            Assert.That(GetClaim(token, JwtRegisteredClaimNames.Sub), Is.EqualTo(accountId.ToString()));
+            Assert.That(GetClaim(token, "Guid"), Is.EqualTo(guid.ToString()));
+            Assert.That(GetClaim(token, "role"), Is.EqualTo(UserRole.Guest.ToString()));
+        });
+    }
 
-        SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
+    [Test]
+    public void GenerateJwt_SetsThirtyMinuteExpiration()
+    {
+        string jwt = _jwtTokenProvider.GenerateJwt(12345, UserRole.Normal, "test@example.com");
+
+        JwtSecurityToken token = _tokenHandler.ReadJwtToken(jwt);
+        Assert.Multiple(() =>
         {
-            Subject = new ClaimsIdentity(claims),
-            NotBefore = pastTime,
-            Expires = expiredTime,
-            IssuedAt = pastTime,
-            Issuer = TEST_ISSUER,
-            Audience = TEST_AUDIENCE,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TEST_SECRET)),
-                SecurityAlgorithms.HmacSha256Signature)
-        };
+            Assert.That(token.ValidTo, Is.GreaterThan(DateTime.UtcNow));
+            Assert.That(token.ValidTo, Is.LessThan(DateTime.UtcNow.AddMinutes(31))); // 30분 + 여유시간
+        });
+    }
 
-        JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
-        SecurityToken? token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+    private static string? GetClaim(JwtSecurityToken token, string type)
+    {
+        return token.Claims.FirstOrDefault(c => c.Type == type)?.Value;
     }
 }

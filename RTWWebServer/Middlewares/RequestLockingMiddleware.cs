@@ -5,7 +5,11 @@ using RTWWebServer.Extensions;
 
 namespace RTWWebServer.Middlewares;
 
-public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAdapter distributedCacheAdapter, IRemoteCacheKeyGenerator keyGenerator)
+public class RequestLockingMiddleware(
+    RequestDelegate next,
+    IDistributedCacheAdapter distributedCacheAdapter,
+    IRemoteCacheKeyGenerator keyGenerator,
+    ILogger<RequestLockingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -42,7 +46,16 @@ public class RequestLockingMiddleware(RequestDelegate next, IDistributedCacheAda
         {
             if (lockAcquired)
             {
-                await distributedCacheAdapter.UnlockAsync(lockKey, lockValue);
+                try
+                {
+                    await distributedCacheAdapter.UnlockAsync(lockKey, lockValue);
+                }
+                catch (Exception ex)
+                {
+                    // 응답 본문이 이미 시작된 뒤 언락이 던지면 깨진 응답이 된다. 락은 TTL로 자동 해제되므로
+                    // 언락 실패는 경고만 남기고 요청을 끝까지 정상 완료시킨다.
+                    logger.LogWarning(ex, "Failed to release distributed lock for key: {LockKey}", lockKey);
+                }
             }
         }
     }

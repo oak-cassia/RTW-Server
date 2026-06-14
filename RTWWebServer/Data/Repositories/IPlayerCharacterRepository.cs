@@ -4,8 +4,6 @@ namespace RTWWebServer.Data.Repositories;
 
 public interface IPlayerCharacterRepository
 {
-    Task<PlayerCharacter?> GetByUserIdAndCharacterIdAsync(long userId, int characterMasterId);
     Task<IEnumerable<PlayerCharacter>> GetByUserIdAsync(long userId);
     Task<PlayerCharacter> AddAsync(PlayerCharacter playerCharacter);
-    Task UpdateAsync(PlayerCharacter playerCharacter);
 }

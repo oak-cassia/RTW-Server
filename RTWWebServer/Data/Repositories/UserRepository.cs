@@ -29,17 +29,12 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
 
     public async Task<User?> GetByAccountIdAsync(long accountId)
     {
-        return await dbContext.Users.FirstOrDefaultAsync(u => u.AccountId == accountId);
+        return await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.AccountId == accountId);
     }
 
     public async Task<User?> GetByNicknameAsync(string nickname)
     {
-        return await dbContext.Users.FirstOrDefaultAsync(u => u.Nickname == nickname);
-    }
-
-    public async Task<IEnumerable<User>> GetAllAsync()
-    {
-        return await dbContext.Users.ToListAsync();
+        return await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Nickname == nickname);
     }
 
     public async Task<User> CreateAsync(User user)
@@ -51,21 +46,5 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
     public void Update(User user)
     {
         dbContext.Users.Update(user);
-    }
-
-
-    public void Delete(User user)
-    {
-        dbContext.Users.Remove(user);
-    }
-
-    public async Task<User?> GetByMainCharacterIdAsync(long characterId)
-    {
-        return await dbContext.Users.FirstOrDefaultAsync(u => u.MainCharacterId == characterId);
-    }
-
-    public async Task<bool> IsNicknameTakenAsync(string nickname)
-    {
-        return await dbContext.Users.AnyAsync(u => u.Nickname == nickname);
     }
 }

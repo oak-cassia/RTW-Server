@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NetworkDefinition.ErrorCode;
 using RTWWebServer.Cache;
@@ -24,7 +25,11 @@ public class RequestLockingMiddlewareTests
         _mockDistributedCacheAdapter = new Mock<IDistributedCacheAdapter>();
         _mockNext = new Mock<RequestDelegate>();
         _mockKeyGenerator = new Mock<IRemoteCacheKeyGenerator>();
-        _middleware = new RequestLockingMiddleware(_mockNext.Object, _mockDistributedCacheAdapter.Object, _mockKeyGenerator.Object);
+        _middleware = new RequestLockingMiddleware(
+            _mockNext.Object,
+            _mockDistributedCacheAdapter.Object,
+            _mockKeyGenerator.Object,
+            NullLogger<RequestLockingMiddleware>.Instance);
         _httpContext = new DefaultHttpContext();
     }
 
@@ -140,6 +145,30 @@ public class RequestLockingMiddlewareTests
         _mockNext.Verify(next => next(_httpContext), Times.Once);
         _mockDistributedCacheAdapter.Verify(cache => cache.LockAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task InvokeAsync_WhenUnlockThrows_ShouldNotBreakRequest()
+    {
+        // Arrange: 언락(Redis)이 던져도 락은 TTL로 자동 해제되므로 요청은 정상 완료되어야 한다.
+        const long accountId = 12345;
+        const string lockKey = "lock:account:12345";
+
+        var identity = new ClaimsIdentity("jwt");
+        identity.AddClaim(new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()));
+        _httpContext.User = new ClaimsPrincipal(identity);
+
+        _mockKeyGenerator.Setup(kg => kg.GenerateAccountLockKey(accountId)).Returns(lockKey);
+        _mockDistributedCacheAdapter.Setup(cache => cache.LockAsync(lockKey, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockDistributedCacheAdapter.Setup(cache => cache.UnlockAsync(lockKey, It.IsAny<string>()))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        // Act & Assert: 언락 예외가 호출자에게 전파되지 않는다.
+        Assert.DoesNotThrowAsync(async () => await _middleware.InvokeAsync(_httpContext));
+
+        _mockNext.Verify(next => next(_httpContext), Times.Once);
+        _mockDistributedCacheAdapter.Verify(cache => cache.UnlockAsync(lockKey, It.IsAny<string>()), Times.Once);
     }
 
     [Test]

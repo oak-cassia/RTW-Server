@@ -14,10 +14,6 @@ public interface IUserRepository
     /// </summary>
     Task<bool> TryDeductPremiumCurrencyAsync(long userId, long cost, CancellationToken ct = default);
     Task<User?> GetByNicknameAsync(string nickname);
-    Task<IEnumerable<User>> GetAllAsync();
     Task<User> CreateAsync(User user);
     void Update(User user);
-    void Delete(User user);
-    Task<User?> GetByMainCharacterIdAsync(long characterId);
-    Task<bool> IsNicknameTakenAsync(string nickname);
 }
