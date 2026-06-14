@@ -58,25 +58,19 @@ public class GamePacketFactoryTests
         Assert.That(deserializedToken.AuthToken, Is.EqualTo(originalToken.AuthToken));
     }
 
-    [Test]
-    public void CreatePacket_SAuthResult_CreatesValidPacket()
+    // 신뢰 경계: 서버 전용(S-접두)·내부 전용(ISessionClosed) 패킷은 와이어에서 들어와도
+    // 역직렬화하지 않는다. 클라이언트가 이런 PacketId를 주입하면 세션이 종료되어야 한다.
+    [TestCase(PacketId.SAuthResult)]
+    [TestCase(PacketId.SChat)]
+    [TestCase(PacketId.SChatJoinResult)]
+    [TestCase(PacketId.SChatLeaveResult)]
+    [TestCase(PacketId.ISessionClosed)]
+    public void CreatePacket_ServerOnlyOrInternalPacket_Throws(PacketId packetId)
     {
-        // Arrange
-        var originalResult = new SAuthResult { PlayerId = 98765, ErrorCode = 0 };
-        var packetBytes = originalResult.ToByteArray();
+        var emptyBytes = System.Array.Empty<byte>();
 
-        // Act
-        var packet = _packetFactory.CreatePacket((int)PacketId.SAuthResult, packetBytes);
-
-        // Assert
-        Assert.That(packet, Is.Not.Null);
-        Assert.That(packet, Is.TypeOf<ProtoPacket>());
-        Assert.That(packet.PacketId, Is.EqualTo(PacketId.SAuthResult));
-
-        var protoPacket = (ProtoPacket)packet;
-        var deserializedResult = (SAuthResult)protoPacket.GetPayloadMessage();
-        Assert.That(deserializedResult.PlayerId, Is.EqualTo(originalResult.PlayerId));
-        Assert.That(deserializedResult.ErrorCode, Is.EqualTo(originalResult.ErrorCode));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _packetFactory.CreatePacket((int)packetId, emptyBytes));
     }
 
     [Test]
@@ -134,36 +128,28 @@ public class GamePacketFactoryTests
     }
 
     [Test]
-    public void SerializationRoundTrip_SAuthResult_PreservesData()
+    public void Deserialize_ServerOnlyPacketFromWire_Throws()
     {
-        // Arrange
-        var originalPacket = new ProtoPacket(PacketId.SAuthResult, new SAuthResult { PlayerId = 11111, ErrorCode = 200 });
-
-        // Act
-        var totalSize = _packetSerializer.GetHeaderSize() + originalPacket.GetPayloadSize();
+        // 서버는 SAuthResult를 직렬화해 클라로 보낼 수 있지만(아웃바운드), 같은 바이트가
+        // 와이어로 되돌아오면(인바운드) 역직렬화를 거부해야 한다 — 신뢰 경계.
+        var serverPacket = new ProtoPacket(PacketId.SAuthResult, new SAuthResult { PlayerId = 11111, ErrorCode = 200 });
+        var totalSize = _packetSerializer.GetHeaderSize() + serverPacket.GetPayloadSize();
         var buffer = new byte[totalSize];
-        _packetSerializer.SerializeToBuffer(originalPacket, buffer);
-        var deserializedPacket = _packetSerializer.Deserialize(buffer);
+        _packetSerializer.SerializeToBuffer(serverPacket, buffer);
 
-        // Assert
-        Assert.That(deserializedPacket.PacketId, Is.EqualTo(originalPacket.PacketId));
-        Assert.That(deserializedPacket, Is.TypeOf<ProtoPacket>());
-        
-        var originalResult = (SAuthResult)originalPacket.GetPayloadMessage();
-        var deserializedResult = (SAuthResult)((ProtoPacket)deserializedPacket).GetPayloadMessage();
-        Assert.That(deserializedResult.PlayerId, Is.EqualTo(originalResult.PlayerId));
-        Assert.That(deserializedResult.ErrorCode, Is.EqualTo(originalResult.ErrorCode));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _packetSerializer.Deserialize(buffer));
     }
 
     [Test]
     public void SerializationRoundTrip_MultiplePacketTypes_AllSucceed()
     {
         // Arrange
+        // 클라이언트가 보낼 수 있는 패킷만 라운드트립 대상이다(SAuthResult 같은 서버 전용은 제외).
         var testCases = new[]
         {
             new ProtoPacket(PacketId.EchoMessage, new EchoMessage { Message = "Multi test 1" }),
             new ProtoPacket(PacketId.CAuthToken, new CAuthToken { AuthToken = "multi-test-token" }),
-            new ProtoPacket(PacketId.SAuthResult, new SAuthResult { PlayerId = 22222, ErrorCode = 100 })
+            new ProtoPacket(PacketId.CChatChat, new CChatChat { Message = "multi test chat" })
         };
 
         // Act & Assert

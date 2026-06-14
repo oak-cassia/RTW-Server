@@ -22,6 +22,11 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         switch (packet.PacketId)
         {
             case PacketId.EchoMessage:
+                if (!clientSession.IsAuthenticated)
+                {
+                    _logger.LogWarning("Echo rejected: client {ClientId} is not authenticated", clientSession.Id);
+                    break;
+                }
                 await clientSession.SendAsync(packet);
                 break;
 
@@ -176,6 +181,12 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
     private async Task HandleChatLeave(CChatLeave cChatLeave, IClientSession clientSession)
     {
         string roomId = cChatLeave.RoomId ?? string.Empty;
+        if (!clientSession.IsAuthenticated)
+        {
+            await SendChatLeaveResult(clientSession, roomId, RTWErrorCode.AuthenticationFailed);
+            return;
+        }
+
         var result = await _chatService.LeaveRoomAsync(roomId, clientSession.Id);
         await SendChatLeaveResult(clientSession, roomId, result);
     }

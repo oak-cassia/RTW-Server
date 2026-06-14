@@ -11,6 +11,10 @@ public class GamePacketFactory : IPacketFactory
     {
         PacketId packetId = (PacketId)packetIdNum;
 
+        // 와이어에서 들어오는 바이트는 신뢰할 수 없으므로 클라이언트가 보낼 수 있는 패킷만
+        // 역직렬화한다. 서버 전용(S-접두: SAuthResult/SChat/...)과 내부 전용(ISessionClosed)은
+        // 제외 — 내부 패킷은 서버가 직접 ProtoPacket으로 만들어 핸들러에 넘기므로 이 팩토리를
+        // 거치지 않는다. 허용 외 PacketId는 예외로 던져 수신 루프가 세션을 종료시킨다.
         return packetId switch
         {
             PacketId.EchoMessage => new ProtoPacket(packetId, EchoMessage.Parser.ParseFrom(payloadBytes)),
@@ -19,12 +23,8 @@ public class GamePacketFactory : IPacketFactory
             PacketId.CChatJoin => new ProtoPacket(packetId, CChatJoin.Parser.ParseFrom(payloadBytes)),
             PacketId.CChatLeave => new ProtoPacket(packetId, CChatLeave.Parser.ParseFrom(payloadBytes)),
             PacketId.CChatChat => new ProtoPacket(packetId, CChatChat.Parser.ParseFrom(payloadBytes)),
-            PacketId.SAuthResult => new ProtoPacket(packetId, SAuthResult.Parser.ParseFrom(payloadBytes)),
-            PacketId.SChat => new ProtoPacket(packetId, SChat.Parser.ParseFrom(payloadBytes)),
-            PacketId.SChatJoinResult => new ProtoPacket(packetId, SChatJoinResult.Parser.ParseFrom(payloadBytes)),
-            PacketId.SChatLeaveResult => new ProtoPacket(packetId, SChatLeaveResult.Parser.ParseFrom(payloadBytes)),
-            PacketId.ISessionClosed => new ProtoPacket(packetId, ISessionClosed.Parser.ParseFrom(payloadBytes)),
-            _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId, null)
+            _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId,
+                "Packet id is not a client-sendable packet")
         };
     }
 
