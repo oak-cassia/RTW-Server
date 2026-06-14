@@ -101,3 +101,6 @@ CoverletSourceRootsMapping_*
 # Generated files
 *.GeneratedMSBuildEditorConfig.editorconfig
 *.GlobalUsings.g.cs
+
+# 로컬 전용 개선 보고서 (커밋 안 함)
+docs/
