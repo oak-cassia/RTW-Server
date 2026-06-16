@@ -18,9 +18,6 @@ public class ClientSession : IClientSession
     private const int CONNECTION_STATE_DISCONNECTED = 0;
     private const int CONNECTION_STATE_CONNECTED = 1;
 
-    // 프로세스 내에서 충돌 없는 PlayerId 발급용 카운터 (string.GetHashCode는 충돌 가능 + 프로세스마다 값이 달라짐)
-    private static int _lastPlayerId;
-
     private readonly IClient _client;
     private readonly PipeWriter _writer;
     private readonly IPacketHandler _packetHandler;
@@ -36,9 +33,8 @@ public class ClientSession : IClientSession
     private int _connectionState;
     private int _isDisposed;
 
-    public string Id { get; private init; } // 세션 ID이며 플레이어 ID로도 사용됨
-    public int PlayerId { get; }
-    public long UserId { get; private set; }
+    public string Id { get; private init; } // 세션 ID (채팅 방 멤버십·라우팅 키)
+    public long UserId { get; private set; } // 인증 성공 시 확정되는 계정 ID이자 플레이어 ID
     public string? AuthToken { get; private set; }
     public bool IsAuthenticated { get; private set; }
 
@@ -61,7 +57,6 @@ public class ClientSession : IClientSession
         _logger = loggerFactory.CreateLogger<ClientSession>();
 
         Id = id;
-        PlayerId = Interlocked.Increment(ref _lastPlayerId);
         _isSending = false;
         Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
         IsAuthenticated = false; // 인증되지 않은 상태로 초기화
@@ -367,7 +362,7 @@ public class ClientSession : IClientSession
         await _writer.FlushAsync(cancellationToken);
     }
 
-    public async Task<(RTWErrorCode ErrorCode, int PlayerId)> ValidateAuthTokenAsync(long userId, string authToken)
+    public async Task<RTWErrorCode> ValidateAuthTokenAsync(long userId, string authToken)
     {
         // authToken은 자격 증명이므로 로그에 원문을 남기지 않는다
         _logger.LogDebug("Validating auth token for session {SessionId}, userId {UserId}", Id, userId);
@@ -381,13 +376,13 @@ public class ClientSession : IClientSession
             AuthToken = authToken;
             IsAuthenticated = true;
 
-            _logger.LogInformation("Auth token validated for session {SessionId}, userId {UserId}, PlayerId {PlayerId}", Id, userId, PlayerId);
-            return (RTWErrorCode.Success, PlayerId);
+            _logger.LogInformation("Auth token validated for session {SessionId}, userId {UserId}", Id, userId);
+            return RTWErrorCode.Success;
         }
 
         _logger.LogWarning("Auth token validation failed for session {SessionId}, userId {UserId}", Id, userId);
         IsAuthenticated = false;
 
-        return (RTWErrorCode.AuthenticationFailed, 0);
+        return RTWErrorCode.AuthenticationFailed;
     }
 }

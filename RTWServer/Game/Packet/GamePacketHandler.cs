@@ -27,6 +27,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                     _logger.LogWarning("Echo rejected: client {ClientId} is not authenticated", clientSession.Id);
                     break;
                 }
+
                 await clientSession.SendAsync(packet);
                 break;
 
@@ -39,6 +40,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 {
                     _logger.LogWarning("Invalid payload for CAuthToken from client {ClientId}", clientSession.Id);
                 }
+
                 break;
 
             case PacketId.CChat:
@@ -50,6 +52,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 {
                     _logger.LogWarning("Invalid payload for CChat from client {ClientId}", clientSession.Id);
                 }
+
                 break;
 
             case PacketId.CChatChat:
@@ -61,6 +64,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 {
                     _logger.LogWarning("Invalid payload for CChatChat from client {ClientId}", clientSession.Id);
                 }
+
                 break;
 
             case PacketId.CChatJoin:
@@ -72,6 +76,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 {
                     _logger.LogWarning("Invalid payload for CChatJoin from client {ClientId}", clientSession.Id);
                 }
+
                 break;
 
             case PacketId.CChatLeave:
@@ -83,6 +88,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
                 {
                     _logger.LogWarning("Invalid payload for CChatLeave from client {ClientId}", clientSession.Id);
                 }
+
                 break;
 
             case PacketId.ISessionClosed:
@@ -102,21 +108,23 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
         long userId = authTokenProtoPacket.UserId;
         _logger.LogDebug("Received authentication token from client {ClientId} for userId {UserId}", clientSession.Id, userId);
 
-        var (errorCode, playerId) = await clientSession.ValidateAuthTokenAsync(userId, authToken);
+        RTWErrorCode errorCode = await clientSession.ValidateAuthTokenAsync(userId, authToken);
 
         var sAuthResultProto = new SAuthResult
         {
-            PlayerId = (errorCode == RTWErrorCode.Success) ? playerId : 0,
+            PlayerId = (errorCode == RTWErrorCode.Success)
+                ? clientSession.UserId
+                : 0,
             ErrorCode = (int)errorCode
         };
 
         if (errorCode == RTWErrorCode.Success)
         {
-            _logger.LogInformation("Authentication successful for client {ClientId}, PlayerId: {PlayerId}", clientSession.Id, playerId);
+            _logger.LogInformation("Authentication successful for client {ClientId}, PlayerId: {PlayerId}", clientSession.Id, clientSession.UserId);
 
             // CChat/CChatChat은 RoomId 없이 기본 방으로 라우팅되므로, 인증 직후 기본 방에
             // 자동 입장시켜 두지 않으면 멤버십 검사에 걸려 메시지가 조용히 버려진다.
-            var player = new GamePlayer(playerId, clientSession.Id, clientSession.Id);
+            var player = new GamePlayer(clientSession.UserId, clientSession.Id, clientSession.Id);
             var joinResult = await _chatService.JoinRoomAsync(_defaultChatRoomId, player);
             if (joinResult != RTWErrorCode.Success)
             {
@@ -174,7 +182,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
             return;
         }
 
-        var player = new GamePlayer(clientSession.PlayerId, clientSession.Id, clientSession.Id);
+        var player = new GamePlayer(clientSession.UserId, clientSession.Id, clientSession.Id);
         var result = await _chatService.JoinRoomAsync(roomId, player);
         await SendChatJoinResult(clientSession, roomId, result);
     }

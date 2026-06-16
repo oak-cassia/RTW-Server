@@ -2,11 +2,11 @@ namespace RTWServer.Game.Player;
 
 public class Player : IPlayer
 {
-    public int PlayerId { get; }
+    public long PlayerId { get; }
     public string SessionId { get; }
     public string Name { get; }
-    
-    public Player(int playerId, string sessionId, string name)
+
+    public Player(long playerId, string sessionId, string name)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {

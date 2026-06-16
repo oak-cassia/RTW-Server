@@ -2,7 +2,7 @@ namespace RTWServer.Game.Player;
 
 public interface IPlayer
 {
-    int PlayerId { get; }
+    long PlayerId { get; }
     string SessionId { get; }
     string Name { get; }
 }

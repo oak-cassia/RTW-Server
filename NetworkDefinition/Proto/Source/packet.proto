@@ -38,7 +38,7 @@ message CAuthToken {
 // (SAuthResult는 PacketHeader 뒤에 오는 payload가 됩니다)
 message SAuthResult {
   int32 errorCode = 1; // 수정됨: rtw.common.RTWErrorCode
-  int32 playerId = 2; // 인증 성공 시
+  int64 playerId = 2; // 인증 성공 시 발급되는 플레이어 ID (= 계정 UserId)
 }
 
 // --- Echo (Test) ---
@@ -60,7 +60,7 @@ message CChatChat {
 
 message SChat {
   uint32 chatType = 1;
-  int32 senderPlayerId = 2;
+  int64 senderPlayerId = 2; // 발신자 플레이어 ID (= 계정 UserId)
   string senderName = 3;
   string message = 4;
 }

@@ -102,7 +102,9 @@ public class GamePacketHandlerTests
         var handler = CreateHandler(chatService.Object);
 
         var session = CreateSession(authenticated: false);
-        session.Setup(s => s.ValidateAuthTokenAsync(7L, "tok")).ReturnsAsync((RTWErrorCode.Success, 123));
+        session.Setup(s => s.ValidateAuthTokenAsync(7L, "tok")).ReturnsAsync(RTWErrorCode.Success);
+        // 인증 성공 시 세션의 UserId가 확정되며, 이 값이 곧 SAuthResult.playerId로 회신된다
+        session.SetupGet(s => s.UserId).Returns(7L);
 
         IPacket? sent = null;
         session.Setup(s => s.SendAsync(It.IsAny<IPacket>()))
@@ -119,6 +121,6 @@ public class GamePacketHandlerTests
         Assert.That(sent!.PacketId, Is.EqualTo(PacketId.SAuthResult));
         var payload = (SAuthResult)((ProtoPacket)sent).GetPayloadMessage();
         Assert.That((RTWErrorCode)payload.ErrorCode, Is.EqualTo(RTWErrorCode.Success));
-        Assert.That(payload.PlayerId, Is.EqualTo(123));
+        Assert.That(payload.PlayerId, Is.EqualTo(7L));
     }
 }

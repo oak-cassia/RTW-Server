@@ -33,11 +33,9 @@ public class ClientSessionTests
 
         var session = new ClientSession(client, packetHandler, packetSerializer, validator.Object, loggerFactory, "session1");
 
-        var (errorCode, playerId) = await session.ValidateAuthTokenAsync(userId, "token");
+        RTWErrorCode errorCode = await session.ValidateAuthTokenAsync(userId, "token");
 
         Assert.That(errorCode, Is.EqualTo(RTWErrorCode.Success));
-        Assert.That(playerId, Is.EqualTo(session.PlayerId));
-        Assert.That(playerId, Is.GreaterThan(0));
         Assert.That(session.UserId, Is.EqualTo(userId));
         Assert.That(session.AuthToken, Is.EqualTo("token"));
         Assert.That(session.IsAuthenticated, Is.True);
@@ -56,10 +54,9 @@ public class ClientSessionTests
 
         var session = new ClientSession(client, packetHandler, packetSerializer, validator.Object, loggerFactory, "session1");
 
-        var (errorCode, playerId) = await session.ValidateAuthTokenAsync(userId, "stale-token");
+        RTWErrorCode errorCode = await session.ValidateAuthTokenAsync(userId, "stale-token");
 
         Assert.That(errorCode, Is.EqualTo(RTWErrorCode.AuthenticationFailed));
-        Assert.That(playerId, Is.EqualTo(0));
         Assert.That(session.UserId, Is.EqualTo(0));
         Assert.That(session.IsAuthenticated, Is.False);
     }
