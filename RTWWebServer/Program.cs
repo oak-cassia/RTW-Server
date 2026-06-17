@@ -3,9 +3,12 @@ using RTWWebServer.Middlewares;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-// Add JSON file for master data before getting configuration
-var masterDataPath = Path.Combine(builder.Environment.ContentRootPath, "MasterDatas", "CharacterMaster.json");
-builder.Configuration.AddJsonFile(masterDataPath, optional: false, reloadOnChange: true);
+// Add JSON files for master data before getting configuration
+var characterMasterPath = Path.Combine(builder.Environment.ContentRootPath, "MasterDatas", "CharacterMaster.json");
+builder.Configuration.AddJsonFile(characterMasterPath, optional: false, reloadOnChange: true);
+
+var furnitureMasterPath = Path.Combine(builder.Environment.ContentRootPath, "MasterDatas", "FurnitureMaster.json");
+builder.Configuration.AddJsonFile(furnitureMasterPath, optional: false, reloadOnChange: true);
 
 IConfiguration configuration = builder.Configuration;
 

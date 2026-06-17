@@ -40,6 +40,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IGameEntryService, GameEntryService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICharacterGachaService, CharacterGachaService>();
+        services.AddScoped<ILobbyService, LobbyService>();
 
         return services;
     }
@@ -49,6 +50,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
+        services.AddScoped<IPlayerLobbyFurnitureRepository, PlayerLobbyFurnitureRepository>();
 
         return services;
     }

@@ -8,6 +8,7 @@ namespace RTWWebServer.Providers.MasterData;
 public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
 {
     private ImmutableDictionary<int, CharacterMaster> _characters = ImmutableDictionary<int, CharacterMaster>.Empty;
+    private ImmutableDictionary<int, FurnitureMaster> _furniture = ImmutableDictionary<int, FurnitureMaster>.Empty;
     private readonly IDisposable? _reloader;
     private readonly ILogger<MasterDataProvider> _logger;
 
@@ -39,15 +40,25 @@ public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
     public ImmutableDictionary<int, CharacterMaster> GetAllCharacters()
         => _characters;
 
+    public bool TryGetFurniture(int id, out FurnitureMaster furniture)
+        => _furniture.TryGetValue(id, out furniture!);
+
+    public ImmutableDictionary<int, FurnitureMaster> GetAllFurniture()
+        => _furniture;
+
     public void Dispose()
         => _reloader?.Dispose();
 
     private void BuildSnapshot(MasterDataOptions options)
     {
         var charactersDict = options.Characters.ToImmutableDictionary(c => c.Id);
+        var furnitureDict = options.Furniture.ToImmutableDictionary(f => f.Id);
 
         Interlocked.Exchange(ref _characters, charactersDict);
+        Interlocked.Exchange(ref _furniture, furnitureDict);
 
-        _logger.LogInformation("Master data snapshot rebuilt. Characters count: {Count}", charactersDict.Count);
+        _logger.LogInformation(
+            "Master data snapshot rebuilt. Characters count: {CharacterCount}, Furniture count: {FurnitureCount}",
+            charactersDict.Count, furnitureDict.Count);
     }
 }

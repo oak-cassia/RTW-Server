@@ -7,6 +7,7 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
 {
     public DbSet<User> Users { get; set; }
     public DbSet<PlayerCharacter> PlayerCharacters { get; set; }
+    public DbSet<PlayerLobbyFurniture> PlayerLobbyFurniture { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +107,40 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
             entity.HasIndex(e => new { e.UserId, e.CharacterMasterId })
                 .IsUnique()
                 .HasDatabaseName("uk_user_character");
+        });
+
+        modelBuilder.Entity<PlayerLobbyFurniture>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.UserId)
+                .IsRequired();
+
+            entity.Property(e => e.FurnitureMasterId)
+                .IsRequired();
+
+            entity.Property(e => e.PosX)
+                .IsRequired();
+
+            entity.Property(e => e.PosY)
+                .IsRequired();
+
+            entity.Property(e => e.Rotation)
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // 한 방에 같은 가구를 여러 개 둘 수 있으므로 (UserId, FurnitureMasterId) 유니크 제약은 두지 않는다.
+            // 레이아웃 조회/교체는 항상 UserId 기준이라 성능 인덱스만 둔다.
+            // 인덱스명은 PlayerCharacter의 ix_user_id와 충돌하지 않도록 테이블별로 구분한다
+            // (SQLite는 인덱스명이 DB 전역이라 동명 인덱스를 허용하지 않는다).
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("ix_lobby_furniture_user_id");
         });
 
         // AccountDbContext와 일관성을 위해 base.OnModelCreating를 마지막에 호출

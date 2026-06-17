@@ -23,6 +23,10 @@ public class MasterDataOptionsValidatorTests
                     Development = 60,
                     JobSearching = 70
                 }
+            ],
+            Furniture =
+            [
+                new FurnitureMaster { Id = 2001, Name = "ValidFurniture", Category = 1, Width = 1, Height = 1 }
             ]
         };
 
@@ -104,10 +108,48 @@ public class MasterDataOptionsValidatorTests
             });
         }
 
-        var options = new MasterDataOptions { Characters = characters.ToArray() };
+        var options = new MasterDataOptions
+        {
+            Characters = characters.ToArray(),
+            Furniture = [new FurnitureMaster { Id = 2001, Name = "Furniture", Category = 1, Width = 1, Height = 1 }]
+        };
 
         var result = _validator.Validate(null, options);
 
         Assert.That(result.Succeeded, Is.True);
+    }
+
+    [Test]
+    public void Validate_WithEmptyFurnitureArray_ReturnsFailure()
+    {
+        var options = new MasterDataOptions
+        {
+            Characters = [new CharacterMaster { Id = 1, Name = "Character", Portfolio = 50, Development = 60, JobSearching = 70 }],
+            Furniture = []
+        };
+
+        var result = _validator.Validate(null, options);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Failures, Has.Some.Contains("Furniture array cannot be empty"));
+    }
+
+    [Test]
+    public void Validate_WithDuplicateFurnitureIds_ReturnsFailure()
+    {
+        var options = new MasterDataOptions
+        {
+            Characters = [new CharacterMaster { Id = 1, Name = "Character", Portfolio = 50, Development = 60, JobSearching = 70 }],
+            Furniture =
+            [
+                new FurnitureMaster { Id = 2001, Name = "Furniture1", Category = 1, Width = 1, Height = 1 },
+                new FurnitureMaster { Id = 2001, Name = "Furniture2", Category = 2, Width = 2, Height = 2 }
+            ]
+        };
+
+        var result = _validator.Validate(null, options);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Failures?.ToList(), Has.Some.Contains("Duplicate furniture ID found: 2001"));
     }
 }
