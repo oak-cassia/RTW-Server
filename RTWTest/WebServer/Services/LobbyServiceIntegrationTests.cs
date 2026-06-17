@@ -22,6 +22,7 @@ public class LobbyServiceIntegrationTests
     private SqliteConnection _connection;
     private GameDbContext _dbContext;
     private PlayerLobbyFurnitureRepository _repository;
+    private PlayerLobbyRepository _lobbyRepository;
     private Mock<IMasterDataProvider> _mockMasterDataProvider;
     private LobbyService _service;
 
@@ -40,11 +41,14 @@ public class LobbyServiceIntegrationTests
 
         // 서비스의 명시적 트랜잭션이 리포지토리 작업까지 묶으려면 같은 컨텍스트 인스턴스를 공유해야 한다.
         _repository = new PlayerLobbyFurnitureRepository(_dbContext);
+        _lobbyRepository = new PlayerLobbyRepository(_dbContext);
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
+        SetupRoomGrades((1, 30, 30), (2, 50, 50), (3, 100, 100));
 
         _service = new LobbyService(
             _dbContext,
             _repository,
+            _lobbyRepository,
             _mockMasterDataProvider.Object,
             Mock.Of<ILogger<LobbyService>>());
     }
@@ -116,6 +120,48 @@ public class LobbyServiceIntegrationTests
         Assert.That(persisted[0].FurnitureMasterId, Is.EqualTo(2001));
     }
 
+    [Test]
+    public async Task ExpandRoomAsync_PersistsAndIncrementsGrade()
+    {
+        const long userId = 7;
+        AllowAllFurniture();
+
+        var first = await _service.ExpandRoomAsync(userId); // 행 없음 → 2등급 생성
+        Assert.That(first.RoomGrade, Is.EqualTo(2));
+        Assert.That(first.Width, Is.EqualTo(50));
+
+        _dbContext.ChangeTracker.Clear(); // 요청 경계 모사
+
+        var second = await _service.ExpandRoomAsync(userId); // 2 → 3등급
+        Assert.That(second.RoomGrade, Is.EqualTo(3));
+        Assert.That(second.Width, Is.EqualTo(100));
+
+        await using var verify = CreateVerifyContext();
+        var persisted = await verify.PlayerLobbies.SingleAsync(l => l.UserId == userId);
+        Assert.That(persisted.RoomGrade, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task SaveLobbyAsync_BoundsFollowRoomGrade()
+    {
+        const long userId = 7;
+        AllowAllFurniture();
+        var nearEdge = new[] { new LobbyFurniturePlacement(2001, 40, 0, 0) };
+
+        // 기본 1등급(30x30): PosX=40은 경계 밖 → 거부
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, nearEdge));
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+
+        // 2등급(50x50)로 확장하면 같은 좌표가 경계 안 → 허용
+        await _service.ExpandRoomAsync(userId);
+        _dbContext.ChangeTracker.Clear();
+
+        var result = await _service.SaveLobbyAsync(userId, nearEdge);
+        Assert.That(result.RoomGrade, Is.EqualTo(2));
+        Assert.That(result.Furniture, Has.Length.EqualTo(1));
+    }
+
     private void SeedFurniture(long userId, params (int masterId, int x, int y)[] rows)
     {
         foreach (var (masterId, x, y) in rows)
@@ -136,6 +182,24 @@ public class LobbyServiceIntegrationTests
             {
                 f = new FurnitureMaster { Id = id, Name = $"F{id}", Category = 1, Width = 1, Height = 1 };
                 return true;
+            });
+    }
+
+    private void SetupRoomGrades(params (int grade, int width, int height)[] grades)
+    {
+        var map = grades.ToDictionary(g => g.grade, g => (g.width, g.height));
+        _mockMasterDataProvider
+            .Setup(p => p.TryGetRoomGrade(It.IsAny<int>(), out It.Ref<RoomGradeMaster>.IsAny))
+            .Returns((int grade, out RoomGradeMaster rg) =>
+            {
+                if (map.TryGetValue(grade, out var size))
+                {
+                    rg = new RoomGradeMaster { Grade = grade, Width = size.width, Height = size.height };
+                    return true;
+                }
+
+                rg = null!;
+                return false;
             });
     }
 

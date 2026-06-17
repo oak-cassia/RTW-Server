@@ -83,6 +83,9 @@ rider.project.restore.info
 *.runtimeconfig.json
 apphost.exe
 
+# 마스터 데이터 JSON은 런타임에 필수(Program.cs가 optional:false로 로드)이므로 위 *.json 무시에서 제외한다.
+!RTWWebServer/MasterDatas/*.json
+
 # Temporary files
 *.tmp
 *.bak

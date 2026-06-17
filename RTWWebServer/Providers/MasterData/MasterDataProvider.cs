@@ -9,6 +9,7 @@ public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
 {
     private ImmutableDictionary<int, CharacterMaster> _characters = ImmutableDictionary<int, CharacterMaster>.Empty;
     private ImmutableDictionary<int, FurnitureMaster> _furniture = ImmutableDictionary<int, FurnitureMaster>.Empty;
+    private ImmutableDictionary<int, RoomGradeMaster> _roomGrades = ImmutableDictionary<int, RoomGradeMaster>.Empty;
     private readonly IDisposable? _reloader;
     private readonly ILogger<MasterDataProvider> _logger;
 
@@ -46,6 +47,12 @@ public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
     public ImmutableDictionary<int, FurnitureMaster> GetAllFurniture()
         => _furniture;
 
+    public bool TryGetRoomGrade(int grade, out RoomGradeMaster roomGrade)
+        => _roomGrades.TryGetValue(grade, out roomGrade!);
+
+    public ImmutableDictionary<int, RoomGradeMaster> GetAllRoomGrades()
+        => _roomGrades;
+
     public void Dispose()
         => _reloader?.Dispose();
 
@@ -53,12 +60,14 @@ public sealed class MasterDataProvider : IMasterDataProvider, IDisposable
     {
         var charactersDict = options.Characters.ToImmutableDictionary(c => c.Id);
         var furnitureDict = options.Furniture.ToImmutableDictionary(f => f.Id);
+        var roomGradesDict = options.RoomGrades.ToImmutableDictionary(g => g.Grade);
 
         Interlocked.Exchange(ref _characters, charactersDict);
         Interlocked.Exchange(ref _furniture, furnitureDict);
+        Interlocked.Exchange(ref _roomGrades, roomGradesDict);
 
         _logger.LogInformation(
-            "Master data snapshot rebuilt. Characters count: {CharacterCount}, Furniture count: {FurnitureCount}",
-            charactersDict.Count, furnitureDict.Count);
+            "Master data snapshot rebuilt. Characters count: {CharacterCount}, Furniture count: {FurnitureCount}, RoomGrades count: {RoomGradeCount}",
+            charactersDict.Count, furnitureDict.Count, roomGradesDict.Count);
     }
 }

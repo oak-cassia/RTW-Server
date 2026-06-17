@@ -10,6 +10,9 @@ builder.Configuration.AddJsonFile(characterMasterPath, optional: false, reloadOn
 var furnitureMasterPath = Path.Combine(builder.Environment.ContentRootPath, "MasterDatas", "FurnitureMaster.json");
 builder.Configuration.AddJsonFile(furnitureMasterPath, optional: false, reloadOnChange: true);
 
+var roomGradeMasterPath = Path.Combine(builder.Environment.ContentRootPath, "MasterDatas", "RoomGradeMaster.json");
+builder.Configuration.AddJsonFile(roomGradeMasterPath, optional: false, reloadOnChange: true);
+
 IConfiguration configuration = builder.Configuration;
 
 builder.Services.AddRedisCache(configuration);

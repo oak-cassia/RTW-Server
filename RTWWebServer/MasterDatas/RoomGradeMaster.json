@@ -1,0 +1,19 @@
+{
+  "RoomGrades": [
+    {
+      "Grade": 1,
+      "Width": 30,
+      "Height": 30
+    },
+    {
+      "Grade": 2,
+      "Width": 50,
+      "Height": 50
+    },
+    {
+      "Grade": 3,
+      "Width": 100,
+      "Height": 100
+    }
+  ]
+}

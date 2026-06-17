@@ -51,6 +51,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
         services.AddScoped<IPlayerLobbyFurnitureRepository, PlayerLobbyFurnitureRepository>();
+        services.AddScoped<IPlayerLobbyRepository, PlayerLobbyRepository>();
 
         return services;
     }

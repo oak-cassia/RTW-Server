@@ -8,6 +8,7 @@ public sealed class MasterDataOptions
 {
     public CharacterMaster[] Characters { get; init; } = [];
     public FurnitureMaster[] Furniture { get; init; } = [];
+    public RoomGradeMaster[] RoomGrades { get; init; } = [];
 }
 
 public sealed class MasterDataOptionsValidator : IValidateOptions<MasterDataOptions>
@@ -18,6 +19,7 @@ public sealed class MasterDataOptionsValidator : IValidateOptions<MasterDataOpti
 
         ValidateCharacters(options.Characters, results);
         ValidateFurniture(options.Furniture, results);
+        ValidateRoomGrades(options.RoomGrades, results);
 
         return results.Count == 0
             ? ValidateOptionsResult.Success
@@ -73,6 +75,39 @@ public sealed class MasterDataOptionsValidator : IValidateOptions<MasterDataOpti
                 foreach (var validationResult in validationResults)
                 {
                     results.Add($"Furniture {furniture.Id}: {validationResult.ErrorMessage}");
+                }
+            }
+        }
+    }
+
+    private static void ValidateRoomGrades(RoomGradeMaster[] roomGrades, List<string> results)
+    {
+        if (roomGrades.Length == 0)
+        {
+            results.Add("RoomGrades array cannot be empty");
+        }
+
+        var duplicateGrades = roomGrades.GroupBy(g => g.Grade).Where(g => g.Count() > 1);
+        foreach (var duplicate in duplicateGrades)
+        {
+            results.Add($"Duplicate room grade found: {duplicate.Key}");
+        }
+
+        // 행이 없는 유저는 1등급(기본)으로 간주하므로 1등급 마스터는 반드시 존재해야 한다.
+        if (roomGrades.Length > 0 && roomGrades.All(g => g.Grade != 1))
+        {
+            results.Add("RoomGrades must contain grade 1 (default room size)");
+        }
+
+        foreach (var roomGrade in roomGrades)
+        {
+            var context = new ValidationContext(roomGrade);
+            var validationResults = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(roomGrade, context, validationResults, true))
+            {
+                foreach (var validationResult in validationResults)
+                {
+                    results.Add($"RoomGrade {roomGrade.Grade}: {validationResult.ErrorMessage}");
                 }
             }
         }

@@ -31,4 +31,13 @@ public class LobbyController(ILobbyService lobbyService) : ControllerBase
         var lobby = await lobbyService.SaveLobbyAsync(userId, request.Items);
         return GameResponse<LobbyInfo>.Ok(lobby);
     }
+
+    [HttpPost("expand")]
+    public async Task<GameResponse<LobbyInfo>> ExpandRoomAsync()
+    {
+        long userId = HttpContext.GetAuthenticatedUserId();
+
+        var lobby = await lobbyService.ExpandRoomAsync(userId);
+        return GameResponse<LobbyInfo>.Ok(lobby);
+    }
 }

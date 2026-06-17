@@ -27,6 +27,10 @@ public class MasterDataOptionsValidatorTests
             Furniture =
             [
                 new FurnitureMaster { Id = 2001, Name = "ValidFurniture", Category = 1, Width = 1, Height = 1 }
+            ],
+            RoomGrades =
+            [
+                new RoomGradeMaster { Grade = 1, Width = 30, Height = 30 }
             ]
         };
 
@@ -111,7 +115,8 @@ public class MasterDataOptionsValidatorTests
         var options = new MasterDataOptions
         {
             Characters = characters.ToArray(),
-            Furniture = [new FurnitureMaster { Id = 2001, Name = "Furniture", Category = 1, Width = 1, Height = 1 }]
+            Furniture = [new FurnitureMaster { Id = 2001, Name = "Furniture", Category = 1, Width = 1, Height = 1 }],
+            RoomGrades = [new RoomGradeMaster { Grade = 1, Width = 30, Height = 30 }]
         };
 
         var result = _validator.Validate(null, options);
@@ -151,5 +156,57 @@ public class MasterDataOptionsValidatorTests
 
         Assert.That(result.Succeeded, Is.False);
         Assert.That(result.Failures?.ToList(), Has.Some.Contains("Duplicate furniture ID found: 2001"));
+    }
+
+    [Test]
+    public void Validate_WithEmptyRoomGradesArray_ReturnsFailure()
+    {
+        var options = new MasterDataOptions
+        {
+            Characters = [new CharacterMaster { Id = 1, Name = "Character", Portfolio = 50, Development = 60, JobSearching = 70 }],
+            Furniture = [new FurnitureMaster { Id = 2001, Name = "Furniture", Category = 1, Width = 1, Height = 1 }],
+            RoomGrades = []
+        };
+
+        var result = _validator.Validate(null, options);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Failures, Has.Some.Contains("RoomGrades array cannot be empty"));
+    }
+
+    [Test]
+    public void Validate_WithDuplicateRoomGrade_ReturnsFailure()
+    {
+        var options = new MasterDataOptions
+        {
+            Characters = [new CharacterMaster { Id = 1, Name = "Character", Portfolio = 50, Development = 60, JobSearching = 70 }],
+            Furniture = [new FurnitureMaster { Id = 2001, Name = "Furniture", Category = 1, Width = 1, Height = 1 }],
+            RoomGrades =
+            [
+                new RoomGradeMaster { Grade = 1, Width = 30, Height = 30 },
+                new RoomGradeMaster { Grade = 1, Width = 50, Height = 50 }
+            ]
+        };
+
+        var result = _validator.Validate(null, options);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Failures?.ToList(), Has.Some.Contains("Duplicate room grade found: 1"));
+    }
+
+    [Test]
+    public void Validate_WithoutGradeOne_ReturnsFailure()
+    {
+        var options = new MasterDataOptions
+        {
+            Characters = [new CharacterMaster { Id = 1, Name = "Character", Portfolio = 50, Development = 60, JobSearching = 70 }],
+            Furniture = [new FurnitureMaster { Id = 2001, Name = "Furniture", Category = 1, Width = 1, Height = 1 }],
+            RoomGrades = [new RoomGradeMaster { Grade = 2, Width = 50, Height = 50 }]
+        };
+
+        var result = _validator.Validate(null, options);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Failures, Has.Some.Contains("RoomGrades must contain grade 1"));
     }
 }

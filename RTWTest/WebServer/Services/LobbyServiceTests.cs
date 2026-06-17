@@ -20,6 +20,7 @@ public class LobbyServiceTests
 {
     private GameDbContext _dbContext;
     private Mock<IPlayerLobbyFurnitureRepository> _mockRepository;
+    private Mock<IPlayerLobbyRepository> _mockLobbyRepository;
     private Mock<IMasterDataProvider> _mockMasterDataProvider;
     private LobbyService _service;
 
@@ -35,11 +36,17 @@ public class LobbyServiceTests
         _dbContext = new GameDbContext(options);
 
         _mockRepository = new Mock<IPlayerLobbyFurnitureRepository>();
+        _mockLobbyRepository = new Mock<IPlayerLobbyRepository>();
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
+
+        // 방 크기 계산은 항상 마스터를 거치므로 기본 등급표를 깔아 둔다.
+        // (PlayerLobby 행이 없으면 1등급으로 간주된다.)
+        SetupRoomGrades((1, 30, 30), (2, 50, 50), (3, 100, 100));
 
         _service = new LobbyService(
             _dbContext,
             _mockRepository.Object,
+            _mockLobbyRepository.Object,
             _mockMasterDataProvider.Object,
             Mock.Of<ILogger<LobbyService>>());
     }
@@ -177,6 +184,116 @@ public class LobbyServiceTests
         Assert.That(info.Rotation, Is.EqualTo(180));
     }
 
+    [Test]
+    public void SaveLobbyAsync_OutOfBounds_ThrowsAndDoesNotPersist()
+    {
+        const long userId = 42;
+        AllowFurniture(2001); // 기본 1등급 = 30x30, 유효 좌표 0..29
+        var items = new[]
+        {
+            new LobbyFurniturePlacement(2001, 30, 0, 0) // PosX=30 → 경계 밖
+        };
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, items));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+        _mockRepository.Verify(r => r.RemoveByUserIdAsync(It.IsAny<long>()), Times.Never);
+        _mockRepository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<PlayerLobbyFurniture>>()), Times.Never);
+    }
+
+    [Test]
+    public void SaveLobbyAsync_NegativeCoordinate_Throws()
+    {
+        const long userId = 42;
+        AllowFurniture(2001);
+        var items = new[]
+        {
+            new LobbyFurniturePlacement(2001, 0, -1, 0) // 음수 좌표도 거부
+        };
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, items));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+    }
+
+    [Test]
+    public async Task GetLobbyAsync_NoRow_ReturnsDefaultGradeAndSize()
+    {
+        const long userId = 42;
+
+        var result = await _service.GetLobbyAsync(userId);
+
+        Assert.That(result.RoomGrade, Is.EqualTo(1));
+        Assert.That(result.Width, Is.EqualTo(30));
+        Assert.That(result.Height, Is.EqualTo(30));
+    }
+
+    [Test]
+    public async Task GetLobbyAsync_ExistingGrade_ReturnsMatchingSize()
+    {
+        const long userId = 42;
+        _mockLobbyRepository
+            .Setup(r => r.GetByUserIdAsync(userId))
+            .ReturnsAsync(new PlayerLobby(userId, 2) { Id = 1 });
+
+        var result = await _service.GetLobbyAsync(userId);
+
+        Assert.That(result.RoomGrade, Is.EqualTo(2));
+        Assert.That(result.Width, Is.EqualTo(50));
+        Assert.That(result.Height, Is.EqualTo(50));
+    }
+
+    [Test]
+    public async Task ExpandRoomAsync_NoRow_CreatesGradeTwo()
+    {
+        const long userId = 42;
+
+        var result = await _service.ExpandRoomAsync(userId);
+
+        _mockLobbyRepository.Verify(
+            r => r.AddAsync(It.Is<PlayerLobby>(l => l.UserId == userId && l.RoomGrade == 2)),
+            Times.Once);
+        _mockLobbyRepository.Verify(r => r.Update(It.IsAny<PlayerLobby>()), Times.Never);
+        Assert.That(result.RoomGrade, Is.EqualTo(2));
+        Assert.That(result.Width, Is.EqualTo(50));
+    }
+
+    [Test]
+    public async Task ExpandRoomAsync_ExistingGrade_IncrementsAndUpdates()
+    {
+        const long userId = 42;
+        _mockLobbyRepository
+            .Setup(r => r.GetByUserIdAsync(userId))
+            .ReturnsAsync(new PlayerLobby(userId, 2) { Id = 1 });
+
+        var result = await _service.ExpandRoomAsync(userId);
+
+        _mockLobbyRepository.Verify(
+            r => r.Update(It.Is<PlayerLobby>(l => l.RoomGrade == 3)),
+            Times.Once);
+        _mockLobbyRepository.Verify(r => r.AddAsync(It.IsAny<PlayerLobby>()), Times.Never);
+        Assert.That(result.RoomGrade, Is.EqualTo(3));
+        Assert.That(result.Width, Is.EqualTo(100));
+    }
+
+    [Test]
+    public void ExpandRoomAsync_AtMaxGrade_Throws()
+    {
+        const long userId = 42;
+        _mockLobbyRepository
+            .Setup(r => r.GetByUserIdAsync(userId))
+            .ReturnsAsync(new PlayerLobby(userId, 3) { Id = 1 }); // 3등급이 최대(마스터에 4 없음)
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.ExpandRoomAsync(userId));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+        _mockLobbyRepository.Verify(r => r.AddAsync(It.IsAny<PlayerLobby>()), Times.Never);
+        _mockLobbyRepository.Verify(r => r.Update(It.IsAny<PlayerLobby>()), Times.Never);
+    }
+
     private void AllowFurniture(params int[] ids)
     {
         var set = ids.ToHashSet();
@@ -186,6 +303,24 @@ public class LobbyServiceTests
             {
                 f = new FurnitureMaster { Id = id, Name = $"F{id}", Category = 1, Width = 1, Height = 1 };
                 return set.Contains(id);
+            });
+    }
+
+    private void SetupRoomGrades(params (int grade, int width, int height)[] grades)
+    {
+        var map = grades.ToDictionary(g => g.grade, g => (g.width, g.height));
+        _mockMasterDataProvider
+            .Setup(p => p.TryGetRoomGrade(It.IsAny<int>(), out It.Ref<RoomGradeMaster>.IsAny))
+            .Returns((int grade, out RoomGradeMaster rg) =>
+            {
+                if (map.TryGetValue(grade, out var size))
+                {
+                    rg = new RoomGradeMaster { Grade = grade, Width = size.width, Height = size.height };
+                    return true;
+                }
+
+                rg = null!;
+                return false;
             });
     }
 }

@@ -1,0 +1,39 @@
+{
+  "Furniture": [
+    {
+      "Id": 2001,
+      "Name": "기본 책상",
+      "Category": 1,
+      "Width": 2,
+      "Height": 1
+    },
+    {
+      "Id": 2002,
+      "Name": "기본 의자",
+      "Category": 1,
+      "Width": 1,
+      "Height": 1
+    },
+    {
+      "Id": 2003,
+      "Name": "책장",
+      "Category": 2,
+      "Width": 2,
+      "Height": 1
+    },
+    {
+      "Id": 2004,
+      "Name": "화분",
+      "Category": 3,
+      "Width": 1,
+      "Height": 1
+    },
+    {
+      "Id": 2005,
+      "Name": "러그",
+      "Category": 4,
+      "Width": 3,
+      "Height": 2
+    }
+  ]
+}

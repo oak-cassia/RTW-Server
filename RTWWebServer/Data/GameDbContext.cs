@@ -8,6 +8,7 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
     public DbSet<User> Users { get; set; }
     public DbSet<PlayerCharacter> PlayerCharacters { get; set; }
     public DbSet<PlayerLobbyFurniture> PlayerLobbyFurniture { get; set; }
+    public DbSet<PlayerLobby> PlayerLobbies { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -141,6 +142,30 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
             // (SQLite는 인덱스명이 DB 전역이라 동명 인덱스를 허용하지 않는다).
             entity.HasIndex(e => e.UserId)
                 .HasDatabaseName("ix_lobby_furniture_user_id");
+        });
+
+        modelBuilder.Entity<PlayerLobby>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.UserId)
+                .IsRequired();
+
+            entity.Property(e => e.RoomGrade)
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .IsRequired()
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // 유저당 방은 하나뿐이므로 UserId에 유니크 제약을 둔다.
+            // 인덱스명은 DB 전역 유니크여야 한다(SQLite는 인덱스명이 DB 전역이라 동명 인덱스를 허용하지 않는다).
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("uk_lobby_user_id");
         });
 
         // AccountDbContext와 일관성을 위해 base.OnModelCreating를 마지막에 호출

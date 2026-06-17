@@ -9,4 +9,6 @@ public interface IMasterDataProvider
     ImmutableDictionary<int, CharacterMaster> GetAllCharacters();
     bool TryGetFurniture(int id, out FurnitureMaster furniture);
     ImmutableDictionary<int, FurnitureMaster> GetAllFurniture();
+    bool TryGetRoomGrade(int grade, out RoomGradeMaster roomGrade);
+    ImmutableDictionary<int, RoomGradeMaster> GetAllRoomGrades();
 }
