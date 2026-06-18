@@ -25,6 +25,9 @@ public class ClientSession : IClientSession
     private readonly ISessionValidator _sessionValidator;
     private readonly ILogger _logger;
 
+    // 인증 성공 시 매니저에 알리는 콜백(유저 인덱스 등록 + 중복 세션 킥). 세션↔매니저 순환참조를 피하려고 주입한다.
+    private readonly Func<IClientSession, Task>? _onAuthenticated;
+
     private readonly ConcurrentQueue<IPacket> _sendQueue = new();
     private readonly Lock _sendLock = new();
     private readonly CancellationTokenSource _sessionCts = new(); // 세션 전용 취소 토큰 소스
@@ -36,7 +39,9 @@ public class ClientSession : IClientSession
     public string Id { get; private init; } // 세션 ID (채팅 방 멤버십·라우팅 키)
     public long UserId { get; private set; } // 인증 성공 시 확정되는 계정 ID이자 플레이어 ID
     public string? AuthToken { get; private set; }
+    public string? Nickname { get; private set; } // 인증 성공 시 세션 페이로드에서 확보하는 표시명
     public bool IsAuthenticated { get; private set; }
+    public DateTime ConnectedAtUtc { get; private init; } // 연결 수립 시각(UTC)
 
     public ClientSession(
         IClient client,
@@ -44,7 +49,8 @@ public class ClientSession : IClientSession
         IPacketSerializer packetSerializer,
         ISessionValidator sessionValidator,
         ILoggerFactory loggerFactory,
-        string id)
+        string id,
+        Func<IClientSession, Task>? onAuthenticated = null)
     {
         _client = client;
 
@@ -55,8 +61,10 @@ public class ClientSession : IClientSession
         _packetSerializer = packetSerializer;
         _sessionValidator = sessionValidator;
         _logger = loggerFactory.CreateLogger<ClientSession>();
+        _onAuthenticated = onAuthenticated;
 
         Id = id;
+        ConnectedAtUtc = DateTime.UtcNow;
         _isSending = false;
         Interlocked.Exchange(ref _connectionState, CONNECTION_STATE_CONNECTED);
         IsAuthenticated = false; // 인증되지 않은 상태로 초기화
@@ -369,14 +377,23 @@ public class ClientSession : IClientSession
 
         // 웹 서버가 Redis에 저장한 session_{userId}와 대조한다. 토큰이 일치해야만 통과하므로
         // 클라이언트가 보낸 userId를 그대로 신뢰해도 다른 사용자로 위장할 수 없다.
-        bool isValid = await _sessionValidator.ValidateAsync(userId, authToken, _sessionCts.Token);
-        if (isValid)
+        SessionValidationResult result = await _sessionValidator.ValidateAsync(userId, authToken, _sessionCts.Token);
+        if (result.IsValid)
         {
             UserId = userId;
             AuthToken = authToken;
+            Nickname = result.Nickname;
             IsAuthenticated = true;
 
             _logger.LogInformation("Auth token validated for session {SessionId}, userId {UserId}", Id, userId);
+
+            // 매니저에 인증 성공을 알려 유저 인덱스 등록 + 중복 세션 킥을 수행한다.
+            // 상태(UserId/IsAuthenticated)를 모두 세팅한 뒤 호출해야 매니저가 올바른 값을 읽는다.
+            if (_onAuthenticated != null)
+            {
+                await _onAuthenticated(this);
+            }
+
             return RTWErrorCode.Success;
         }
 

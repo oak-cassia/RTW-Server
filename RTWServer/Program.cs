@@ -16,6 +16,12 @@ int port = 5000;
 // (웹 서버 env: DatabaseConfiguration__Redis 와 동일한 규칙을 따른다)
 string redisConnection = Environment.GetEnvironmentVariable("DatabaseConfiguration__Redis") ?? "127.0.0.1:6379";
 
+// 동시 세션 상한(어드미션 컨트롤). 미설정/비정상 값이면 매니저 기본값을 사용한다.
+int maxConcurrentSessions =
+    int.TryParse(Environment.GetEnvironmentVariable("RTWServer__MaxConcurrentSessions"), out int parsedMaxSessions) && parsedMaxSessions > 0
+        ? parsedMaxSessions
+        : ClientSessionManager.DEFAULT_MAX_CONCURRENT_SESSIONS;
+
 // 로거 팩토리와 로거 생성
 ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
 {
@@ -47,7 +53,7 @@ try
 
     // ClientSessionManager 생성 시 IPacketHandler와 IPacketSerializer 전달
     // ChatService 참조를 제거했습니다 (이제 내부 패킷을 통해 정리 처리를 수행합니다)
-    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer, sessionValidator);
+    clientSessionManager = new ClientSessionManager(loggerFactory, packetHandler, packetSerializer, sessionValidator, maxConcurrentSessions);
 
     AsyncAwaitServer server = new AsyncAwaitServer(
         new TcpServerListener(endpoint, loggerFactory),
@@ -61,6 +67,10 @@ try
     // 서버 실행
     using CancellationTokenSource cts = new CancellationTokenSource();
     Task serverTask = server.Start(cts.Token);
+
+    // 무인증 연결의 인증-데드라인을 강제하는 단일 백그라운드 스윕 루프
+    SessionReaper sessionReaper = new SessionReaper(clientSessionManager, loggerFactory);
+    Task reaperTask = sessionReaper.RunAsync(cts.Token);
 
     while (true)
     {
@@ -78,6 +88,7 @@ try
 
     // 서버 정상 종료 대기
     await serverTask;
+    await reaperTask;
 }
 catch (Exception ex)
 {

@@ -29,7 +29,8 @@ public class ClientSessionTests
         var packetHandler = new Mock<IPacketHandler>().Object;
         var packetSerializer = new Mock<IPacketSerializer>().Object;
         var validator = new Mock<ISessionValidator>();
-        validator.Setup(v => v.ValidateAsync(userId, "token", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        validator.Setup(v => v.ValidateAsync(userId, "token", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(true, "Hero"));
 
         var session = new ClientSession(client, packetHandler, packetSerializer, validator.Object, loggerFactory, "session1");
 
@@ -38,6 +39,7 @@ public class ClientSessionTests
         Assert.That(errorCode, Is.EqualTo(RTWErrorCode.Success));
         Assert.That(session.UserId, Is.EqualTo(userId));
         Assert.That(session.AuthToken, Is.EqualTo("token"));
+        Assert.That(session.Nickname, Is.EqualTo("Hero"));
         Assert.That(session.IsAuthenticated, Is.True);
     }
 
@@ -50,7 +52,8 @@ public class ClientSessionTests
         var packetHandler = new Mock<IPacketHandler>().Object;
         var packetSerializer = new Mock<IPacketSerializer>().Object;
         var validator = new Mock<ISessionValidator>();
-        validator.Setup(v => v.ValidateAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        validator.Setup(v => v.ValidateAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SessionValidationResult.Invalid);
 
         var session = new ClientSession(client, packetHandler, packetSerializer, validator.Object, loggerFactory, "session1");
 

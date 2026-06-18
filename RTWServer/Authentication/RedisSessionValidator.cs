@@ -15,11 +15,11 @@ namespace RTWServer.Authentication;
 /// </summary>
 public class RedisSessionValidator(IDistributedCache distributedCache, ILogger<RedisSessionValidator> logger) : ISessionValidator
 {
-    public async Task<bool> ValidateAsync(long userId, string token, CancellationToken cancellationToken = default)
+    public async Task<SessionValidationResult> ValidateAsync(long userId, string token, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(token))
         {
-            return false;
+            return SessionValidationResult.Invalid;
         }
 
         // 웹 서버 RemoteCacheKeyGenerator.GenerateUserSessionKey와 동일해야 한다
@@ -29,7 +29,7 @@ public class RedisSessionValidator(IDistributedCache distributedCache, ILogger<R
         if (string.IsNullOrEmpty(json))
         {
             logger.LogDebug("Session not found or expired for userId {UserId}", userId);
-            return false;
+            return SessionValidationResult.Invalid;
         }
 
         GameUserSession? session;
@@ -40,13 +40,13 @@ public class RedisSessionValidator(IDistributedCache distributedCache, ILogger<R
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Failed to deserialize session payload for userId {UserId}", userId);
-            return false;
+            return SessionValidationResult.Invalid;
         }
 
         if (session is null || session.UserId != userId)
         {
             logger.LogWarning("Session payload mismatch for userId {UserId}", userId);
-            return false;
+            return SessionValidationResult.Invalid;
         }
 
         // 타이밍 공격으로 토큰을 한 글자씩 추측할 수 없도록 상수 시간 비교를 사용한다
@@ -55,9 +55,10 @@ public class RedisSessionValidator(IDistributedCache distributedCache, ILogger<R
                 Encoding.UTF8.GetBytes(token)))
         {
             logger.LogWarning("Token mismatch for userId {UserId}", userId);
-            return false;
+            return SessionValidationResult.Invalid;
         }
 
-        return true;
+        // 닉네임 연동 이전에 발급된 세션은 Nickname이 null일 수 있다(폴백은 상위 계층 책임).
+        return new SessionValidationResult(true, session.Nickname);
     }
 }
