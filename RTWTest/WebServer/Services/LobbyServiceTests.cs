@@ -294,6 +294,123 @@ public class LobbyServiceTests
         _mockLobbyRepository.Verify(r => r.Update(It.IsAny<PlayerLobby>()), Times.Never);
     }
 
+    [Test]
+    public void SaveLobbyAsync_FootprintExceedsBounds_Throws()
+    {
+        const long userId = 42;
+        AllowFurnitureSized((3001, 3, 2)); // 3x2 가구
+        // 앵커(28,0)는 방(30x30) 안이지만 너비 3이 31까지 뻗어 경계를 넘는다(앵커-only 검사로는 통과했을 케이스).
+        var items = new[] { new LobbyFurniturePlacement(3001, 28, 0, 0) };
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, items));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+        _mockRepository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<PlayerLobbyFurniture>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SaveLobbyAsync_Rotation90_SwapsFootprintAndFits()
+    {
+        const long userId = 42;
+        AllowFurnitureSized((3001, 3, 1)); // 3x1 가구
+        // 앵커(29,0)에서 회전 0이면 너비 3이 경계를 넘지만, 90도 회전 시 1x3이 되어 들어맞는다.
+        var items = new[] { new LobbyFurniturePlacement(3001, 29, 0, 90) };
+        _mockRepository
+            .Setup(r => r.GetByUserIdAsync(userId))
+            .ReturnsAsync(new[] { new PlayerLobbyFurniture(userId, 3001, 29, 0, 90) { Id = 1 } });
+
+        var result = await _service.SaveLobbyAsync(userId, items);
+
+        Assert.That(result.Furniture, Has.Length.EqualTo(1));
+        _mockRepository.Verify(
+            r => r.AddRangeAsync(It.Is<IEnumerable<PlayerLobbyFurniture>>(e => e.Count() == 1)),
+            Times.Once);
+    }
+
+    [Test]
+    public void SaveLobbyAsync_Rotation0_FootprintExceeds_Throws()
+    {
+        const long userId = 42;
+        AllowFurnitureSized((3001, 3, 1)); // 동일 가구, 회전만 0
+        var items = new[] { new LobbyFurniturePlacement(3001, 29, 0, 0) }; // 너비 3 → 경계 밖
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, items));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+    }
+
+    [Test]
+    public void SaveLobbyAsync_OverlappingFurniture_Throws()
+    {
+        const long userId = 42;
+        AllowFurnitureSized((3001, 2, 2));
+        var items = new[]
+        {
+            new LobbyFurniturePlacement(3001, 0, 0, 0), // (0,0)~(1,1)
+            new LobbyFurniturePlacement(3001, 1, 1, 0)  // (1,1)~(2,2) → (1,1) 칸이 겹침
+        };
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, items));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+        _mockRepository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<PlayerLobbyFurniture>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SaveLobbyAsync_AdjacentFurniture_Allowed()
+    {
+        const long userId = 42;
+        AllowFurnitureSized((3001, 2, 2));
+        var items = new[]
+        {
+            new LobbyFurniturePlacement(3001, 0, 0, 0),
+            new LobbyFurniturePlacement(3001, 2, 0, 0) // 맞닿지만 겹치지 않음
+        };
+        _mockRepository
+            .Setup(r => r.GetByUserIdAsync(userId))
+            .ReturnsAsync(Array.Empty<PlayerLobbyFurniture>());
+
+        await _service.SaveLobbyAsync(userId, items);
+
+        _mockRepository.Verify(
+            r => r.AddRangeAsync(It.Is<IEnumerable<PlayerLobbyFurniture>>(e => e.Count() == 2)),
+            Times.Once);
+    }
+
+    [Test]
+    public void SaveLobbyAsync_NonRightAngleRotation_Throws()
+    {
+        const long userId = 42;
+        AllowFurnitureSized((3001, 1, 1));
+        var items = new[] { new LobbyFurniturePlacement(3001, 0, 0, 45) }; // 90도 단위 아님
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.SaveLobbyAsync(userId, items));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+    }
+
+    private void AllowFurnitureSized(params (int id, int width, int height)[] furniture)
+    {
+        var map = furniture.ToDictionary(f => f.id, f => (f.width, f.height));
+        _mockMasterDataProvider
+            .Setup(p => p.TryGetFurniture(It.IsAny<int>(), out It.Ref<FurnitureMaster>.IsAny))
+            .Returns((int id, out FurnitureMaster f) =>
+            {
+                if (map.TryGetValue(id, out var size))
+                {
+                    f = new FurnitureMaster { Id = id, Name = $"F{id}", Category = 1, Width = size.width, Height = size.height };
+                    return true;
+                }
+
+                f = null!;
+                return false;
+            });
+    }
+
     private void AllowFurniture(params int[] ids)
     {
         var set = ids.ToHashSet();
