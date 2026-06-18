@@ -22,9 +22,9 @@ public class RedisSessionValidatorTests
     }
 
     // 웹 서버 DistributedCacheAdapter.SetAsync와 동일하게 직렬화한다(System.Text.Json 기본 옵션).
-    private static byte[] SerializeWebSession(long userId, string token)
+    private static byte[] SerializeWebSession(long userId, string token, string nickname = "Hero")
     {
-        var webSession = new UserSession(userId, token);
+        var webSession = new UserSession(userId, token, nickname);
         return Encoding.UTF8.GetBytes(JsonSerializer.Serialize(webSession));
     }
 
@@ -40,9 +40,10 @@ public class RedisSessionValidatorTests
         SetupCache(cache, $"session_{UserId}", SerializeWebSession(UserId, "good-token"));
         var validator = CreateValidator(cache);
 
-        bool result = await validator.ValidateAsync(UserId, "good-token");
+        var result = await validator.ValidateAsync(UserId, "good-token");
 
-        Assert.That(result, Is.True);
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Nickname, Is.EqualTo("Hero"));
     }
 
     [Test]
@@ -52,9 +53,9 @@ public class RedisSessionValidatorTests
         SetupCache(cache, $"session_{UserId}", SerializeWebSession(UserId, "good-token"));
         var validator = CreateValidator(cache);
 
-        bool result = await validator.ValidateAsync(UserId, "wrong-token");
+        var result = await validator.ValidateAsync(UserId, "wrong-token");
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsValid, Is.False);
     }
 
     [Test]
@@ -64,9 +65,9 @@ public class RedisSessionValidatorTests
         SetupCache(cache, $"session_{UserId}", null);
         var validator = CreateValidator(cache);
 
-        bool result = await validator.ValidateAsync(UserId, "any-token");
+        var result = await validator.ValidateAsync(UserId, "any-token");
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsValid, Is.False);
     }
 
     [Test]
@@ -77,9 +78,9 @@ public class RedisSessionValidatorTests
         SetupCache(cache, $"session_{UserId}", SerializeWebSession(99, "good-token"));
         var validator = CreateValidator(cache);
 
-        bool result = await validator.ValidateAsync(UserId, "good-token");
+        var result = await validator.ValidateAsync(UserId, "good-token");
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsValid, Is.False);
     }
 
     [Test]
@@ -88,9 +89,24 @@ public class RedisSessionValidatorTests
         var cache = new Mock<IDistributedCache>(MockBehavior.Strict);
         var validator = CreateValidator(cache);
 
-        bool result = await validator.ValidateAsync(UserId, string.Empty);
+        var result = await validator.ValidateAsync(UserId, string.Empty);
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsValid, Is.False);
         cache.Verify(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ValidateAsync_LegacySessionWithoutNickname_IsValidWithNullNickname()
+    {
+        // 닉네임 연동 이전에 발급된 세션(Nickname 필드 없음)도 토큰만 맞으면 통과하고, 닉네임은 null이다.
+        var legacyJson = $"{{\"UserId\":{UserId},\"Token\":\"good-token\"}}";
+        var cache = new Mock<IDistributedCache>();
+        SetupCache(cache, $"session_{UserId}", Encoding.UTF8.GetBytes(legacyJson));
+        var validator = CreateValidator(cache);
+
+        var result = await validator.ValidateAsync(UserId, "good-token");
+
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.Nickname, Is.Null);
     }
 }

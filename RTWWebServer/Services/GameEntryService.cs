@@ -34,7 +34,7 @@ public class GameEntryService(
 
         // 세션 생성(Redis)은 DB 트랜잭션 밖에서 수행한다. 커밋 이후의 Redis 작업을 같은 try 안에
         // 두면, Redis 장애 시 이미 커밋된 트랜잭션에 RollbackAsync가 호출되어 원래 예외가 가려진다.
-        return await userSessionProvider.CreateSessionAsync(user.Id);
+        return await userSessionProvider.CreateSessionAsync(user.Id, user.Nickname);
     }
 
     private async Task<User> GetOrCreateUserAsync(long accountId)

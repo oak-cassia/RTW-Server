@@ -124,7 +124,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
 
             // CChat/CChatChat은 RoomId 없이 기본 방으로 라우팅되므로, 인증 직후 기본 방에
             // 자동 입장시켜 두지 않으면 멤버십 검사에 걸려 메시지가 조용히 버려진다.
-            var player = new GamePlayer(clientSession.UserId, clientSession.Id, clientSession.Id);
+            var player = new GamePlayer(clientSession.UserId, clientSession.Id, ResolveDisplayName(clientSession));
             var joinResult = await _chatService.JoinRoomAsync(_defaultChatRoomId, player);
             if (joinResult != RTWErrorCode.Success)
             {
@@ -182,7 +182,7 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
             return;
         }
 
-        var player = new GamePlayer(clientSession.UserId, clientSession.Id, clientSession.Id);
+        var player = new GamePlayer(clientSession.UserId, clientSession.Id, ResolveDisplayName(clientSession));
         var result = await _chatService.JoinRoomAsync(roomId, player);
         await SendChatJoinResult(clientSession, roomId, result);
     }
@@ -226,5 +226,14 @@ public class GamePacketHandler(ILoggerFactory loggerFactory, IChatService chatSe
     {
         _logger.LogInformation("Handling internal session closed for client {ClientId}", clientSession.Id);
         _chatService.CleanupSession(clientSession.Id);
+    }
+
+    // 세션의 표시명을 결정한다. 닉네임 연동 이전 세션이나 빈 닉네임은 웹 서버 기본 닉네임 규칙과
+    // 동일한 폴백(User_{userId})으로 대체해, Player 생성자의 비어있지 않은 이름 제약을 만족시킨다.
+    private static string ResolveDisplayName(IClientSession clientSession)
+    {
+        return string.IsNullOrWhiteSpace(clientSession.Nickname)
+            ? $"User_{clientSession.UserId}"
+            : clientSession.Nickname;
     }
 }
