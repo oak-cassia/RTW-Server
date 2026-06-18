@@ -9,11 +9,11 @@ using RTWWebServer.Exceptions;
 using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using RTWWebServer.Authentication;
+using RTWWebServer.MasterDatas;
 using RTWWebServer.Providers.MasterData;
 
 namespace RTWWebServer;
@@ -201,16 +201,9 @@ public static class DependencyInjectionExtensions
     }
 
     // Master Data 시스템을 위한 확장 메서드
-    public static IServiceCollection AddMasterDataSystem(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddMasterDataSystem(this IServiceCollection services, string masterDataDirectory)
     {
-        // Master data options 설정
-        services.AddOptions<MasterDataOptions>()
-            .Bind(configuration)
-            .ValidateOnStart();
-
-        // 옵션 시스템이 검증기를 인식하려면 IValidateOptions<T>로 등록해야 한다.
-        // 구체 타입으로만 등록하면 ValidateOnStart()가 아무것도 검증하지 않는다.
-        services.AddSingleton<IValidateOptions<MasterDataOptions>, MasterDataOptionsValidator>();
+        services.AddSingleton<IMasterDataLoader>(_ => new MasterDataLoader(masterDataDirectory));
         services.AddSingleton<IMasterDataProvider, MasterDataProvider>();
 
         return services;
