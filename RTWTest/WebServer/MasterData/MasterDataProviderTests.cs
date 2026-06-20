@@ -66,7 +66,8 @@ public class MasterDataProviderTests
         var set = new MasterDataSet(
             characters.ToImmutableDictionary(c => c.Id),
             ImmutableDictionary<int, FurnitureMaster>.Empty,
-            ImmutableDictionary<int, RoomGradeMaster>.Empty);
+            ImmutableDictionary<int, RoomGradeMaster>.Empty,
+            ImmutableDictionary<int, MissionMaster>.Empty);
 
         var mockLoader = new Mock<IMasterDataLoader>();
         mockLoader.Setup(l => l.Load()).Returns(set);

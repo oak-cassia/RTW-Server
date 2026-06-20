@@ -1,0 +1,17 @@
+{
+  "Missions": [
+    {
+      "Id": 101,
+      "Name": "스타트업 백엔드 공채",
+      "StaminaCost": 5,
+      "StartingMental": 100,
+      "RewardFame": 120,
+      "RewardGold": 500,
+      "Stages": [
+        { "Stat": 0, "RequiredScore": 16, "MentalPenalty": 30, "FlavorText": "서류전형" },
+        { "Stat": 1, "RequiredScore": 28, "MentalPenalty": 30, "FlavorText": "코딩테스트" },
+        { "Stat": 2, "RequiredScore": 25, "MentalPenalty": 30, "FlavorText": "면접" }
+      ]
+    }
+  ]
+}

@@ -35,8 +35,10 @@ public class MasterDataLoaderTests
         Assert.That(set.Characters.Keys, Is.EquivalentTo(new[] { 1, 2 }));
         Assert.That(set.Furniture.Keys, Is.EquivalentTo(new[] { 2001 }));
         Assert.That(set.RoomGrades.Keys, Is.EquivalentTo(new[] { 1, 2 }));
+        Assert.That(set.Missions.Keys, Is.EquivalentTo(new[] { 101 }));
         Assert.That(set.Characters[1].Name, Is.EqualTo("Character1"));
         Assert.That(set.RoomGrades[2].Width, Is.EqualTo(50));
+        Assert.That(set.Missions[101].Stages, Has.Length.EqualTo(2));
     }
 
     [Test]
@@ -83,11 +85,28 @@ public class MasterDataLoaderTests
         Assert.Throws<InvalidOperationException>(() => new MasterDataLoader(_directory).Load());
     }
 
+    [Test]
+    public void Load_DuplicateMissionId_Throws()
+    {
+        WriteAllValid();
+        Write("MissionMaster.json", """
+            {
+              "Missions": [
+                { "Id": 101, "Name": "A", "StaminaCost": 5, "StartingMental": 100, "RewardFame": 10, "RewardGold": 20, "Stages": [] },
+                { "Id": 101, "Name": "B", "StaminaCost": 5, "StartingMental": 100, "RewardFame": 10, "RewardGold": 20, "Stages": [] }
+              ]
+            }
+            """);
+
+        Assert.Throws<InvalidOperationException>(() => new MasterDataLoader(_directory).Load());
+    }
+
     private void WriteAllValid()
     {
         WriteCharacters();
         WriteFurniture();
         WriteRoomGrades();
+        WriteMissions();
     }
 
     private void WriteCharacters() => Write("CharacterMaster.json", """
@@ -105,6 +124,20 @@ public class MasterDataLoaderTests
 
     private void WriteRoomGrades() => Write("RoomGradeMaster.json", """
         { "RoomGrades": [ { "Grade": 1, "Width": 30, "Height": 30 }, { "Grade": 2, "Width": 50, "Height": 50 } ] }
+        """);
+
+    private void WriteMissions() => Write("MissionMaster.json", """
+        {
+          "Missions": [
+            {
+              "Id": 101, "Name": "Mission1", "StaminaCost": 5, "StartingMental": 100, "RewardFame": 120, "RewardGold": 500,
+              "Stages": [
+                { "Stat": 0, "RequiredScore": 16, "MentalPenalty": 30, "FlavorText": "서류" },
+                { "Stat": 1, "RequiredScore": 28, "MentalPenalty": 30, "FlavorText": "코테" }
+              ]
+            }
+          ]
+        }
         """);
 
     private void Write(string fileName, string content)

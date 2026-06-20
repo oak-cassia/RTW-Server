@@ -10,13 +10,15 @@ public static class MasterDataValidator
     public static IReadOnlyList<string> Validate(
         IReadOnlyList<CharacterMaster> characters,
         IReadOnlyList<FurnitureMaster> furniture,
-        IReadOnlyList<RoomGradeMaster> roomGrades)
+        IReadOnlyList<RoomGradeMaster> roomGrades,
+        IReadOnlyList<MissionMaster> missions)
     {
         var results = new List<string>();
 
         ValidateCharacters(characters, results);
         ValidateFurniture(furniture, results);
         ValidateRoomGrades(roomGrades, results);
+        ValidateMissions(missions, results);
 
         return results;
     }
@@ -25,9 +27,10 @@ public static class MasterDataValidator
     public static void ValidateAndThrow(
         IReadOnlyList<CharacterMaster> characters,
         IReadOnlyList<FurnitureMaster> furniture,
-        IReadOnlyList<RoomGradeMaster> roomGrades)
+        IReadOnlyList<RoomGradeMaster> roomGrades,
+        IReadOnlyList<MissionMaster> missions)
     {
-        var errors = Validate(characters, furniture, roomGrades);
+        var errors = Validate(characters, furniture, roomGrades, missions);
         if (errors.Count > 0)
         {
             throw new InvalidOperationException(
@@ -95,6 +98,25 @@ public static class MasterDataValidator
         foreach (var roomGrade in roomGrades)
         {
             ValidateItem(roomGrade, $"RoomGrade {roomGrade.Grade}", results);
+        }
+    }
+
+    private static void ValidateMissions(IReadOnlyList<MissionMaster> missions, List<string> results)
+    {
+        if (missions.Count == 0)
+        {
+            results.Add("Missions array cannot be empty");
+        }
+
+        var duplicateIds = missions.GroupBy(m => m.Id).Where(g => g.Count() > 1);
+        foreach (var duplicate in duplicateIds)
+        {
+            results.Add($"Duplicate mission ID found: {duplicate.Key}");
+        }
+
+        foreach (var mission in missions)
+        {
+            ValidateItem(mission, $"Mission {mission.Id}", results);
         }
     }
 
