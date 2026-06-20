@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using RTWWebServer.Authentication;
+using RTWWebServer.Game.Mission;
 using RTWWebServer.MasterDatas;
 using RTWWebServer.Providers.MasterData;
 
@@ -35,12 +36,16 @@ public static class DependencyInjectionExtensions
         // 분산 캐시 위 얇은 cache-aside 레이어(짧은 TTL)
         services.AddSingleton<IPlayerCharacterCache, PlayerCharacterCache>();
 
+        // 전투 시뮬레이터는 무상태·순수 함수이므로 싱글톤.
+        services.AddSingleton<IMissionBattleSimulator, MissionBattleSimulator>();
+
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILoginService, LoginService>();
         services.AddScoped<IGameEntryService, GameEntryService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICharacterGachaService, CharacterGachaService>();
         services.AddScoped<ILobbyService, LobbyService>();
+        services.AddScoped<IMissionService, MissionService>();
 
         return services;
     }
