@@ -50,6 +50,9 @@ public class GameDbContext(DbContextOptions<GameDbContext> options) : DbContext(
             entity.Property(e => e.FreeCurrency)
                 .IsRequired();
 
+            entity.Property(e => e.Fame)
+                .IsRequired();
+
             entity.Property(e => e.MainCharacterId)
                 .IsRequired();
 

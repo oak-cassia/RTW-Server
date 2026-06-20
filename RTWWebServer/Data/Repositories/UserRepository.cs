@@ -27,6 +27,26 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return affected > 0;
     }
 
+    public async Task<bool> TryConsumeStaminaAsync(long userId, int cost, CancellationToken ct = default)
+    {
+        // 스태미나가 충분할 때만 차감하는 조건부 UPDATE. 잔액 차감과 동일한 원자성 보장을 따른다.
+        var affected = await dbContext.Users
+            .Where(u => u.Id == userId && u.CurrentStamina >= cost)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.CurrentStamina, u => u.CurrentStamina - cost), ct);
+
+        return affected > 0;
+    }
+
+    public async Task ApplyMissionRewardsAsync(long userId, long fame, long gold, CancellationToken ct = default)
+    {
+        // 명성·골드 가산을 단일 UPDATE로 처리(증가만 하므로 조건 불필요).
+        await dbContext.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.Fame, u => u.Fame + fame)
+                .SetProperty(u => u.FreeCurrency, u => u.FreeCurrency + gold), ct);
+    }
+
     public async Task<User?> GetByAccountIdAsync(long accountId)
     {
         return await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.AccountId == accountId);
