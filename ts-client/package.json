@@ -1,0 +1,20 @@
+{
+  "name": "rtw-ts-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RTWWebServer 기능 테스트용 TypeScript 클라이언트 (무설치, Node 내장 TS 실행)",
+  "scripts": {
+    "start": "node src/cli.ts",
+    "smoke": "node src/smoke.ts",
+    "web": "node web/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

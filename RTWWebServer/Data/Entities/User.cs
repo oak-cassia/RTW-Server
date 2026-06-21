@@ -44,6 +44,13 @@ public class User(
     // 향후 환불, 보정 등으로 음수 허용이 필요할 수 있음 (현재는 0 이상만 허용)
     public long FreeCurrency { get; set; } = freeCurrency;
 
+    // 명성. 임무 보상으로 누적되며 0에서 시작한다. 가입 흐름을 건드리지 않도록 생성자 인자가 아닌
+    // 기본값 프로퍼티로 두고, 증감은 UserRepository의 단일 UPDATE로만 수행한다.
+    [Range(0, long.MaxValue, ErrorMessage = "Fame cannot be negative")]
+    public long Fame { get; set; }
+
+    // 프로필 대표 캐릭터(아이콘/아바타)로 표시할 보유 캐릭터의 마스터 ID. 임무 투입 캐릭터와는 무관하며
+    // (임무는 요청마다 별도 지정·소유검증), 순수 코스메틱이다. 신규 유저는 기본 캐릭터로 채워진다.
     public int MainCharacterId { get; set; } = mainCharacterId;
 
     public DateTime CreatedAt { get; set; } = createdAt;

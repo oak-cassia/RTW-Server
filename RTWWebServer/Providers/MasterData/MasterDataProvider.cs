@@ -9,6 +9,7 @@ public sealed class MasterDataProvider : IMasterDataProvider
     private readonly ImmutableDictionary<int, CharacterMaster> _characters;
     private readonly ImmutableDictionary<int, FurnitureMaster> _furniture;
     private readonly ImmutableDictionary<int, RoomGradeMaster> _roomGrades;
+    private readonly ImmutableDictionary<int, MissionMaster> _missions;
 
     public MasterDataProvider(IMasterDataLoader loader, ILogger<MasterDataProvider> logger)
     {
@@ -17,10 +18,11 @@ public sealed class MasterDataProvider : IMasterDataProvider
         _characters = set.Characters;
         _furniture = set.Furniture;
         _roomGrades = set.RoomGrades;
+        _missions = set.Missions;
 
         logger.LogInformation(
-            "Master data loaded. Characters count: {CharacterCount}, Furniture count: {FurnitureCount}, RoomGrades count: {RoomGradeCount}",
-            _characters.Count, _furniture.Count, _roomGrades.Count);
+            "Master data loaded. Characters count: {CharacterCount}, Furniture count: {FurnitureCount}, RoomGrades count: {RoomGradeCount}, Missions count: {MissionCount}",
+            _characters.Count, _furniture.Count, _roomGrades.Count, _missions.Count);
     }
 
     public bool TryGetCharacter(int id, out CharacterMaster character)
@@ -40,4 +42,10 @@ public sealed class MasterDataProvider : IMasterDataProvider
 
     public ImmutableDictionary<int, RoomGradeMaster> GetAllRoomGrades()
         => _roomGrades;
+
+    public bool TryGetMission(int id, out MissionMaster mission)
+        => _missions.TryGetValue(id, out mission!);
+
+    public ImmutableDictionary<int, MissionMaster> GetAllMissions()
+        => _missions;
 }

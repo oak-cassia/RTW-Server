@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RTW 취업 RPG — 웹 테스트 콘솔</title>
+    <link rel="stylesheet" href="/web/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="logo">RTW <span class="sub">취업 RPG · 웹 테스트 콘솔</span></div>
+      <div class="spacer"></div>
+      <div class="status">
+        <span class="dot" id="conn-dot"></span>
+        <span id="conn-text">백엔드 확인 중…</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- 세션 -->
+      <section class="card">
+        <h2><span class="icon">🔑</span> 세션 / 로그인</h2>
+        <div class="row">
+          <button class="primary" id="btn-guest">게스트로 빠른 시작</button>
+          <button class="ghost" id="btn-logout" disabled>로그아웃</button>
+        </div>
+        <hr class="divider" />
+        <div class="row">
+          <label class="field">이메일<input id="inp-email" placeholder="user@example.com" /></label>
+          <label class="field">비밀번호<input id="inp-pass" type="password" placeholder="••••••" /></label>
+        </div>
+        <div class="row tight">
+          <button id="btn-signup">가입 + 입장</button>
+          <button id="btn-login">로그인 + 입장</button>
+        </div>
+        <hr class="divider" />
+        <dl class="kv" id="session-info">
+          <dt>상태</dt><dd id="s-state">미접속</dd>
+          <dt>userId</dt><dd id="s-uid">—</dd>
+          <dt>닉네임</dt><dd id="s-nick">—</dd>
+          <dt>토큰</dt><dd id="s-token" class="muted">—</dd>
+        </dl>
+      </section>
+
+      <!-- 내 정보 -->
+      <section class="card">
+        <h2><span class="icon">📊</span> 내 정보</h2>
+        <div class="stats">
+          <div class="stat"><div class="label">Lv</div><div class="value" id="st-level">—</div></div>
+          <div class="stat"><div class="label">프리미엄</div><div class="value gold" id="st-premium">—</div></div>
+          <div class="stat"><div class="label">프리</div><div class="value" id="st-free">—</div></div>
+        </div>
+        <div style="margin-top: 10px">
+          <div class="row tight" style="justify-content: space-between">
+            <span class="muted">스태미나</span>
+            <span id="st-stamina">—</span>
+          </div>
+          <div class="bar"><span id="st-stamina-bar" style="width: 0%"></span></div>
+        </div>
+        <dl class="kv" style="margin-top: 12px">
+          <dt>EXP</dt><dd id="st-exp">—</dd>
+          <dt>대표 캐릭터</dt><dd id="st-main">—</dd>
+        </dl>
+        <hr class="divider" />
+        <div class="row tight">
+          <label class="field" style="flex: 1">닉네임 변경 (= 정보 갱신)
+            <input id="inp-nick" placeholder="새 닉네임" />
+          </label>
+          <button id="btn-nick" style="align-self: flex-end">변경</button>
+        </div>
+        <p class="hint">서버에 읽기 전용 “내 정보” API가 없어, 닉네임 변경 응답으로 스냅샷을 갱신한다.</p>
+      </section>
+
+      <!-- 로비 -->
+      <section class="card wide">
+        <h2><span class="icon">🏠</span> 로비 — 가구 배치</h2>
+        <div class="row">
+          <button id="btn-lobby-refresh">조회</button>
+          <button class="accent" id="btn-expand">방 확장</button>
+          <label class="field">가구 ID<input class="sm" id="inp-furniture" type="number" value="1" min="1" /></label>
+          <button class="primary" id="btn-lobby-save">배치 저장</button>
+          <span class="muted" id="lobby-meta">—</span>
+        </div>
+        <p class="hint">빈 칸을 클릭하면 위 가구 ID로 배치, 배치된 칸을 다시 클릭하면 제거. “배치 저장”으로 서버에 반영한다.</p>
+        <div class="lobby-wrap"><div class="grid" id="lobby-grid"></div></div>
+      </section>
+
+      <!-- 캐릭터 -->
+      <section class="card">
+        <h2><span class="icon">🎲</span> 캐릭터 / 가챠</h2>
+        <div class="row">
+          <label class="field">가챠 타입<input class="sm" id="inp-gtype" type="number" value="0" /></label>
+          <label class="field">횟수<input class="sm" id="inp-gcount" type="number" value="1" min="1" /></label>
+          <button class="accent" id="btn-gacha" style="align-self: flex-end">가챠 뽑기</button>
+        </div>
+        <div id="gacha-result" class="chips" style="margin: 6px 0 12px"></div>
+        <hr class="divider" />
+        <div class="row tight"><button id="btn-chars">보유 캐릭터 조회</button></div>
+        <div id="chars-result" class="chips" style="margin-top: 10px"></div>
+      </section>
+
+      <!-- 임무 -->
+      <section class="card">
+        <h2><span class="icon">⚔️</span> 임무 (전투)</h2>
+        <div class="row">
+          <label class="field">임무 ID<input class="sm" id="inp-mission" type="number" value="101" /></label>
+          <label class="field">캐릭터 ID<input class="sm" id="inp-char" type="number" value="1001" /></label>
+          <button id="btn-mstart" style="align-self: flex-end">시작</button>
+          <button id="btn-mend" style="align-self: flex-end" disabled>정산</button>
+          <button class="primary" id="btn-mauto" style="align-self: flex-end">한 번에 실행</button>
+        </div>
+        <div id="mission-head" class="muted">대기 중…</div>
+        <div class="battle" id="mission-log"></div>
+      </section>
+
+      <!-- 활동 로그 -->
+      <section class="card wide">
+        <h2><span class="icon">📜</span> 활동 로그</h2>
+        <div id="log"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/web/app.ts"></script>
+  </body>
+</html>

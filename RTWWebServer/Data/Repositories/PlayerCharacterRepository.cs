@@ -14,6 +14,13 @@ public class PlayerCharacterRepository(GameDbContext context) : IPlayerCharacter
             .ToListAsync();
     }
 
+    public async Task<PlayerCharacter?> GetByUserIdAndCharacterMasterIdAsync(long userId, int characterMasterId)
+    {
+        return await context.PlayerCharacters
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pc => pc.UserId == userId && pc.CharacterMasterId == characterMasterId);
+    }
+
     public async Task<PlayerCharacter> AddAsync(PlayerCharacter playerCharacter)
     {
         var entity = await context.PlayerCharacters.AddAsync(playerCharacter);
