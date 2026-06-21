@@ -49,6 +49,8 @@ public class User(
     [Range(0, long.MaxValue, ErrorMessage = "Fame cannot be negative")]
     public long Fame { get; set; }
 
+    // 프로필 대표 캐릭터(아이콘/아바타)로 표시할 보유 캐릭터의 마스터 ID. 임무 투입 캐릭터와는 무관하며
+    // (임무는 요청마다 별도 지정·소유검증), 순수 코스메틱이다. 신규 유저는 기본 캐릭터로 채워진다.
     public int MainCharacterId { get; set; } = mainCharacterId;
 
     public DateTime CreatedAt { get; set; } = createdAt;

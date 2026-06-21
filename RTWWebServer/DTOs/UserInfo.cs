@@ -10,5 +10,5 @@ public class UserInfo
     public int MaxStamina { get; set; }
     public long PremiumCurrency { get; set; }
     public long FreeCurrency { get; set; }
-    public int MainCharacterId { get; set; }
+    public int MainCharacterId { get; set; } // 프로필 대표 캐릭터(아바타). 임무 투입 캐릭터와는 별개.
 }

@@ -57,7 +57,7 @@ public class GameEntryService(
                     throw new GameException("Failed to create user - ID not generated", WebServerErrorCode.DatabaseError);
                 }
 
-                await CreateDefaultCharacterForNewUserAsync(user.Id);
+                await CreateDefaultCharacterForNewUserAsync(user);
             }
 
             await transaction.CommitAsync();
@@ -89,13 +89,13 @@ public class GameEntryService(
             lastStaminaRecharge: currentTime,
             premiumCurrency: 0,
             freeCurrency: 0,
-            mainCharacterId: 0,
+            mainCharacterId: 0, // 기본 캐릭터 지급 후 그 캐릭터로 채운다(프로필 아바타).
             createdAt: currentTime,
             updatedAt: currentTime
         );
     }
 
-    private async Task CreateDefaultCharacterForNewUserAsync(long userId)
+    private async Task CreateDefaultCharacterForNewUserAsync(User user)
     {
         // 첫 번째 캐릭터를 기본 캐릭터로 생성
         if (masterDataProvider.TryGetCharacter(DEFAULT_CHARACTER_ID, out CharacterMaster characterMaster) == false)
@@ -105,7 +105,7 @@ public class GameEntryService(
         }
 
         var defaultCharacter = new PlayerCharacter(
-            userId: userId,
+            userId: user.Id,
             characterMasterId: characterMaster.Id,
             level: 1,
             currentExp: 0,
@@ -113,8 +113,13 @@ public class GameEntryService(
         );
 
         await playerCharacterRepository.AddAsync(defaultCharacter);
+
+        // 프로필 대표 캐릭터(아바타)를 방금 지급한 기본 캐릭터로 지정한다. 임무 동작과는 무관한 코스메틱이며,
+        // user는 아직 추적 중이라 이 변경은 아래 SaveChanges의 UPDATE로 함께 반영된다.
+        user.MainCharacterId = characterMaster.Id;
+
         await dbContext.SaveChangesAsync();
 
-        logger.LogInformation("Created default character {CharacterId} for user {UserId}", defaultCharacter.Id, userId);
+        logger.LogInformation("Created default character {CharacterId} for user {UserId}", defaultCharacter.Id, user.Id);
     }
 }
