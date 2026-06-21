@@ -20,7 +20,7 @@ public class MissionController(IMissionService missionService) : ControllerBase
     {
         long userId = HttpContext.GetAuthenticatedUserId();
 
-        var ticket = await missionService.StartMissionAsync(userId, request.MissionId);
+        var ticket = await missionService.StartMissionAsync(userId, request.MissionId, request.CharacterId);
         return GameResponse<MissionTicketDto>.Ok(ticket);
     }
 

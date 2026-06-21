@@ -20,6 +20,7 @@ public class MissionServiceTests
     private static readonly Guid FixedGuid = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     private Mock<IUserRepository> _mockUserRepository = null!;
+    private Mock<IPlayerCharacterRepository> _mockPlayerCharacterRepository = null!;
     private Mock<IMasterDataProvider> _mockMasterDataProvider = null!;
     private Mock<IDistributedCacheAdapter> _mockCache = null!;
     private IRemoteCacheKeyGenerator _keyGenerator = null!;
@@ -34,6 +35,7 @@ public class MissionServiceTests
     public void SetUp()
     {
         _mockUserRepository = new Mock<IUserRepository>();
+        _mockPlayerCharacterRepository = new Mock<IPlayerCharacterRepository>();
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
         _mockCache = new Mock<IDistributedCacheAdapter>();
         _keyGenerator = new RemoteCacheKeyGenerator();
@@ -49,6 +51,7 @@ public class MissionServiceTests
         // 실제 스텁 시뮬레이터 사용(순수 함수) — 항상 승리.
         _service = new MissionService(
             _mockUserRepository.Object,
+            _mockPlayerCharacterRepository.Object,
             _mockMasterDataProvider.Object,
             new MissionBattleSimulator(),
             _mockCache.Object,
@@ -65,7 +68,7 @@ public class MissionServiceTests
         MissionMaster outMission = null!;
         _mockMasterDataProvider.Setup(x => x.TryGetMission(It.IsAny<int>(), out outMission)).Returns(false);
 
-        var ex = Assert.ThrowsAsync<GameException>(async () => await _service.StartMissionAsync(1, 999));
+        var ex = Assert.ThrowsAsync<GameException>(async () => await _service.StartMissionAsync(1, 999, 1));
 
         Assert.That(ex!.ErrorCode, Is.EqualTo(WebServerErrorCode.MissionNotFound));
         _mockUserRepository.Verify(
@@ -81,13 +84,11 @@ public class MissionServiceTests
         var character = NewCharacter();
 
         _mockMasterDataProvider.Setup(x => x.TryGetMission(mission.Id, out mission)).Returns(true);
-        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
-            .ReturnsAsync(NewUser(userId, mainCharacterId: character.Id, fame: 0, gold: 0, stamina: 0));
-        _mockMasterDataProvider.Setup(x => x.TryGetCharacter(character.Id, out character)).Returns(true);
+        SetupOwnedCharacter(userId, character);
         _mockUserRepository.Setup(x => x.TryConsumeStaminaAsync(userId, mission.StaminaCost, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var ex = Assert.ThrowsAsync<GameException>(async () => await _service.StartMissionAsync(userId, mission.Id));
+        var ex = Assert.ThrowsAsync<GameException>(async () => await _service.StartMissionAsync(userId, mission.Id, character.Id));
 
         Assert.That(ex!.ErrorCode, Is.EqualTo(WebServerErrorCode.InsufficientStamina));
         // 차감 실패 시 티켓/결과를 Redis에 쓰지 않는다.
@@ -104,13 +105,11 @@ public class MissionServiceTests
         var character = NewCharacter();
 
         _mockMasterDataProvider.Setup(x => x.TryGetMission(mission.Id, out mission)).Returns(true);
-        _mockMasterDataProvider.Setup(x => x.TryGetCharacter(character.Id, out character)).Returns(true);
-        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
-            .ReturnsAsync(NewUser(userId, mainCharacterId: character.Id, fame: 0, gold: 0, stamina: 100));
+        SetupOwnedCharacter(userId, character);
         _mockUserRepository.Setup(x => x.TryConsumeStaminaAsync(userId, mission.StaminaCost, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var ticket = await _service.StartMissionAsync(userId, mission.Id);
+        var ticket = await _service.StartMissionAsync(userId, mission.Id, character.Id);
 
         Assert.That(ticket.TicketId, Is.EqualTo(TicketId));
         // 티켓과 (스텁) 결과가 각각 기록된다.
@@ -126,6 +125,32 @@ public class MissionServiceTests
             Times.Never);
     }
 
+    [Test]
+    public void StartMissionAsync_CharacterNotOwned_ThrowsAndWritesNoTicket()
+    {
+        const long userId = 1;
+        var mission = NewMission();
+        var character = NewCharacter();
+
+        _mockMasterDataProvider.Setup(x => x.TryGetMission(mission.Id, out mission)).Returns(true);
+        // 유저가 보유하지 않은 캐릭터 → 소유 조회가 null.
+        _mockPlayerCharacterRepository
+            .Setup(x => x.GetByUserIdAndCharacterMasterIdAsync(userId, character.Id))
+            .ReturnsAsync((PlayerCharacter?)null);
+
+        var ex = Assert.ThrowsAsync<GameException>(
+            async () => await _service.StartMissionAsync(userId, mission.Id, character.Id));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(WebServerErrorCode.CharacterNotOwned));
+        // 소유 검증 실패 시 스태미나를 차감하지 않고 티켓도 쓰지 않는다.
+        _mockUserRepository.Verify(
+            x => x.TryConsumeStaminaAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mockCache.Verify(
+            x => x.SetAsync(It.IsAny<string>(), It.IsAny<It.IsAnyType>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     // ───────────────────────── end (정산) ─────────────────────────
 
     [Test]
@@ -138,7 +163,7 @@ public class MissionServiceTests
         _mockMasterDataProvider.Setup(x => x.TryGetMission(mission.Id, out mission)).Returns(true);
         // 정산 후 재조회가 반환할 "보상 반영 후" 상태.
         _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
-            .ReturnsAsync(NewUser(userId, mainCharacterId: 1, fame: 120, gold: 500, stamina: 95));
+            .ReturnsAsync(NewUser(userId, fame: 120, gold: 500, stamina: 95));
 
         var result = await _service.CompleteMissionAsync(userId, TicketId);
 
@@ -168,7 +193,7 @@ public class MissionServiceTests
         SetupResult(MissionOutcome.Lose);
         _mockMasterDataProvider.Setup(x => x.TryGetMission(mission.Id, out mission)).Returns(true);
         _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
-            .ReturnsAsync(NewUser(userId, mainCharacterId: 1, fame: 0, gold: 0, stamina: 95));
+            .ReturnsAsync(NewUser(userId, fame: 0, gold: 0, stamina: 95));
 
         var result = await _service.CompleteMissionAsync(userId, TicketId);
 
@@ -252,13 +277,22 @@ public class MissionServiceTests
             });
     }
 
+    // 캐릭터를 보유한 상태로 만든다: 마스터 조회 성공 + 소유 조회가 PlayerCharacter를 반환.
+    private void SetupOwnedCharacter(long userId, CharacterMaster character)
+    {
+        _mockMasterDataProvider.Setup(x => x.TryGetCharacter(character.Id, out character)).Returns(true);
+        _mockPlayerCharacterRepository
+            .Setup(x => x.GetByUserIdAndCharacterMasterIdAsync(userId, character.Id))
+            .ReturnsAsync(new PlayerCharacter(userId, character.Id, level: 1, currentExp: 0, obtainedAt: DateTime.UtcNow));
+    }
+
     private static MissionMaster NewMission() =>
         new() { Id = 101, Name = "테스트 임무", StaminaCost = 5, StartingMental = 100, RewardFame = 120, RewardGold = 500 };
 
     private static CharacterMaster NewCharacter() =>
         new() { Id = 1, Name = "유우", Portfolio = 15, Development = 25, JobSearching = 30 };
 
-    private static User NewUser(long id, int mainCharacterId, long fame, long gold, int stamina) =>
+    private static User NewUser(long id, long fame, long gold, int stamina) =>
         new User(
             accountId: id,
             nickname: "TestUser",
@@ -269,7 +303,7 @@ public class MissionServiceTests
             lastStaminaRecharge: DateTime.UtcNow,
             premiumCurrency: 0,
             freeCurrency: gold,
-            mainCharacterId: mainCharacterId,
+            mainCharacterId: 0, // 프로필 아바타. 임무 동작과 무관하므로 테스트에선 의미 없음.
             createdAt: DateTime.UtcNow,
             updatedAt: DateTime.UtcNow)
         { Id = id, Fame = fame };

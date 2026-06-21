@@ -11,6 +11,7 @@ namespace RTWWebServer.Services;
 
 public class MissionService(
     IUserRepository userRepository,
+    IPlayerCharacterRepository playerCharacterRepository,
     IMasterDataProvider masterDataProvider,
     IMissionBattleSimulator battleSimulator,
     IDistributedCacheAdapter cache,
@@ -22,20 +23,24 @@ public class MissionService(
     // 티켓/결과는 한 판의 수명 동안만 유효하면 된다. 미정산 시 TTL로 자동 소멸한다.
     private static readonly TimeSpan TicketExpiration = TimeSpan.FromMinutes(30);
 
-    public async Task<MissionTicketDto> StartMissionAsync(long userId, int missionId)
+    public async Task<MissionTicketDto> StartMissionAsync(long userId, int missionId, int characterId)
     {
         if (!masterDataProvider.TryGetMission(missionId, out var mission))
         {
             throw new GameException($"Mission not found: {missionId}", WebServerErrorCode.MissionNotFound);
         }
 
-        var user = await userRepository.GetByIdAsNoTrackingAsync(userId)
-            ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
-
-        // 전투에 투입할 캐릭터 스탯(D7: Slice 1은 메인 캐릭터의 베이스 스탯만 사용).
-        if (!masterDataProvider.TryGetCharacter(user.MainCharacterId, out var character))
+        // 투입 캐릭터는 클라가 지정하므로 반드시 소유를 검증한다(미보유 캐릭터 투입 차단).
+        // (UserId, CharacterMasterId)는 유니크하므로 존재하면 보유로 간주한다.
+        if (await playerCharacterRepository.GetByUserIdAndCharacterMasterIdAsync(userId, characterId) == null)
         {
-            throw new GameException($"Main character not found: {user.MainCharacterId}", WebServerErrorCode.InvalidArgument);
+            throw new GameException($"Character not owned: {characterId}", WebServerErrorCode.CharacterNotOwned);
+        }
+
+        // 전투에 투입할 캐릭터 스탯(D7: Slice 1은 캐릭터 마스터의 베이스 스탯만 사용).
+        if (!masterDataProvider.TryGetCharacter(characterId, out var character))
+        {
+            throw new GameException($"Character master not found: {characterId}", WebServerErrorCode.InvalidArgument);
         }
 
         // 입장 비용(스태미나)을 먼저 원자 차감한다. 실패하면 티켓을 만들지 않는다.

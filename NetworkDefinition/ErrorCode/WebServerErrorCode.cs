@@ -21,6 +21,7 @@ public enum WebServerErrorCode
     InsufficientStamina = 1015, // 임무 입장에 필요한 스태미나가 부족
     MissionResultNotReady = 1016, // 게임서버가 아직 결과를 기록하지 않음 (잠시 후 재시도 가능)
     MissionTicketNotFound = 1017, // 티켓이 없음 (만료/이미 정산됨/유효하지 않음). 소유자 불일치도 동일하게 취급
+    CharacterNotOwned = 1018, // 임무에 투입하려는 캐릭터를 유저가 보유하고 있지 않음
     DatabaseError = 1100,
     RemoteCacheError = 1200,
     RemoteCacheLockFailed = 1201, 
