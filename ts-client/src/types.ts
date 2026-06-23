@@ -95,8 +95,10 @@ export interface MissionResultDto {
   log: BattleLogEntryDto[];
   fameGained: number;
   goldGained: number;
+  expGained: number;
   newFame: number;
   newGold: number;
+  newExp: number;
   newStamina: number;
   seed: number;
 }

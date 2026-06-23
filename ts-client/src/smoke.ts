@@ -78,8 +78,8 @@ async function main(): Promise<void> {
     await step("임무 정산 (end)", async () => {
       const r = await client.endMission(ticket.ticketId);
       console.log(
-        `   ${missionOutcomeName(r.outcome)} fame+${r.fameGained} gold+${r.goldGained} → ` +
-          `fame=${r.newFame} gold=${r.newGold} stamina=${r.newStamina}`,
+        `   ${missionOutcomeName(r.outcome)} fame+${r.fameGained} gold+${r.goldGained} exp+${r.expGained} → ` +
+          `fame=${r.newFame} gold=${r.newGold} exp=${r.newExp} stamina=${r.newStamina}`,
       );
       return r;
     });
