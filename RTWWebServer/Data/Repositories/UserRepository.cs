@@ -37,14 +37,15 @@ public class UserRepository(GameDbContext dbContext) : IUserRepository
         return affected > 0;
     }
 
-    public async Task ApplyMissionRewardsAsync(long userId, long fame, long gold, CancellationToken ct = default)
+    public async Task ApplyMissionRewardsAsync(long userId, long fame, long gold, long exp, CancellationToken ct = default)
     {
-        // 명성·골드 가산을 단일 UPDATE로 처리(증가만 하므로 조건 불필요).
+        // 명성·골드·경험치 가산을 단일 UPDATE로 처리(증가만 하므로 조건 불필요).
         await dbContext.Users
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.Fame, u => u.Fame + fame)
-                .SetProperty(u => u.FreeCurrency, u => u.FreeCurrency + gold), ct);
+                .SetProperty(u => u.FreeCurrency, u => u.FreeCurrency + gold)
+                .SetProperty(u => u.CurrentExp, u => u.CurrentExp + exp), ct);
     }
 
     public async Task<User?> GetByAccountIdAsync(long accountId)

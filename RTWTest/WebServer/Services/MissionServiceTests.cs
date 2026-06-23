@@ -121,7 +121,7 @@ public class MissionServiceTests
             Times.Once);
         // 보상은 start가 아니라 end에서 지급된다.
         _mockUserRepository.Verify(
-            x => x.ApplyMissionRewardsAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            x => x.ApplyMissionRewardsAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -163,19 +163,21 @@ public class MissionServiceTests
         _mockMasterDataProvider.Setup(x => x.TryGetMission(mission.Id, out mission)).Returns(true);
         // 정산 후 재조회가 반환할 "보상 반영 후" 상태.
         _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
-            .ReturnsAsync(NewUser(userId, fame: 120, gold: 500, stamina: 95));
+            .ReturnsAsync(NewUser(userId, fame: 120, gold: 500, stamina: 95, exp: 80));
 
         var result = await _service.CompleteMissionAsync(userId, TicketId);
 
         Assert.That(result.Outcome, Is.EqualTo(MissionOutcome.Win));
         Assert.That(result.FameGained, Is.EqualTo(mission.RewardFame));
         Assert.That(result.GoldGained, Is.EqualTo(mission.RewardGold));
+        Assert.That(result.ExpGained, Is.EqualTo(mission.RewardExp));
         Assert.That(result.NewFame, Is.EqualTo(120));
         Assert.That(result.NewGold, Is.EqualTo(500));
+        Assert.That(result.NewExp, Is.EqualTo(80));
         Assert.That(result.NewStamina, Is.EqualTo(95));
 
         _mockUserRepository.Verify(
-            x => x.ApplyMissionRewardsAsync(userId, mission.RewardFame, mission.RewardGold, It.IsAny<CancellationToken>()),
+            x => x.ApplyMissionRewardsAsync(userId, mission.RewardFame, mission.RewardGold, mission.RewardExp, It.IsAny<CancellationToken>()),
             Times.Once);
         // 멱등: 정산 후 티켓/결과를 삭제한다.
         _mockCache.Verify(x => x.RemoveAsync(TicketKey, It.IsAny<CancellationToken>()), Times.Once);
@@ -201,7 +203,7 @@ public class MissionServiceTests
         Assert.That(result.FameGained, Is.EqualTo(0));
         Assert.That(result.GoldGained, Is.EqualTo(0));
         _mockUserRepository.Verify(
-            x => x.ApplyMissionRewardsAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            x => x.ApplyMissionRewardsAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -229,7 +231,7 @@ public class MissionServiceTests
 
         Assert.That(ex!.ErrorCode, Is.EqualTo(WebServerErrorCode.MissionTicketNotFound));
         _mockUserRepository.Verify(
-            x => x.ApplyMissionRewardsAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            x => x.ApplyMissionRewardsAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -287,17 +289,17 @@ public class MissionServiceTests
     }
 
     private static MissionMaster NewMission() =>
-        new() { Id = 101, Name = "테스트 임무", StaminaCost = 5, StartingMental = 100, RewardFame = 120, RewardGold = 500 };
+        new() { Id = 101, Name = "테스트 임무", StaminaCost = 5, StartingMental = 100, RewardFame = 120, RewardGold = 500, RewardExp = 80 };
 
     private static CharacterMaster NewCharacter() =>
         new() { Id = 1, Name = "유우", Portfolio = 15, Development = 25, JobSearching = 30 };
 
-    private static User NewUser(long id, long fame, long gold, int stamina) =>
+    private static User NewUser(long id, long fame, long gold, int stamina, long exp = 0) =>
         new User(
             accountId: id,
             nickname: "TestUser",
             level: 1,
-            currentExp: 0,
+            currentExp: exp,
             currentStamina: stamina,
             maxStamina: 100,
             lastStaminaRecharge: DateTime.UtcNow,

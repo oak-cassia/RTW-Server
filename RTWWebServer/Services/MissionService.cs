@@ -84,8 +84,9 @@ public class MissionService(
             throw new GameException($"Failed to lock mission settle: {ticketId}", WebServerErrorCode.RemoteCacheLockFailed);
         }
 
-        long fameGained;
-        long goldGained;
+        long fameGained = 0;
+        long goldGained = 0;
+        long expGained = 0;
         MissionRunResult runResult;
         try
         {
@@ -106,17 +107,16 @@ public class MissionService(
             }
 
             // D6: 보상은 승리 시에만. 탈락이면 (입장 시 차감된) 스태미나만 소모되고 보상은 0.
-            bool won = runResult.Outcome == MissionOutcome.Win;
-            fameGained = won
-                ? mission.RewardFame
-                : 0;
-            goldGained = won
-                ? mission.RewardGold
-                : 0;
-
-            if (fameGained > 0 || goldGained > 0)
+            if (runResult.Outcome == MissionOutcome.Win)
             {
-                await userRepository.ApplyMissionRewardsAsync(userId, fameGained, goldGained);
+                fameGained = mission.RewardFame;
+                goldGained = mission.RewardGold;
+                expGained = mission.RewardExp;
+            }
+
+            if (fameGained > 0 || goldGained > 0 || expGained > 0)
+            {
+                await userRepository.ApplyMissionRewardsAsync(userId, fameGained, goldGained, expGained);
             }
 
             // 정산 완료 표시: 티켓/결과를 삭제 → 재호출 시 '없음'이 되어 중복 정산되지 않는다.
@@ -139,8 +139,10 @@ public class MissionService(
             Log = runResult.Log,
             FameGained = fameGained,
             GoldGained = goldGained,
+            ExpGained = expGained,
             NewFame = updatedUser.Fame,
             NewGold = updatedUser.FreeCurrency,
+            NewExp = updatedUser.CurrentExp,
             NewStamina = updatedUser.CurrentStamina,
             Seed = runResult.Seed
         };

@@ -21,9 +21,9 @@ public interface IUserRepository
     Task<bool> TryConsumeStaminaAsync(long userId, int cost, CancellationToken ct = default);
 
     /// <summary>
-    /// 임무 보상(명성·골드)을 단일 UPDATE로 가산한다. 증가만 하므로 조건이 필요 없다.
+    /// 임무 보상(명성·골드·경험치)을 단일 UPDATE로 가산한다. 증가만 하므로 조건이 필요 없다.
     /// </summary>
-    Task ApplyMissionRewardsAsync(long userId, long fame, long gold, CancellationToken ct = default);
+    Task ApplyMissionRewardsAsync(long userId, long fame, long gold, long exp, CancellationToken ct = default);
 
     Task<User?> GetByNicknameAsync(string nickname);
     Task<User> CreateAsync(User user);

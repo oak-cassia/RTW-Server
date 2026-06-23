@@ -22,5 +22,8 @@ public sealed class MissionMaster
     [Range(0, long.MaxValue)]
     public long RewardGold { get; init; }
 
+    [Range(0, long.MaxValue)]
+    public long RewardExp { get; init; }
+
     public MissionStage[] Stages { get; init; } = [];
 }

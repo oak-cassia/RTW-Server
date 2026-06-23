@@ -7,6 +7,7 @@
       "StartingMental": 100,
       "RewardFame": 120,
       "RewardGold": 500,
+      "RewardExp": 80,
       "Stages": [
         { "Stat": 0, "RequiredScore": 16, "MentalPenalty": 30, "FlavorText": "서류전형" },
         { "Stat": 1, "RequiredScore": 28, "MentalPenalty": 30, "FlavorText": "코딩테스트" },
