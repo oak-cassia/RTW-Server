@@ -11,7 +11,8 @@ public static class MasterDataValidator
         IReadOnlyList<CharacterMaster> characters,
         IReadOnlyList<FurnitureMaster> furniture,
         IReadOnlyList<RoomGradeMaster> roomGrades,
-        IReadOnlyList<MissionMaster> missions)
+        IReadOnlyList<MissionMaster> missions,
+        IReadOnlyList<RankMaster> ranks)
     {
         var results = new List<string>();
 
@@ -19,6 +20,7 @@ public static class MasterDataValidator
         ValidateFurniture(furniture, results);
         ValidateRoomGrades(roomGrades, results);
         ValidateMissions(missions, results);
+        ValidateRanks(ranks, results);
 
         return results;
     }
@@ -28,9 +30,10 @@ public static class MasterDataValidator
         IReadOnlyList<CharacterMaster> characters,
         IReadOnlyList<FurnitureMaster> furniture,
         IReadOnlyList<RoomGradeMaster> roomGrades,
-        IReadOnlyList<MissionMaster> missions)
+        IReadOnlyList<MissionMaster> missions,
+        IReadOnlyList<RankMaster> ranks)
     {
-        var errors = Validate(characters, furniture, roomGrades, missions);
+        var errors = Validate(characters, furniture, roomGrades, missions, ranks);
         if (errors.Count > 0)
         {
             throw new InvalidOperationException(
@@ -117,6 +120,43 @@ public static class MasterDataValidator
         foreach (var mission in missions)
         {
             ValidateItem(mission, $"Mission {mission.Id}", results);
+        }
+    }
+
+    private static void ValidateRanks(IReadOnlyList<RankMaster> ranks, List<string> results)
+    {
+        if (ranks.Count == 0)
+        {
+            results.Add("Ranks array cannot be empty");
+        }
+
+        var duplicateRanks = ranks.GroupBy(r => r.Rank).Where(g => g.Count() > 1);
+        foreach (var duplicate in duplicateRanks)
+        {
+            results.Add($"Duplicate rank found: {duplicate.Key}");
+        }
+
+        // 명성 0(가입 시점)에서도 항상 하나의 랭크로 떨어지도록 baseline(RequiredFame 0)이 있어야 한다.
+        if (ranks.Count > 0 && ranks.All(r => r.RequiredFame != 0))
+        {
+            results.Add("Ranks must contain a baseline rank with RequiredFame 0");
+        }
+
+        // 랭크가 오를수록 누적 명성 임계값도 엄격히 증가해야 한다. 파생(GetRankByFame)의 단조성 전제이자,
+        // 임계값이 같은 두 랭크가 있으면 어느 랭크로 떨어질지 모호해지는 것을 막는다.
+        var orderedByRank = ranks.OrderBy(r => r.Rank).ToList();
+        for (int i = 1; i < orderedByRank.Count; i++)
+        {
+            if (orderedByRank[i].RequiredFame <= orderedByRank[i - 1].RequiredFame)
+            {
+                results.Add(
+                    $"Rank {orderedByRank[i].Rank} RequiredFame must be greater than rank {orderedByRank[i - 1].Rank}");
+            }
+        }
+
+        foreach (var rank in ranks)
+        {
+            ValidateItem(rank, $"Rank {rank.Rank}", results);
         }
     }
 

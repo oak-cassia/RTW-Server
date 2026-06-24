@@ -19,14 +19,16 @@ public sealed class MasterDataLoader(string masterDataDirectory) : IMasterDataLo
         var furniture = LoadSection<FurnitureMaster>("FurnitureMaster.json", "Furniture");
         var roomGrades = LoadSection<RoomGradeMaster>("RoomGradeMaster.json", "RoomGrades");
         var missions = LoadSection<MissionMaster>("MissionMaster.json", "Missions");
+        var ranks = LoadSection<RankMaster>("RankMaster.json", "Ranks");
 
-        MasterDataValidator.ValidateAndThrow(characters, furniture, roomGrades, missions);
+        MasterDataValidator.ValidateAndThrow(characters, furniture, roomGrades, missions, ranks);
 
         return new MasterDataSet(
             characters.ToImmutableDictionary(c => c.Id),
             furniture.ToImmutableDictionary(f => f.Id),
             roomGrades.ToImmutableDictionary(g => g.Grade),
-            missions.ToImmutableDictionary(m => m.Id));
+            missions.ToImmutableDictionary(m => m.Id),
+            ranks.ToImmutableDictionary(r => r.Rank));
     }
 
     // 래퍼 객체({"Characters": [...]})에서 명명 배열을 꺼내 타입 배열로 역직렬화한다.

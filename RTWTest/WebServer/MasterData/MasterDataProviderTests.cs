@@ -61,13 +61,48 @@ public class MasterDataProviderTests
         Assert.That(provider.TryGetCharacter(1, out _), Is.False);
     }
 
+    [Test]
+    public void GetRankByFame_ReturnsHighestReachedRank()
+    {
+        var provider = CreateProviderWithRanks(
+            new RankMaster { Rank = 1, RequiredFame = 0 },
+            new RankMaster { Rank = 2, RequiredFame = 300 },
+            new RankMaster { Rank = 3, RequiredFame = 1000 });
+
+        // baseline / 임계값 직전 / 정확히 임계값 / 사이 / 최상위 초과
+        Assert.That(provider.GetRankByFame(0), Is.EqualTo(1));
+        Assert.That(provider.GetRankByFame(299), Is.EqualTo(1));
+        Assert.That(provider.GetRankByFame(300), Is.EqualTo(2));
+        Assert.That(provider.GetRankByFame(999), Is.EqualTo(2));
+        Assert.That(provider.GetRankByFame(1000), Is.EqualTo(3));
+        Assert.That(provider.GetRankByFame(50000), Is.EqualTo(3));
+    }
+
+    [Test]
+    public void GetRankByFame_WithNoBaseline_ReturnsZeroBelowLowestThreshold()
+    {
+        // baseline(RequiredFame 0)이 없으면 가장 낮은 임계값 미만에선 도달한 랭크가 없다.
+        var provider = CreateProviderWithRanks(new RankMaster { Rank = 1, RequiredFame = 100 });
+
+        Assert.That(provider.GetRankByFame(0), Is.EqualTo(0));
+        Assert.That(provider.GetRankByFame(99), Is.EqualTo(0));
+        Assert.That(provider.GetRankByFame(100), Is.EqualTo(1));
+    }
+
     private MasterDataProvider CreateProvider(params CharacterMaster[] characters)
+        => CreateProvider(characters, []);
+
+    private MasterDataProvider CreateProviderWithRanks(params RankMaster[] ranks)
+        => CreateProvider([], ranks);
+
+    private MasterDataProvider CreateProvider(CharacterMaster[] characters, RankMaster[] ranks)
     {
         var set = new MasterDataSet(
             characters.ToImmutableDictionary(c => c.Id),
             ImmutableDictionary<int, FurnitureMaster>.Empty,
             ImmutableDictionary<int, RoomGradeMaster>.Empty,
-            ImmutableDictionary<int, MissionMaster>.Empty);
+            ImmutableDictionary<int, MissionMaster>.Empty,
+            ranks.ToImmutableDictionary(r => r.Rank));
 
         var mockLoader = new Mock<IMasterDataLoader>();
         mockLoader.Setup(l => l.Load()).Returns(set);

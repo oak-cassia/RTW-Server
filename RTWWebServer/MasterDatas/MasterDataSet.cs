@@ -8,10 +8,12 @@ public sealed class MasterDataSet(
     ImmutableDictionary<int, CharacterMaster> characters,
     ImmutableDictionary<int, FurnitureMaster> furniture,
     ImmutableDictionary<int, RoomGradeMaster> roomGrades,
-    ImmutableDictionary<int, MissionMaster> missions)
+    ImmutableDictionary<int, MissionMaster> missions,
+    ImmutableDictionary<int, RankMaster> ranks)
 {
     public ImmutableDictionary<int, CharacterMaster> Characters { get; } = characters;
     public ImmutableDictionary<int, FurnitureMaster> Furniture { get; } = furniture;
     public ImmutableDictionary<int, RoomGradeMaster> RoomGrades { get; } = roomGrades;
     public ImmutableDictionary<int, MissionMaster> Missions { get; } = missions;
+    public ImmutableDictionary<int, RankMaster> Ranks { get; } = ranks;
 }

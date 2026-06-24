@@ -9,7 +9,7 @@ public class MasterDataValidatorTests
     [Test]
     public void Validate_WithValidData_ReturnsNoErrors()
     {
-        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), ValidMissions());
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), ValidMissions(), ValidRanks());
 
         Assert.That(errors, Is.Empty);
     }
@@ -17,7 +17,7 @@ public class MasterDataValidatorTests
     [Test]
     public void Validate_WithEmptyCharactersArray_ReturnsFailure()
     {
-        var errors = MasterDataValidator.Validate([], ValidFurniture(), ValidRoomGrades(), ValidMissions());
+        var errors = MasterDataValidator.Validate([], ValidFurniture(), ValidRoomGrades(), ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Characters array cannot be empty"));
     }
@@ -31,7 +31,7 @@ public class MasterDataValidatorTests
             new() { Id = 1, Name = "Character2", Portfolio = 80, Development = 90, JobSearching = 85 }
         ];
 
-        var errors = MasterDataValidator.Validate(characters, ValidFurniture(), ValidRoomGrades(), ValidMissions());
+        var errors = MasterDataValidator.Validate(characters, ValidFurniture(), ValidRoomGrades(), ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Duplicate character ID found: 1"));
     }
@@ -44,7 +44,7 @@ public class MasterDataValidatorTests
             new() { Id = 0, Name = "", Portfolio = 0, Development = 101, JobSearching = -1 }
         ];
 
-        var errors = MasterDataValidator.Validate(characters, ValidFurniture(), ValidRoomGrades(), ValidMissions());
+        var errors = MasterDataValidator.Validate(characters, ValidFurniture(), ValidRoomGrades(), ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Count.GreaterThan(0));
     }
@@ -52,7 +52,7 @@ public class MasterDataValidatorTests
     [Test]
     public void Validate_WithEmptyFurnitureArray_ReturnsFailure()
     {
-        var errors = MasterDataValidator.Validate(ValidCharacters(), [], ValidRoomGrades(), ValidMissions());
+        var errors = MasterDataValidator.Validate(ValidCharacters(), [], ValidRoomGrades(), ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Furniture array cannot be empty"));
     }
@@ -66,7 +66,7 @@ public class MasterDataValidatorTests
             new() { Id = 2001, Name = "Furniture2", Category = 2, Width = 2, Height = 2 }
         ];
 
-        var errors = MasterDataValidator.Validate(ValidCharacters(), furniture, ValidRoomGrades(), ValidMissions());
+        var errors = MasterDataValidator.Validate(ValidCharacters(), furniture, ValidRoomGrades(), ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Duplicate furniture ID found: 2001"));
     }
@@ -74,7 +74,7 @@ public class MasterDataValidatorTests
     [Test]
     public void Validate_WithEmptyRoomGradesArray_ReturnsFailure()
     {
-        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), [], ValidMissions());
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), [], ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("RoomGrades array cannot be empty"));
     }
@@ -88,7 +88,7 @@ public class MasterDataValidatorTests
             new() { Grade = 1, Width = 50, Height = 50 }
         ];
 
-        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), roomGrades, ValidMissions());
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), roomGrades, ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Duplicate room grade found: 1"));
     }
@@ -98,7 +98,7 @@ public class MasterDataValidatorTests
     {
         RoomGradeMaster[] roomGrades = [new() { Grade = 2, Width = 50, Height = 50 }];
 
-        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), roomGrades, ValidMissions());
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), roomGrades, ValidMissions(), ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("RoomGrades must contain grade 1"));
     }
@@ -106,7 +106,7 @@ public class MasterDataValidatorTests
     [Test]
     public void Validate_WithEmptyMissionsArray_ReturnsFailure()
     {
-        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), []);
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), [], ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Missions array cannot be empty"));
     }
@@ -120,9 +120,60 @@ public class MasterDataValidatorTests
             new() { Id = 101, Name = "Mission2", StaminaCost = 5, StartingMental = 100, RewardFame = 10, RewardGold = 20 }
         ];
 
-        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), missions);
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), missions, ValidRanks());
 
         Assert.That(errors, Has.Some.Contains("Duplicate mission ID found: 101"));
+    }
+
+    [Test]
+    public void Validate_WithEmptyRanksArray_ReturnsFailure()
+    {
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), ValidMissions(), []);
+
+        Assert.That(errors, Has.Some.Contains("Ranks array cannot be empty"));
+    }
+
+    [Test]
+    public void Validate_WithDuplicateRank_ReturnsFailure()
+    {
+        RankMaster[] ranks =
+        [
+            new() { Rank = 1, RequiredFame = 0 },
+            new() { Rank = 1, RequiredFame = 300 }
+        ];
+
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), ValidMissions(), ranks);
+
+        Assert.That(errors, Has.Some.Contains("Duplicate rank found: 1"));
+    }
+
+    [Test]
+    public void Validate_WithoutBaselineRank_ReturnsFailure()
+    {
+        RankMaster[] ranks =
+        [
+            new() { Rank = 1, RequiredFame = 100 },
+            new() { Rank = 2, RequiredFame = 300 }
+        ];
+
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), ValidMissions(), ranks);
+
+        Assert.That(errors, Has.Some.Contains("Ranks must contain a baseline rank with RequiredFame 0"));
+    }
+
+    [Test]
+    public void Validate_WithNonIncreasingRequiredFame_ReturnsFailure()
+    {
+        // 랭크는 오르는데 누적 명성 임계값이 같거나 줄면(여기선 2랭크가 1랭크와 동률) 파생이 모호해진다.
+        RankMaster[] ranks =
+        [
+            new() { Rank = 1, RequiredFame = 0 },
+            new() { Rank = 2, RequiredFame = 0 }
+        ];
+
+        var errors = MasterDataValidator.Validate(ValidCharacters(), ValidFurniture(), ValidRoomGrades(), ValidMissions(), ranks);
+
+        Assert.That(errors, Has.Some.Contains("Rank 2 RequiredFame must be greater than rank 1"));
     }
 
     private static CharacterMaster[] ValidCharacters() =>
@@ -136,4 +187,7 @@ public class MasterDataValidatorTests
 
     private static MissionMaster[] ValidMissions() =>
         [new() { Id = 101, Name = "Mission", StaminaCost = 5, StartingMental = 100, RewardFame = 10, RewardGold = 20 }];
+
+    private static RankMaster[] ValidRanks() =>
+        [new() { Rank = 1, RequiredFame = 0 }, new() { Rank = 2, RequiredFame = 300 }];
 }

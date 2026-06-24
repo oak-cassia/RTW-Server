@@ -1,0 +1,24 @@
+{
+  "Ranks": [
+    {
+      "Rank": 1,
+      "RequiredFame": 0
+    },
+    {
+      "Rank": 2,
+      "RequiredFame": 300
+    },
+    {
+      "Rank": 3,
+      "RequiredFame": 1000
+    },
+    {
+      "Rank": 4,
+      "RequiredFame": 2500
+    },
+    {
+      "Rank": 5,
+      "RequiredFame": 5000
+    }
+  ]
+}

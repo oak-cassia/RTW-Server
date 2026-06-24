@@ -36,9 +36,11 @@ public class MasterDataLoaderTests
         Assert.That(set.Furniture.Keys, Is.EquivalentTo(new[] { 2001 }));
         Assert.That(set.RoomGrades.Keys, Is.EquivalentTo(new[] { 1, 2 }));
         Assert.That(set.Missions.Keys, Is.EquivalentTo(new[] { 101 }));
+        Assert.That(set.Ranks.Keys, Is.EquivalentTo(new[] { 1, 2 }));
         Assert.That(set.Characters[1].Name, Is.EqualTo("Character1"));
         Assert.That(set.RoomGrades[2].Width, Is.EqualTo(50));
         Assert.That(set.Missions[101].Stages, Has.Length.EqualTo(2));
+        Assert.That(set.Ranks[2].RequiredFame, Is.EqualTo(300));
     }
 
     [Test]
@@ -107,6 +109,7 @@ public class MasterDataLoaderTests
         WriteFurniture();
         WriteRoomGrades();
         WriteMissions();
+        WriteRanks();
     }
 
     private void WriteCharacters() => Write("CharacterMaster.json", """
@@ -124,6 +127,10 @@ public class MasterDataLoaderTests
 
     private void WriteRoomGrades() => Write("RoomGradeMaster.json", """
         { "RoomGrades": [ { "Grade": 1, "Width": 30, "Height": 30 }, { "Grade": 2, "Width": 50, "Height": 50 } ] }
+        """);
+
+    private void WriteRanks() => Write("RankMaster.json", """
+        { "Ranks": [ { "Rank": 1, "RequiredFame": 0 }, { "Rank": 2, "RequiredFame": 300 } ] }
         """);
 
     private void WriteMissions() => Write("MissionMaster.json", """
