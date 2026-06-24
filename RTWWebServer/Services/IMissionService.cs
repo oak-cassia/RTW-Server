@@ -4,6 +4,9 @@ namespace RTWWebServer.Services;
 
 public interface IMissionService
 {
+    // 진행 가능한 임무 목록. 명성에서 파생한 현재 랭크가 RequiredRank 이상인 임무만 Id 오름차순으로 반환한다.
+    Task<MissionListDto> GetAvailableMissionsAsync(long userId);
+
     // 예약: 스태미나를 차감하고 시드/티켓을 발급한다. 전투는 (게임서버에서) 이후에 수행된다.
     // characterId는 투입할 보유 캐릭터의 마스터 ID이며, 소유 여부를 서버가 검증한다.
     Task<MissionTicketDto> StartMissionAsync(long userId, int missionId, int characterId);

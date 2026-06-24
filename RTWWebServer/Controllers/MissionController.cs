@@ -25,7 +25,6 @@ public class MissionController(IMissionService missionService) : ControllerBase
     }
 
     // 정산: 전투가 끝난 뒤 티켓으로 결과를 제출해 보상을 받는다. 결과 자체는 (게임서버가 기록한)
-    // 서버 측 값을 사용하므로 클라가 승패를 위조할 수 없다.
     [HttpPost("end")]
     public async Task<GameResponse<MissionResultDto>> CompleteMissionAsync([FromBody] CompleteMissionRequest request)
     {
@@ -33,5 +32,15 @@ public class MissionController(IMissionService missionService) : ControllerBase
 
         var result = await missionService.CompleteMissionAsync(userId, request.TicketId);
         return GameResponse<MissionResultDto>.Ok(result);
+    }
+    
+    // 진행 가능한 임무 목록: 명성에서 파생한 현재 랭크로 필터된 임무만 돌려준다.
+    [HttpPost("list")]
+    public async Task<GameResponse<MissionListDto>> GetAvailableMissionsAsync()
+    {
+        long userId = HttpContext.GetAuthenticatedUserId();
+
+        var missions = await missionService.GetAvailableMissionsAsync(userId);
+        return GameResponse<MissionListDto>.Ok(missions);
     }
 }

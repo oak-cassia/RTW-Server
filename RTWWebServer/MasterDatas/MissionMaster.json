@@ -4,6 +4,7 @@
       "Id": 101,
       "Name": "스타트업 백엔드 공채",
       "StaminaCost": 5,
+      "RequiredRank": 0,
       "StartingMental": 100,
       "RewardFame": 120,
       "RewardGold": 500,

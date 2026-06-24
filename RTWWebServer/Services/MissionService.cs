@@ -23,6 +23,31 @@ public class MissionService(
     // 티켓/결과는 한 판의 수명 동안만 유효하면 된다. 미정산 시 TTL로 자동 소멸한다.
     private static readonly TimeSpan TicketExpiration = TimeSpan.FromMinutes(30);
 
+    public async Task<MissionListDto> GetAvailableMissionsAsync(long userId)
+    {
+        // 랭크는 저장하지 않고 명성에서 매번 파생한다. RequiredRank가 현재 랭크 이하인 임무만 노출한다.
+        var user = await userRepository.GetByIdAsNoTrackingAsync(userId)
+                   ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
+        int rank = masterDataProvider.GetRankByFame(user.Fame);
+
+        var missions = masterDataProvider.GetAllMissions().Values
+            .Where(m => m.RequiredRank <= rank)
+            .OrderBy(m => m.Id)
+            .Select(m => new MissionSummaryDto
+            {
+                Id = m.Id,
+                Name = m.Name,
+                StaminaCost = m.StaminaCost,
+                RequiredRank = m.RequiredRank,
+                RewardFame = m.RewardFame,
+                RewardGold = m.RewardGold,
+                RewardExp = m.RewardExp,
+            })
+            .ToArray();
+
+        return new MissionListDto { Missions = missions };
+    }
+
     public async Task<MissionTicketDto> StartMissionAsync(long userId, int missionId, int characterId)
     {
         if (!masterDataProvider.TryGetMission(missionId, out var mission))

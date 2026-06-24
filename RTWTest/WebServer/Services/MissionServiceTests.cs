@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkDefinition.ErrorCode;
@@ -58,6 +59,38 @@ public class MissionServiceTests
             _keyGenerator,
             _mockGuidGenerator.Object,
             Mock.Of<ILogger<MissionService>>());
+    }
+
+    // ───────────────────────── list (랭크 필터) ─────────────────────────
+
+    [Test]
+    public async Task GetAvailableMissionsAsync_ReturnsOnlyMissionsAtOrBelowRank_OrderedById()
+    {
+        const long userId = 1;
+        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
+            .ReturnsAsync(NewUser(userId, fame: 1000, gold: 0, stamina: 100));
+        _mockMasterDataProvider.Setup(x => x.GetRankByFame(1000)).Returns(2);
+        _mockMasterDataProvider.Setup(x => x.GetAllMissions()).Returns(new[]
+        {
+            MissionWithRank(301, requiredRank: 3), // 랭크 미달 → 제외
+            MissionWithRank(101, requiredRank: 0),
+            MissionWithRank(201, requiredRank: 2), // 경계: 정확히 현재 랭크 → 포함
+        }.ToImmutableDictionary(m => m.Id));
+
+        var result = await _service.GetAvailableMissionsAsync(userId);
+
+        Assert.That(result.Missions.Select(m => m.Id), Is.EqualTo(new[] { 101, 201 }));
+    }
+
+    [Test]
+    public void GetAvailableMissionsAsync_UserNotFound_ThrowsGameException()
+    {
+        const long userId = 99;
+        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId)).ReturnsAsync((User?)null);
+
+        var ex = Assert.ThrowsAsync<GameException>(async () => await _service.GetAvailableMissionsAsync(userId));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(WebServerErrorCode.UserNotFound));
     }
 
     // ───────────────────────── start (예약) ─────────────────────────
@@ -290,6 +323,9 @@ public class MissionServiceTests
 
     private static MissionMaster NewMission() =>
         new() { Id = 101, Name = "테스트 임무", StaminaCost = 5, StartingMental = 100, RewardFame = 120, RewardGold = 500, RewardExp = 80 };
+
+    private static MissionMaster MissionWithRank(int id, int requiredRank) =>
+        new() { Id = id, Name = $"M{id}", StaminaCost = 5, RequiredRank = requiredRank, StartingMental = 100 };
 
     private static CharacterMaster NewCharacter() =>
         new() { Id = 1, Name = "유우", Portfolio = 15, Development = 25, JobSearching = 30 };
