@@ -23,8 +23,7 @@ public class GamePacketFactory : IPacketFactory
             PacketId.CChatJoin => new ProtoPacket(packetId, CChatJoin.Parser.ParseFrom(payloadBytes)),
             PacketId.CChatLeave => new ProtoPacket(packetId, CChatLeave.Parser.ParseFrom(payloadBytes)),
             PacketId.CChatChat => new ProtoPacket(packetId, CChatChat.Parser.ParseFrom(payloadBytes)),
-            _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId,
-                "Packet id is not a client-sendable packet")
+            _ => throw new ArgumentOutOfRangeException(nameof(packetId), packetId, "Packet id is not a client-sendable packet")
         };
     }
 

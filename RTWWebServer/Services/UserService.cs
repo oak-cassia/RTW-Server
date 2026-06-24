@@ -82,9 +82,7 @@ public class UserService(
 
         if (nickname.Length is < MIN_NICKNAME_LENGTH or > MAX_NICKNAME_LENGTH)
         {
-            throw new GameException(
-                $"Nickname length must be between {MIN_NICKNAME_LENGTH} and {MAX_NICKNAME_LENGTH} characters",
-                WebServerErrorCode.InvalidRequestHttpBody);
+            throw new GameException($"Nickname length must be between {MIN_NICKNAME_LENGTH} and {MAX_NICKNAME_LENGTH} characters", WebServerErrorCode.InvalidRequestHttpBody);
         }
 
         if (ReservedNicknamePattern.IsMatch(nickname))

@@ -36,8 +36,7 @@ public static class MasterDataValidator
         var errors = Validate(characters, furniture, roomGrades, missions, ranks);
         if (errors.Count > 0)
         {
-            throw new InvalidOperationException(
-                "Master data validation failed:" + Environment.NewLine + string.Join(Environment.NewLine, errors));
+            throw new InvalidOperationException("Master data validation failed:" + Environment.NewLine + string.Join(Environment.NewLine, errors));
         }
     }
 
