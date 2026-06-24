@@ -23,6 +23,7 @@ public class LobbyServiceIntegrationTests
     private GameDbContext _dbContext;
     private PlayerLobbyFurnitureRepository _repository;
     private PlayerLobbyRepository _lobbyRepository;
+    private UserRepository _userRepository;
     private Mock<IMasterDataProvider> _mockMasterDataProvider;
     private LobbyService _service;
 
@@ -42,13 +43,17 @@ public class LobbyServiceIntegrationTests
         // 서비스의 명시적 트랜잭션이 리포지토리 작업까지 묶으려면 같은 컨텍스트 인스턴스를 공유해야 한다.
         _repository = new PlayerLobbyFurnitureRepository(_dbContext);
         _lobbyRepository = new PlayerLobbyRepository(_dbContext);
+        _userRepository = new UserRepository(_dbContext);
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
         SetupRoomGrades((1, 30, 30), (2, 50, 50), (3, 100, 100));
+        // 증축의 랭크 게이트는 기본적으로 통과시킨다(랭크 자체 파생은 MasterDataProviderTests가 검증).
+        _mockMasterDataProvider.Setup(p => p.GetRankByFame(It.IsAny<long>())).Returns(99);
 
         _service = new LobbyService(
             _dbContext,
             _repository,
             _lobbyRepository,
+            _userRepository,
             _mockMasterDataProvider.Object,
             Mock.Of<ILogger<LobbyService>>());
     }
@@ -124,6 +129,7 @@ public class LobbyServiceIntegrationTests
     public async Task ExpandRoomAsync_PersistsAndIncrementsGrade()
     {
         const long userId = 7;
+        SeedUser(userId, gold: 1_000_000, fame: 1000); // 기본 등급표는 비용 0이라 잔액은 충분하기만 하면 된다
         AllowAllFurniture();
 
         var first = await _service.ExpandRoomAsync(userId); // 행 없음 → 2등급 생성
@@ -142,9 +148,48 @@ public class LobbyServiceIntegrationTests
     }
 
     [Test]
+    public async Task ExpandRoomAsync_DeductsGoldAtomically()
+    {
+        const long userId = 7;
+        SeedUser(userId, gold: 5000, fame: 1000);
+        SetupRoomGradeFull(2, 50, 50, requiredRank: 1, expandCost: 1000, CurrencyType.Free);
+        _mockMasterDataProvider.Setup(p => p.GetRankByFame(1000)).Returns(2);
+
+        var result = await _service.ExpandRoomAsync(userId);
+
+        Assert.That(result.RoomGrade, Is.EqualTo(2));
+
+        await using var verify = CreateVerifyContext();
+        var user = await verify.Users.SingleAsync(u => u.Id == userId);
+        Assert.That(user.FreeCurrency, Is.EqualTo(4000)); // 5000 - 1000
+        var lobby = await verify.PlayerLobbies.SingleAsync(l => l.UserId == userId);
+        Assert.That(lobby.RoomGrade, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void ExpandRoomAsync_InsufficientGold_LeavesGradeAndGoldUnchanged()
+    {
+        const long userId = 7;
+        SeedUser(userId, gold: 500, fame: 1000); // 비용 1000 > 보유 500 → 차감 실패
+        SetupRoomGradeFull(2, 50, 50, requiredRank: 1, expandCost: 1000, CurrencyType.Free);
+        _mockMasterDataProvider.Setup(p => p.GetRankByFame(1000)).Returns(2);
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.ExpandRoomAsync(userId));
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InsufficientCurrency));
+
+        // 트랜잭션 롤백으로 골드도 등급도 그대로여야 한다(부분 적용 없음).
+        using var verify = CreateVerifyContext();
+        var user = verify.Users.Single(u => u.Id == userId);
+        Assert.That(user.FreeCurrency, Is.EqualTo(500));
+        Assert.That(verify.PlayerLobbies.Any(l => l.UserId == userId), Is.False);
+    }
+
+    [Test]
     public async Task SaveLobbyAsync_BoundsFollowRoomGrade()
     {
         const long userId = 7;
+        SeedUser(userId, gold: 1_000_000, fame: 1000);
         AllowAllFurniture();
         var nearEdge = new[] { new LobbyFurniturePlacement(2001, 40, 0, 0) };
 
@@ -172,6 +217,34 @@ public class LobbyServiceIntegrationTests
         _dbContext.SaveChanges();
         // 시드로 추적된 엔티티가 이후 서비스 흐름에 끼어들지 않도록 트래커를 비운다(요청 경계 모사).
         _dbContext.ChangeTracker.Clear();
+    }
+
+    private void SeedUser(long userId, long gold, long fame)
+    {
+        var user = new User(accountId: userId, nickname: $"user{userId}", level: 1, currentExp: 0,
+            currentStamina: 10, maxStamina: 10, lastStaminaRecharge: DateTime.UtcNow,
+            premiumCurrency: 0, freeCurrency: gold, mainCharacterId: 1,
+            createdAt: DateTime.UtcNow, updatedAt: DateTime.UtcNow) { Id = userId, Fame = fame };
+        _dbContext.Users.Add(user);
+        _dbContext.SaveChanges();
+        _dbContext.ChangeTracker.Clear(); // 요청 경계 모사
+    }
+
+    // 단일 등급에 비용/랭크 게이트까지 포함한 마스터를 깐다. SetupRoomGrades의 일반 설정을 해당 등급에서만 덮어쓴다.
+    private void SetupRoomGradeFull(int grade, int width, int height, int requiredRank, long expandCost,
+        CurrencyType currency)
+    {
+        _mockMasterDataProvider
+            .Setup(p => p.TryGetRoomGrade(grade, out It.Ref<RoomGradeMaster>.IsAny))
+            .Returns((int g, out RoomGradeMaster rg) =>
+            {
+                rg = new RoomGradeMaster
+                {
+                    Grade = grade, Width = width, Height = height,
+                    RequiredRank = requiredRank, ExpandCost = expandCost, ExpandCurrency = currency
+                };
+                return true;
+            });
     }
 
     private void AllowAllFurniture()

@@ -15,6 +15,12 @@ public interface IUserRepository
     Task<bool> TryDeductPremiumCurrencyAsync(long userId, long cost, CancellationToken ct = default);
 
     /// <summary>
+    /// 잔액이 충분할 때만 무료 재화(골드)를 차감하는 조건부 UPDATE. 차감에 성공하면 true.
+    /// TryDeductPremiumCurrencyAsync와 동일하게 검사·차감이 단일 SQL이라 음수가 될 수 없다.
+    /// </summary>
+    Task<bool> TryDeductFreeCurrencyAsync(long userId, long cost, CancellationToken ct = default);
+
+    /// <summary>
     /// 스태미나가 충분할 때만 차감하는 조건부 UPDATE. 차감에 성공하면 true.
     /// TryDeductPremiumCurrencyAsync와 동일하게 검사·차감이 단일 SQL이라 음수가 될 수 없다.
     /// </summary>

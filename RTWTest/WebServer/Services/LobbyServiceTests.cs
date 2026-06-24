@@ -21,6 +21,7 @@ public class LobbyServiceTests
     private GameDbContext _dbContext;
     private Mock<IPlayerLobbyFurnitureRepository> _mockRepository;
     private Mock<IPlayerLobbyRepository> _mockLobbyRepository;
+    private Mock<IUserRepository> _mockUserRepository;
     private Mock<IMasterDataProvider> _mockMasterDataProvider;
     private LobbyService _service;
 
@@ -37,16 +38,28 @@ public class LobbyServiceTests
 
         _mockRepository = new Mock<IPlayerLobbyFurnitureRepository>();
         _mockLobbyRepository = new Mock<IPlayerLobbyRepository>();
+        _mockUserRepository = new Mock<IUserRepository>();
         _mockMasterDataProvider = new Mock<IMasterDataProvider>();
 
         // 방 크기 계산은 항상 마스터를 거치므로 기본 등급표를 깔아 둔다.
-        // (PlayerLobby 행이 없으면 1등급으로 간주된다.)
+        // (PlayerLobby 행이 없으면 1등급으로 간주된다.) 기본 등급표는 비용/랭크 게이트가 0이라 증축이 무료·무제한이다.
         SetupRoomGrades((1, 30, 30), (2, 50, 50), (3, 100, 100));
+
+        // 증축의 랭크 게이트·비용 차감 기본값: 유저 존재, 랭크 충분, 차감 성공. 게이트 자체는 개별 테스트에서 검증한다.
+        _mockUserRepository.Setup(r => r.GetByIdAsNoTrackingAsync(It.IsAny<long>())).ReturnsAsync(MakeUser(fame: 0));
+        _mockMasterDataProvider.Setup(p => p.GetRankByFame(It.IsAny<long>())).Returns(99);
+        _mockUserRepository
+            .Setup(r => r.TryDeductFreeCurrencyAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockUserRepository
+            .Setup(r => r.TryDeductPremiumCurrencyAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         _service = new LobbyService(
             _dbContext,
             _mockRepository.Object,
             _mockLobbyRepository.Object,
+            _mockUserRepository.Object,
             _mockMasterDataProvider.Object,
             Mock.Of<ILogger<LobbyService>>());
     }
@@ -279,6 +292,78 @@ public class LobbyServiceTests
     }
 
     [Test]
+    public void ExpandRoomAsync_RankBelowRequired_ThrowsAndDoesNotDeductOrChangeGrade()
+    {
+        const long userId = 42;
+        // 2등급 증축에 랭크 3 필요, 유저(명성 50) 랭크는 1 → 게이트 차단.
+        SetupRoomGradeFull(2, 50, 50, requiredRank: 3, expandCost: 1000);
+        _mockUserRepository.Setup(r => r.GetByIdAsNoTrackingAsync(userId)).ReturnsAsync(MakeUser(fame: 50));
+        _mockMasterDataProvider.Setup(p => p.GetRankByFame(50)).Returns(1);
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.ExpandRoomAsync(userId));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.RankTooLow));
+        // 게이트는 비용 차감·등급 쓰기보다 먼저 막는다.
+        _mockUserRepository.Verify(
+            r => r.TryDeductFreeCurrencyAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mockLobbyRepository.Verify(r => r.AddAsync(It.IsAny<PlayerLobby>()), Times.Never);
+        _mockLobbyRepository.Verify(r => r.Update(It.IsAny<PlayerLobby>()), Times.Never);
+    }
+
+    [Test]
+    public void ExpandRoomAsync_InsufficientCurrency_ThrowsAndDoesNotChangeGrade()
+    {
+        const long userId = 42;
+        SetupRoomGradeFull(2, 50, 50, requiredRank: 0, expandCost: 1000);
+        _mockUserRepository
+            .Setup(r => r.TryDeductFreeCurrencyAsync(userId, 1000, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var exception = Assert.ThrowsAsync<GameException>(async () =>
+            await _service.ExpandRoomAsync(userId));
+
+        Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InsufficientCurrency));
+        _mockLobbyRepository.Verify(r => r.AddAsync(It.IsAny<PlayerLobby>()), Times.Never);
+        _mockLobbyRepository.Verify(r => r.Update(It.IsAny<PlayerLobby>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ExpandRoomAsync_SufficientRankAndGold_DeductsCostAndCreatesGrade()
+    {
+        const long userId = 42;
+        SetupRoomGradeFull(2, 50, 50, requiredRank: 1, expandCost: 1000);
+        _mockMasterDataProvider.Setup(p => p.GetRankByFame(It.IsAny<long>())).Returns(1);
+
+        var result = await _service.ExpandRoomAsync(userId);
+
+        _mockUserRepository.Verify(
+            r => r.TryDeductFreeCurrencyAsync(userId, 1000, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockLobbyRepository.Verify(
+            r => r.AddAsync(It.Is<PlayerLobby>(l => l.UserId == userId && l.RoomGrade == 2)),
+            Times.Once);
+        Assert.That(result.RoomGrade, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task ExpandRoomAsync_PremiumCurrencyGrade_DeductsPremium()
+    {
+        const long userId = 42;
+        SetupRoomGradeFull(2, 50, 50, requiredRank: 0, expandCost: 50, CurrencyType.Premium);
+
+        await _service.ExpandRoomAsync(userId);
+
+        _mockUserRepository.Verify(
+            r => r.TryDeductPremiumCurrencyAsync(userId, 50, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockUserRepository.Verify(
+            r => r.TryDeductFreeCurrencyAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public void ExpandRoomAsync_AtMaxGrade_Throws()
     {
         const long userId = 42;
@@ -391,6 +476,28 @@ public class LobbyServiceTests
             await _service.SaveLobbyAsync(userId, items));
 
         Assert.That(exception.ErrorCode, Is.EqualTo(WebServerErrorCode.InvalidArgument));
+    }
+
+    private static User MakeUser(long fame) =>
+        new(accountId: 1, nickname: "user", level: 1, currentExp: 0, currentStamina: 10, maxStamina: 10,
+            lastStaminaRecharge: DateTime.UtcNow, premiumCurrency: 0, freeCurrency: 0, mainCharacterId: 1,
+            createdAt: DateTime.UtcNow, updatedAt: DateTime.UtcNow) { Id = 42, Fame = fame };
+
+    // 단일 등급에 대해 비용/랭크 게이트까지 포함한 마스터를 깐다. SetupRoomGrades의 일반 설정을 해당 등급에서만 덮어쓴다.
+    private void SetupRoomGradeFull(int grade, int width, int height, int requiredRank, long expandCost,
+        CurrencyType currency = CurrencyType.Free)
+    {
+        _mockMasterDataProvider
+            .Setup(p => p.TryGetRoomGrade(grade, out It.Ref<RoomGradeMaster>.IsAny))
+            .Returns((int g, out RoomGradeMaster rg) =>
+            {
+                rg = new RoomGradeMaster
+                {
+                    Grade = grade, Width = width, Height = height,
+                    RequiredRank = requiredRank, ExpandCost = expandCost, ExpandCurrency = currency
+                };
+                return true;
+            });
     }
 
     private void AllowFurnitureSized(params (int id, int width, int height)[] furniture)

@@ -3,17 +3,26 @@
     {
       "Grade": 1,
       "Width": 30,
-      "Height": 30
+      "Height": 30,
+      "RequiredRank": 0,
+      "ExpandCost": 0,
+      "ExpandCurrency": 0
     },
     {
       "Grade": 2,
       "Width": 50,
-      "Height": 50
+      "Height": 50,
+      "RequiredRank": 1,
+      "ExpandCost": 1000,
+      "ExpandCurrency": 0
     },
     {
       "Grade": 3,
       "Width": 100,
-      "Height": 100
+      "Height": 100,
+      "RequiredRank": 2,
+      "ExpandCost": 5000,
+      "ExpandCurrency": 0
     }
   ]
 }

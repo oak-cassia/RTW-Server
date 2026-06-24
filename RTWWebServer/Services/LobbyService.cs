@@ -14,6 +14,7 @@ public class LobbyService(
     GameDbContext dbContext,
     IPlayerLobbyFurnitureRepository lobbyFurnitureRepository,
     IPlayerLobbyRepository lobbyRepository,
+    IUserRepository userRepository,
     IMasterDataProvider masterDataProvider,
     ILogger<LobbyService> logger
 ) : ILobbyService
@@ -35,9 +36,7 @@ public class LobbyService(
     {
         if (items.Count > MAX_FURNITURE_PER_LOBBY)
         {
-            throw new GameException(
-                $"Too many furniture items: {items.Count} (max {MAX_FURNITURE_PER_LOBBY})",
-                WebServerErrorCode.InvalidArgument);
+            throw new GameException($"Too many furniture items: {items.Count} (max {MAX_FURNITURE_PER_LOBBY})", WebServerErrorCode.InvalidArgument);
         }
 
         var (grade, width, height) = await ResolveRoomAsync(userId);
@@ -82,27 +81,55 @@ public class LobbyService(
         int nextGrade = currentGrade + 1;
 
         // 다음 등급이 마스터에 없으면 이미 최대 등급이다.
-        if (!masterDataProvider.TryGetRoomGrade(nextGrade, out _))
+        if (!masterDataProvider.TryGetRoomGrade(nextGrade, out var nextRoomGrade))
         {
-            throw new GameException(
-                $"Room is already at max grade: {currentGrade}",
-                WebServerErrorCode.InvalidArgument);
+            throw new GameException($"Room is already at max grade: {currentGrade}", WebServerErrorCode.InvalidArgument);
         }
 
-        // 확장 비용/게이팅(예: 공헌치)은 아직 없다. 추후 여기에서 RoomGradeMaster의 요구치를 검사·차감한다.
-        // 동시 확장은 RequestLockingMiddleware가 유저별로 직렬화하고, uk_lobby_user_id가 중복 행을 막는다.
-        if (lobby is null)
+        // 랭크 게이트: 명성에서 파생한 현재 랭크가 다음 등급의 요구 랭크 이상이어야 한다(랭크는 저장하지 않고 매번 파생).
+        var user = await userRepository.GetByIdAsNoTrackingAsync(userId) ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
+        int currentRank = masterDataProvider.GetRankByFame(user.Fame);
+        if (currentRank < nextRoomGrade.RequiredRank)
         {
-            await lobbyRepository.AddAsync(new PlayerLobby(userId, nextGrade));
-        }
-        else
-        {
-            lobby.RoomGrade = nextGrade;
-            lobby.UpdatedAt = DateTime.UtcNow;
-            lobbyRepository.Update(lobby);
+            throw new GameException($"Rank {currentRank} is below required rank {nextRoomGrade.RequiredRank} for grade {nextGrade}", WebServerErrorCode.RankTooLow);
         }
 
-        await dbContext.SaveChangesAsync();
+        // 비용 차감과 등급 변경을 한 트랜잭션으로 묶어, 어느 한쪽만 적용되는 것(골드만 빠지거나 공짜 증축)을 막는다.
+        // 비용 차감은 조건부 UPDATE라 잔액이 음수가 될 수 없다. 동시 증축은 RequestLockingMiddleware가 유저별로 직렬화하고,
+        // uk_lobby_user_id가 중복 행을 막는다.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            bool deducted = nextRoomGrade.ExpandCurrency switch
+            {
+                CurrencyType.Premium => await userRepository.TryDeductPremiumCurrencyAsync(userId, nextRoomGrade.ExpandCost),
+                _ => await userRepository.TryDeductFreeCurrencyAsync(userId, nextRoomGrade.ExpandCost),
+            };
+            if (!deducted)
+            {
+                throw new GameException($"Insufficient currency to expand to grade {nextGrade}", WebServerErrorCode.InsufficientCurrency);
+            }
+
+            if (lobby is null)
+            {
+                await lobbyRepository.AddAsync(new PlayerLobby(userId, nextGrade));
+            }
+            else
+            {
+                lobby.RoomGrade = nextGrade;
+                lobby.UpdatedAt = DateTime.UtcNow;
+                lobbyRepository.Update(lobby);
+            }
+
+            await dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception ex) when (ex is not GameException)
+        {
+            await transaction.RollbackAsync();
+            logger.LogError(ex, "Failed to expand room for userId: {UserId}", userId);
+            throw;
+        }
 
         var (width, height) = ResolveRoomSize(nextGrade);
         var furniture = await lobbyFurnitureRepository.GetByUserIdAsync(userId);
@@ -121,28 +148,24 @@ public class LobbyService(
             // 마스터 카탈로그에 없는 가구는 배치할 수 없다. 소유 개념은 아직 없으므로 카탈로그 존재 여부만 검사한다.
             if (!masterDataProvider.TryGetFurniture(item.FurnitureMasterId, out var furniture))
             {
-                throw new GameException(
-                    $"Unknown furniture master id: {item.FurnitureMasterId}",
-                    WebServerErrorCode.InvalidArgument);
+                throw new GameException($"Unknown furniture master id: {item.FurnitureMasterId}", WebServerErrorCode.InvalidArgument);
             }
 
             // 회전은 90도 단위만 허용한다(그리드 점유는 90도 배수에서만 정의된다). DTO에서도 막지만 서비스가 최종 권위를 가진다.
             if (item.Rotation is not (LobbyRotation.Degrees0 or LobbyRotation.Degrees90 or LobbyRotation.Degrees180 or LobbyRotation.Degrees270))
             {
-                throw new GameException(
-                    $"Invalid rotation: {item.Rotation} (must be 0, 90, 180, or 270)",
-                    WebServerErrorCode.InvalidArgument);
+                throw new GameException($"Invalid rotation: {item.Rotation} (must be 0, 90, 180, or 270)", WebServerErrorCode.InvalidArgument);
             }
 
             var (footprintWidth, footprintHeight) = GetFootprint(furniture, item.Rotation);
 
             // 가구의 점유 영역(footprint) 전체가 방 안에 들어와야 한다. 앵커(PosX,PosY)는 영역의 원점 칸이다.
-            if (item.PosX < 0 || item.PosY < 0 ||
-                item.PosX + footprintWidth > width || item.PosY + footprintHeight > height)
+            if (item.PosX < 0 ||
+                item.PosY < 0 ||
+                item.PosX + footprintWidth > width ||
+                item.PosY + footprintHeight > height)
             {
-                throw new GameException(
-                    $"Furniture placement out of room bounds: ({item.PosX},{item.PosY}) size {footprintWidth}x{footprintHeight} not in [0,{width})x[0,{height})",
-                    WebServerErrorCode.InvalidArgument);
+                throw new GameException($"Furniture placement out of room bounds: ({item.PosX},{item.PosY}) size {footprintWidth}x{footprintHeight} not in [0,{width})x[0,{height})", WebServerErrorCode.InvalidArgument);
             }
 
             // 점유 칸이 다른 가구와 겹치면 거부한다(레이어/스택 개념은 아직 없다).
@@ -153,9 +176,7 @@ public class LobbyService(
                     long cell = (long)(item.PosX + dx) * height + (item.PosY + dy);
                     if (!occupiedCells.Add(cell))
                     {
-                        throw new GameException(
-                            $"Furniture overlaps another item at ({item.PosX + dx},{item.PosY + dy})",
-                            WebServerErrorCode.InvalidArgument);
+                        throw new GameException($"Furniture overlaps another item at ({item.PosX + dx},{item.PosY + dy})", WebServerErrorCode.InvalidArgument);
                     }
                 }
             }
