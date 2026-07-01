@@ -16,11 +16,90 @@ using RTWWebServer.Authentication;
 using RTWWebServer.Game.Mission;
 using RTWWebServer.MasterDatas;
 using RTWWebServer.Providers.MasterData;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Resources;
+using Microsoft.AspNetCore.HttpLogging;
 
 namespace RTWWebServer;
 
 public static class DependencyInjectionExtensions
 {
+    public static WebApplicationBuilder AddObservability(this WebApplicationBuilder builder)
+    {
+        var serviceName = builder.Configuration["Observability:ServiceName"] ?? "RTWWebServer";
+        var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+        var environmentName = builder.Environment.EnvironmentName;
+
+        Action<ResourceBuilder> configureResource = r => r
+            .AddService(serviceName: serviceName, serviceVersion: serviceVersion)
+            .AddAttributes(new Dictionary<string, object>
+            {
+                ["deployment.environment"] = environmentName
+            });
+
+        // 1. Configure OpenTelemetry Services (SDK Builder) for future tracing/metrics configuration
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(configureResource);
+
+        // 2. Configure OpenTelemetry Logging
+        builder.Logging.AddOpenTelemetry(options =>
+        {
+            var resourceBuilder = ResourceBuilder.CreateDefault();
+            configureResource(resourceBuilder);
+            options.SetResourceBuilder(resourceBuilder);
+
+            options.IncludeScopes = true;
+            options.IncludeFormattedMessage = true;
+            options.ParseStateValues = true;
+
+            if (builder.Environment.IsDevelopment())
+            {
+                options.AddConsoleExporter();
+            }
+
+            options.AddOtlpExporter(otlpOptions =>
+            {
+                var endpointStr = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? builder.Configuration["Observability:Otlp:Endpoint"] ?? "http://localhost:4317";
+
+                otlpOptions.Endpoint = new Uri(endpointStr);
+
+                var protocolStr = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL") ?? builder.Configuration["Observability:Otlp:Protocol"] ?? "grpc";
+
+                if (protocolStr.Equals("http/protobuf", StringComparison.OrdinalIgnoreCase))
+                {
+                    otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+                }
+                else
+                {
+                    otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+                }
+
+                // HyperDX requires an authorization header to route logs to your specific workspace.
+                var apiKey = builder.Configuration["Observability:Otlp:ApiKey"];
+                var otlpHeaders = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
+
+                if (string.IsNullOrEmpty(otlpHeaders))
+                {
+                    if (!string.IsNullOrEmpty(apiKey))
+                    {
+                        otlpHeaders = $"authorization={apiKey}";
+                    }
+                    else
+                    {
+                        otlpHeaders = "authorization=local-dev-key";
+                    }
+                }
+                otlpOptions.Headers = otlpHeaders;
+            });
+        });
+
+        // 3. Register HTTP Logging
+        builder.Services.AddHttpLogging(logging => { logging.LoggingFields = HttpLoggingFields.RequestMethod | HttpLoggingFields.RequestPath | HttpLoggingFields.RequestQuery | HttpLoggingFields.ResponseStatusCode | HttpLoggingFields.Duration; });
+
+        return builder;
+    }
+
     public static IServiceCollection AddCustomServices(this IServiceCollection services)
     {
         services.AddSingleton<IGuidGenerator, GuidGenerator>();

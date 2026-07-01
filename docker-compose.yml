@@ -1,0 +1,27 @@
+services:
+  clickstack:
+    image: docker.hyperdx.io/hyperdx/hyperdx-all-in-one
+    container_name: rtw-clickstack
+    ports:
+      - "8080:8080"   # HyperDX UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP/protobuf
+    restart: unless-stopped
+    # NOTE: hyperdx-all-in-one has no persistent volumes by default (local dev/verification only)
+
+  redis:
+    image: redis:7
+    container_name: rtw-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: rtw-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: rtw_account
+    ports:
+      - "3306:3306"
+    restart: unless-stopped

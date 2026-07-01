@@ -2,6 +2,7 @@ using RTWWebServer;
 using RTWWebServer.Middlewares;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.AddObservability();
 
 IConfiguration configuration = builder.Configuration;
 
@@ -28,7 +29,17 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var accountDb = scope.ServiceProvider.GetRequiredService<RTWWebServer.Data.AccountDbContext>();
+        accountDb.Database.EnsureCreated();
+        var gameDb = scope.ServiceProvider.GetRequiredService<RTWWebServer.Data.GameDbContext>();
+        gameDb.Database.EnsureCreated();
+    }
 }
+
+app.UseHttpLogging();
 
 app.UseExceptionHandler(opt => { });
 app.UseAuthentication();
