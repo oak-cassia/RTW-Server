@@ -24,4 +24,39 @@ services:
       MYSQL_DATABASE: rtw_account
     ports:
       - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
+
+  webserver:
+    build:
+      context: .
+      dockerfile: RTWWebServer/Dockerfile
+    container_name: rtw-webserver
+    ports:
+      - "5080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DatabaseConfiguration__AccountDatabase=Server=mysql;Port=3306;Database=rtw_account;Uid=root;Pwd=rootpassword;
+      - DatabaseConfiguration__GameDatabase=Server=mysql;Port=3306;Database=rtw_game;Uid=root;Pwd=rootpassword;
+      - DatabaseConfiguration__Redis=redis:6379
+      - Observability__Otlp__Endpoint=http://clickstack:4317
+      - Observability__Otlp__ApiKey=${HYPERDX_API_KEY:-}
+      - Jwt__Secret=${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      clickstack:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mysql-data:

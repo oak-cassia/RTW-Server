@@ -1,46 +1,23 @@
-# Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
+# ---- build ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Install system protoc to avoid Grpc.Tools arm64 segmentation fault (exited with code 139) under emulation
+RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
+ENV PROTOBUF_PROTOC=/usr/bin/protoc
 
-# 프로젝트 파일만 우선 복사 (캐시 최적화)
+WORKDIR /src
 COPY RTWWebServer/RTWWebServer.csproj RTWWebServer/
 COPY NetworkDefinition/NetworkDefinition.csproj NetworkDefinition/
-COPY RTWServer/RTWServer.csproj RTWServer/
-COPY RTWTest/RTWTest.csproj RTWTest/
-
-# 정확한 정보로 복원
 RUN dotnet restore RTWWebServer/RTWWebServer.csproj
-RUN dotnet restore RTWTest/RTWTest.csproj
-
-# 실제 소스를 나중에 복사
 COPY RTWWebServer/ RTWWebServer/
 COPY NetworkDefinition/ NetworkDefinition/
-COPY RTWServer/ RTWServer/
-COPY RTWTest/ RTWTest/
+RUN dotnet publish RTWWebServer/RTWWebServer.csproj -c Release --no-restore -o /app/publish /p:UseAppHost=false
 
-# Test stage
-FROM build AS test
-WORKDIR /src
-RUN dotnet test RTWTest/RTWTest.csproj --no-restore --verbosity normal --filter "FullyQualifiedName~RTWTest.WebServer"
-
-# Publish stage
-FROM test AS publish
-WORKDIR /src/RTWWebServer
-RUN dotnet publish -c Release --no-restore -o /app/publish
-
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+# ---- runtime ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
 WORKDIR /app
-COPY --from=publish /app/publish .
-
-# 보안: 비루트 사용자로 실행
+COPY --from=build /app/publish .
 USER app
-
-# 포트 문서화(실제 공개는 -p 또는 compose에서)
 EXPOSE 8080
-
-# 환경 설정
-ENV ASPNETCORE_URLS=http://+:8080
-ENV ASPNETCORE_ENVIRONMENT=Development
-
+# Kestrel:Endpoints 설정이 ASPNETCORE_URLS보다 우선하므로 해당 키를 직접 지정
+ENV Kestrel__Endpoints__Http__Url=http://+:8080
 ENTRYPOINT ["dotnet", "RTWWebServer.dll"]

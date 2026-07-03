@@ -6,3 +6,11 @@
 Dockerfile
 docker-compose*
 **/.DS_Store
+
+# Exclude projects and directories not used by the webserver
+RTWClient/
+RTWServer/
+RTWTest/
+ts-client/
+docs/
+**/*.md
