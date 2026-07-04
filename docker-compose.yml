@@ -6,8 +6,14 @@ services:
       - "8080:8080"   # HyperDX UI
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP/protobuf
+    volumes:
+      - clickstack-mongo:/data/db
+    tmpfs:
+      - /var/lib/clickhouse
     restart: unless-stopped
-    # NOTE: hyperdx-all-in-one has no persistent volumes by default (local dev/verification only)
+    # mongo(API 키/대시보드)만 영속화한다. clickhouse(실제 로그 데이터)는 이미지 자체에 VOLUME이
+    # 박혀있어(image Config.Volumes) 그냥 안 붙이면 compose가 이전 컨테이너의 볼륨을 재사용해버린다.
+    # tmpfs로 명시해서 컨테이너가 멈추거나 재생성될 때마다 확실히 비워지게 강제한다.
 
   redis:
     image: redis:7
@@ -60,3 +66,4 @@ services:
 
 volumes:
   mysql-data:
+  clickstack-mongo:

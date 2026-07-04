@@ -38,6 +38,9 @@ public static class DependencyInjectionExtensions
                 ["deployment.environment"] = environmentName
             });
 
+        // 기본 Console/Debug 로거를 끄고 OpenTelemetry 로거만 남긴다(같은 이벤트가 두 형식으로 중복 출력되는 것을 방지).
+        builder.Logging.ClearProviders();
+
         // 1. Configure OpenTelemetry Services (SDK Builder) for future tracing/metrics configuration
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(configureResource);
