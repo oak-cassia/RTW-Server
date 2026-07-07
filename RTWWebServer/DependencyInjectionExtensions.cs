@@ -18,6 +18,7 @@ using RTWWebServer.MasterDatas;
 using RTWWebServer.Providers.MasterData;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using Microsoft.AspNetCore.HttpLogging;
 
@@ -38,12 +39,54 @@ public static class DependencyInjectionExtensions
                 ["deployment.environment"] = environmentName
             });
 
+        // 로그·메트릭이 같은 OTLP 엔드포인트(clickstack 4317)를 공유하도록 exporter 설정을 한 곳에 둔다.
+        Action<OtlpExporterOptions> configureOtlp = otlpOptions =>
+        {
+            var endpointStr = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? builder.Configuration["Observability:Otlp:Endpoint"] ?? "http://localhost:4317";
+
+            otlpOptions.Endpoint = new Uri(endpointStr);
+
+            var protocolStr = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL") ?? builder.Configuration["Observability:Otlp:Protocol"] ?? "grpc";
+
+            if (protocolStr.Equals("http/protobuf", StringComparison.OrdinalIgnoreCase))
+            {
+                otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+            }
+            else
+            {
+                otlpOptions.Protocol = OtlpExportProtocol.Grpc;
+            }
+
+            // HyperDX requires an authorization header to route logs to your specific workspace.
+            var apiKey = builder.Configuration["Observability:Otlp:ApiKey"];
+            var otlpHeaders = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
+
+            if (string.IsNullOrEmpty(otlpHeaders))
+            {
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    otlpHeaders = $"authorization={apiKey}";
+                }
+                else
+                {
+                    otlpHeaders = "authorization=local-dev-key";
+                }
+            }
+            otlpOptions.Headers = otlpHeaders;
+        };
+
         // 기본 Console/Debug 로거를 끄고 OpenTelemetry 로거만 남긴다(같은 이벤트가 두 형식으로 중복 출력되는 것을 방지).
         builder.Logging.ClearProviders();
 
-        // 1. Configure OpenTelemetry Services (SDK Builder) for future tracing/metrics configuration
+        // 1. Configure OpenTelemetry Metrics
+        // .NET 9+는 ASP.NET Core/런타임 메트릭을 프레임워크 내장 Meter로 노출하므로 instrumentation 패키지 없이 구독만 한다.
         builder.Services.AddOpenTelemetry()
-            .ConfigureResource(configureResource);
+            .ConfigureResource(configureResource)
+            .WithMetrics(metrics => metrics
+                .AddMeter("Microsoft.AspNetCore.Hosting") // http.server.request.duration 등 요청 히스토그램
+                .AddMeter("Microsoft.AspNetCore.Server.Kestrel") // 활성 커넥션, 요청 큐잉
+                .AddMeter("System.Runtime") // GC, 힙 크기, 스레드풀
+                .AddOtlpExporter(configureOtlp));
 
         // 2. Configure OpenTelemetry Logging
         builder.Logging.AddOpenTelemetry(options =>
@@ -61,40 +104,7 @@ public static class DependencyInjectionExtensions
                 options.AddConsoleExporter();
             }
 
-            options.AddOtlpExporter(otlpOptions =>
-            {
-                var endpointStr = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? builder.Configuration["Observability:Otlp:Endpoint"] ?? "http://localhost:4317";
-
-                otlpOptions.Endpoint = new Uri(endpointStr);
-
-                var protocolStr = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL") ?? builder.Configuration["Observability:Otlp:Protocol"] ?? "grpc";
-
-                if (protocolStr.Equals("http/protobuf", StringComparison.OrdinalIgnoreCase))
-                {
-                    otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
-                }
-                else
-                {
-                    otlpOptions.Protocol = OtlpExportProtocol.Grpc;
-                }
-
-                // HyperDX requires an authorization header to route logs to your specific workspace.
-                var apiKey = builder.Configuration["Observability:Otlp:ApiKey"];
-                var otlpHeaders = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
-
-                if (string.IsNullOrEmpty(otlpHeaders))
-                {
-                    if (!string.IsNullOrEmpty(apiKey))
-                    {
-                        otlpHeaders = $"authorization={apiKey}";
-                    }
-                    else
-                    {
-                        otlpHeaders = "authorization=local-dev-key";
-                    }
-                }
-                otlpOptions.Headers = otlpHeaders;
-            });
+            options.AddOtlpExporter(configureOtlp);
         });
 
         // 3. Register HTTP Logging
