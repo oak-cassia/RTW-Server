@@ -14,6 +14,7 @@ builder.Services.AddJwtAuthentication(configuration, builder.Environment.IsDevel
 builder.Services.AddCustomServices();
 builder.Services.AddRepositories();
 builder.Services.AddConfigurations(configuration);
+builder.Services.AddGameEventLogging(configuration);
 builder.Services.AddEntityFramework(configuration, builder.Environment.IsDevelopment());
 builder.Services.AddMasterDataSystem(masterDataDirectory);
 builder.Services.AddHealthChecks();

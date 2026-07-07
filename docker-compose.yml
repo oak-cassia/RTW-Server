@@ -6,7 +6,10 @@ services:
       - "8080:8080"   # HyperDX UI
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP/protobuf
+      - "9001:9000"   # ClickHouse native protocol (clickhouse-client, JDBC 등) - 호스트 9000은 다른 프로세스가 점유 중이라 9001로 매핑
+      - "8123:8123"   # ClickHouse HTTP interface
     volumes:
+      - ./docker/clickhouse-users/dev-user.xml:/etc/clickhouse-server/users.d/dev-user.xml:ro
       - clickstack-mongo:/data/db
     tmpfs:
       - /var/lib/clickhouse
@@ -55,6 +58,7 @@ services:
       - Observability__Otlp__Endpoint=http://clickstack:4317
       - Observability__Otlp__ApiKey=${HYPERDX_API_KEY:-}
       - Jwt__Secret=${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
+      - GameEventLog__ClickHouse=Host=clickstack;Port=8123;Username=dev;Password=rtw-dev-clickhouse
     depends_on:
       mysql:
         condition: service_healthy

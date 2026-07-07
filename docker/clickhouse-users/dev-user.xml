@@ -1,0 +1,14 @@
+<clickhouse>
+  <!-- 로컬 dev용 외부 접속 계정. default 유저는 이미지 자체 설정으로 loopback 전용이라 건드리지 않는다. -->
+  <users>
+    <dev>
+      <password>rtw-dev-clickhouse</password>
+      <profile>default</profile>
+      <networks>
+        <ip>::/0</ip>
+      </networks>
+      <quota>default</quota>
+      <access_management>0</access_management>
+    </dev>
+  </users>
+</clickhouse>

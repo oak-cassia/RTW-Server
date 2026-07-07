@@ -6,6 +6,7 @@ using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Services;
 using RTWWebServer.Configuration;
 using RTWWebServer.Exceptions;
+using RTWWebServer.GameLog;
 using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -111,6 +112,26 @@ public static class DependencyInjectionExtensions
         builder.Services.AddHttpLogging(logging => { logging.LoggingFields = HttpLoggingFields.RequestMethod | HttpLoggingFields.RequestPath | HttpLoggingFields.RequestQuery | HttpLoggingFields.ResponseStatusCode | HttpLoggingFields.Duration; });
 
         return builder;
+    }
+
+    public static IServiceCollection AddGameEventLogging(this IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection("GameEventLog");
+        services.Configure<GameEventLogConfiguration>(section);
+        var config = section.Get<GameEventLogConfiguration>();
+
+        if (config == null || !config.Enabled || string.IsNullOrWhiteSpace(config.ClickHouse))
+        {
+            services.AddSingleton<IGameEventLogger, NoOpGameEventLogger>();
+        }
+        else
+        {
+            services.AddSingleton<ClickHouseGameEventLogger>();
+            services.AddSingleton<IGameEventLogger>(sp => sp.GetRequiredService<ClickHouseGameEventLogger>());
+            services.AddHostedService(sp => sp.GetRequiredService<ClickHouseGameEventLogger>());
+        }
+
+        return services;
     }
 
     public static IServiceCollection AddCustomServices(this IServiceCollection services)
