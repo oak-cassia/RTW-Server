@@ -8,6 +8,9 @@ using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.MasterData;
 using NetworkDefinition.ErrorCode;
 
+using RTWWebServer.Providers.Authentication;
+using RTWWebServer.GameLog;
+
 namespace RTWWebServer.Services;
 
 public class LobbyService(
@@ -16,6 +19,8 @@ public class LobbyService(
     IPlayerLobbyRepository lobbyRepository,
     IUserRepository userRepository,
     IMasterDataProvider masterDataProvider,
+    IGuidGenerator guidGenerator,
+    IGameEventLogger gameEventLogger,
     ILogger<LobbyService> logger
 ) : ILobbyService
 {
@@ -123,6 +128,43 @@ public class LobbyService(
 
             await dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            string currencyType = nextRoomGrade.ExpandCurrency == CurrencyType.Premium ? GameLogAssetType.PremiumCurrency : GameLogAssetType.FreeCurrency;
+            long beforeAmount = nextRoomGrade.ExpandCurrency == CurrencyType.Premium ? user.PremiumCurrency : user.FreeCurrency;
+            long afterAmount = beforeAmount - nextRoomGrade.ExpandCost;
+
+            string expandId = guidGenerator.GenerateGuid().ToString();
+
+            gameEventLogger.LogEconomyEvent(
+                userId: userId,
+                assetType: currencyType,
+                assetId: 0,
+                changeAmount: -nextRoomGrade.ExpandCost,
+                beforeAmount: beforeAmount,
+                afterAmount: afterAmount,
+                actionCode: GameLogActionCode.ExpandRoom,
+                refId: expandId
+            );
+
+            gameEventLogger.LogProgressionEvent(
+                userId: userId,
+                progressType: GameLogProgressType.RoomGrade,
+                subjectId: 0,
+                changeAmount: nextGrade - currentGrade,
+                beforeValue: currentGrade,
+                afterValue: nextGrade,
+                actionCode: GameLogActionCode.ExpandRoom,
+                refId: expandId
+            );
+
+            logger.LogInformation(
+                "LobbyExpand: UserId={UserId}, CurrentGrade={CurrentGrade}, NextGrade={NextGrade}, Cost={Cost}, CurrencyType={CurrencyType}",
+                userId,
+                currentGrade,
+                nextGrade,
+                nextRoomGrade.ExpandCost,
+                currencyType
+            );
         }
         catch (Exception ex) when (ex is not GameException)
         {

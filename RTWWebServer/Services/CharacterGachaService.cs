@@ -9,6 +9,8 @@ using RTWWebServer.Data.Repositories;
 using RTWWebServer.DTOs;
 using RTWWebServer.Exceptions;
 using RTWWebServer.Providers.MasterData;
+using RTWWebServer.Providers.Authentication;
+using RTWWebServer.GameLog;
 
 namespace RTWWebServer.Services;
 
@@ -18,6 +20,8 @@ public class CharacterGachaService(
     IPlayerCharacterRepository playerCharacterRepository,
     IMasterDataProvider masterDataProvider,
     IPlayerCharacterCache playerCharacterCache,
+    IGuidGenerator guidGenerator,
+    IGameEventLogger gameEventLogger,
     ILogger<CharacterGachaService> logger
 ) : ICharacterGachaService
 {
@@ -84,6 +88,33 @@ public class CharacterGachaService(
         // ExecuteUpdateAsync는 체인지 트래커를 우회하므로, 응답용 잔액은 커밋 후 새로 읽는다.
         var updatedUser = await userRepository.GetByIdAsNoTrackingAsync(userId)
             ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
+
+        string pullId = guidGenerator.GenerateGuid().ToString();
+
+        gameEventLogger.LogEconomyEvent(
+            userId: userId,
+            assetType: GameLogAssetType.PremiumCurrency,
+            assetId: 0,
+            changeAmount: -actualCost,
+            beforeAmount: updatedUser.PremiumCurrency + actualCost,
+            afterAmount: updatedUser.PremiumCurrency,
+            actionCode: GameLogActionCode.Gacha,
+            refId: pullId
+        );
+
+        foreach (var characterId in selectedCharacterIds)
+        {
+            gameEventLogger.LogProgressionEvent(
+                userId: userId,
+                progressType: GameLogProgressType.Character,
+                subjectId: characterId,
+                changeAmount: 1,
+                beforeValue: 0,
+                afterValue: 1,
+                actionCode: GameLogActionCode.Gacha,
+                refId: pullId
+            );
+        }
 
         return new CharacterGachaResult
         {

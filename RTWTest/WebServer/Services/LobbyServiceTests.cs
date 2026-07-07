@@ -12,6 +12,7 @@ using RTWWebServer.Exceptions;
 using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.MasterData;
 using RTWWebServer.Services;
+using RTWWebServer.GameLog;
 
 namespace RTWTest.Webserver.Services;
 
@@ -61,6 +62,8 @@ public class LobbyServiceTests
             _mockLobbyRepository.Object,
             _mockUserRepository.Object,
             _mockMasterDataProvider.Object,
+            Mock.Of<RTWWebServer.Providers.Authentication.IGuidGenerator>(),
+            Mock.Of<IGameEventLogger>(),
             Mock.Of<ILogger<LobbyService>>());
     }
 

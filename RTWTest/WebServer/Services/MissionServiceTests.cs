@@ -12,6 +12,7 @@ using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Providers.MasterData;
 using RTWWebServer.Services;
+using RTWWebServer.GameLog;
 
 namespace RTWTest.Webserver.Services;
 
@@ -58,6 +59,7 @@ public class MissionServiceTests
             _mockCache.Object,
             _keyGenerator,
             _mockGuidGenerator.Object,
+            Mock.Of<IGameEventLogger>(),
             Mock.Of<ILogger<MissionService>>());
     }
 
@@ -141,6 +143,8 @@ public class MissionServiceTests
         SetupOwnedCharacter(userId, character);
         _mockUserRepository.Setup(x => x.TryConsumeStaminaAsync(userId, mission.StaminaCost, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        _mockUserRepository.Setup(x => x.GetByIdAsNoTrackingAsync(userId))
+            .ReturnsAsync(NewUser(userId, fame: 0, gold: 0, stamina: 95));
 
         var ticket = await _service.StartMissionAsync(userId, mission.Id, character.Id);
 

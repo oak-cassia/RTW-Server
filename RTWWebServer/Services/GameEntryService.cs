@@ -10,6 +10,8 @@ using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Providers.MasterData;
 
+using RTWWebServer.GameLog;
+
 namespace RTWWebServer.Services;
 
 public class GameEntryService(
@@ -18,6 +20,7 @@ public class GameEntryService(
     IPlayerCharacterRepository playerCharacterRepository,
     IMasterDataProvider masterDataProvider,
     IUserSessionProvider userSessionProvider,
+    IGameEventLogger gameEventLogger,
     ILogger<GameEntryService> logger
 ) : IGameEntryService
 {
@@ -87,8 +90,8 @@ public class GameEntryService(
             currentStamina: 100,
             maxStamina: 100,
             lastStaminaRecharge: currentTime,
-            premiumCurrency: 0,
-            freeCurrency: 0,
+            premiumCurrency: 10000,
+            freeCurrency: 10000,
             mainCharacterId: 0, // 기본 캐릭터 지급 후 그 캐릭터로 채운다(프로필 아바타).
             createdAt: currentTime,
             updatedAt: currentTime
@@ -121,5 +124,16 @@ public class GameEntryService(
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation("Created default character {CharacterId} for user {UserId}", defaultCharacter.Id, user.Id);
+
+        gameEventLogger.LogProgressionEvent(
+            userId: user.Id,
+            progressType: GameLogProgressType.Character,
+            subjectId: characterMaster.Id,
+            changeAmount: 1,
+            beforeValue: 0,
+            afterValue: 1,
+            actionCode: GameLogActionCode.NewUser,
+            refId: ""
+        );
     }
 }

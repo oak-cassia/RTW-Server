@@ -6,6 +6,7 @@ using RTWWebServer.Exceptions;
 using RTWWebServer.Game.Mission;
 using RTWWebServer.Providers.Authentication;
 using RTWWebServer.Providers.MasterData;
+using RTWWebServer.GameLog;
 
 namespace RTWWebServer.Services;
 
@@ -17,6 +18,7 @@ public class MissionService(
     IDistributedCacheAdapter cache,
     IRemoteCacheKeyGenerator keyGenerator,
     IGuidGenerator guidGenerator,
+    IGameEventLogger gameEventLogger,
     ILogger<MissionService> logger
 ) : IMissionService
 {
@@ -73,9 +75,24 @@ public class MissionService(
             throw new GameException("Insufficient stamina", WebServerErrorCode.InsufficientStamina);
         }
 
+        var updatedUser = await userRepository.GetByIdAsNoTrackingAsync(userId)
+            ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
+
         // 서버 생성 시드 + 티켓 ID. 결과는 이 시드로만 결정
         long seed = Random.Shared.NextInt64();
         string ticketId = guidGenerator.GenerateGuid().ToString();
+
+        // Stamina 차감 economy_event 발행
+        gameEventLogger.LogEconomyEvent(
+            userId: userId,
+            assetType: GameLogAssetType.Stamina,
+            assetId: 0,
+            changeAmount: -mission.StaminaCost,
+            beforeAmount: updatedUser.CurrentStamina + mission.StaminaCost,
+            afterAmount: updatedUser.CurrentStamina,
+            actionCode: GameLogActionCode.MissionStart,
+            refId: ticketId
+        );
 
         var ticket = new MissionTicket
         {
@@ -86,9 +103,19 @@ public class MissionService(
         };
         await cache.SetAsync(keyGenerator.GenerateMissionTicketKey(ticketId), ticket, TicketExpiration);
 
-        // 임시(스텁): 실시간 게임서버가 생기기 전까지 웹서버가 게임서버 역할을 대신한다. 게임서버 도입 시 삭제
-        // 실제 흐름에선 클라가 게임서버에서 전투를 끝내면 게임서버가 mission:result 키를 Redis에 기록
         var battle = battleSimulator.Simulate(character, mission, seed);
+
+        // battle_event 발행
+        gameEventLogger.LogMissionBattleEvent(
+            userId: userId,
+            ticketId: ticketId,
+            missionId: missionId,
+            characterId: characterId,
+            seed: seed,
+            outcome: battle.Outcome,
+            logs: battle.Log
+        );
+
         await cache.SetAsync(keyGenerator.GenerateMissionResultKey(ticketId), ToRunResult(battle), TicketExpiration);
 
         logger.LogInformation("Mission {MissionId} reserved for userId {UserId}, ticket {TicketId}", missionId, userId, ticketId);
@@ -157,6 +184,64 @@ public class MissionService(
 
         // ExecuteUpdate는 체인지 트래커를 우회하므로, 응답용 최신 상태는 지급 후 새로 읽는다.
         var updatedUser = await userRepository.GetByIdAsNoTrackingAsync(userId) ?? throw new GameException("User not found", WebServerErrorCode.UserNotFound);
+
+        if (fameGained > 0)
+        {
+            gameEventLogger.LogProgressionEvent(
+                userId: userId,
+                progressType: GameLogProgressType.Fame,
+                subjectId: 0,
+                changeAmount: fameGained,
+                beforeValue: updatedUser.Fame - fameGained,
+                afterValue: updatedUser.Fame,
+                actionCode: GameLogActionCode.MissionComplete,
+                refId: ticketId
+            );
+
+            var rankBefore = masterDataProvider.GetRankByFame(updatedUser.Fame - fameGained);
+            var rankAfter = masterDataProvider.GetRankByFame(updatedUser.Fame);
+            if (rankAfter > rankBefore)
+            {
+                gameEventLogger.LogProgressionEvent(
+                    userId: userId,
+                    progressType: GameLogProgressType.Rank,
+                    subjectId: 0,
+                    changeAmount: rankAfter - rankBefore,
+                    beforeValue: rankBefore,
+                    afterValue: rankAfter,
+                    actionCode: GameLogActionCode.MissionComplete,
+                    refId: ticketId
+                );
+            }
+        }
+
+        if (goldGained > 0)
+        {
+            gameEventLogger.LogEconomyEvent(
+                userId: userId,
+                assetType: GameLogAssetType.FreeCurrency,
+                assetId: 0,
+                changeAmount: goldGained,
+                beforeAmount: updatedUser.FreeCurrency - goldGained,
+                afterAmount: updatedUser.FreeCurrency,
+                actionCode: GameLogActionCode.MissionComplete,
+                refId: ticketId
+            );
+        }
+
+        if (expGained > 0)
+        {
+            gameEventLogger.LogProgressionEvent(
+                userId: userId,
+                progressType: GameLogProgressType.Exp,
+                subjectId: 0,
+                changeAmount: expGained,
+                beforeValue: updatedUser.CurrentExp - expGained,
+                afterValue: updatedUser.CurrentExp,
+                actionCode: GameLogActionCode.MissionComplete,
+                refId: ticketId
+            );
+        }
 
         return new MissionResultDto
         {

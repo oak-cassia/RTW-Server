@@ -12,6 +12,8 @@ using RTWWebServer.Exceptions;
 using RTWWebServer.MasterDatas.Models;
 using RTWWebServer.Providers.MasterData;
 using RTWWebServer.Services;
+using RTWWebServer.Providers.Authentication;
+using RTWWebServer.GameLog;
 
 namespace RTWTest.Webserver.Services;
 
@@ -64,6 +66,8 @@ public class CharacterGachaServiceIntegrationTests
             _playerCharacterRepository,
             _mockMasterDataProvider.Object,
             _mockPlayerCharacterCache.Object,
+            Mock.Of<IGuidGenerator>(),
+            Mock.Of<IGameEventLogger>(),
             Mock.Of<ILogger<CharacterGachaService>>());
     }
 
