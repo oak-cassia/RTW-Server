@@ -105,7 +105,7 @@ public class MissionService(
 
         var battle = battleSimulator.Simulate(character, mission, seed);
 
-        // battle_event 발행
+        // mission_battle_event 발행
         gameEventLogger.LogMissionBattleEvent(
             userId: userId,
             ticketId: ticketId,
